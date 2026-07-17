@@ -1,0 +1,25 @@
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Editor/IDE
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Dependency directories (if ever introduced)
+node_modules/
+vendor/
+
+# Build artifacts
+*.log
+*.zip
+
+# Local env/config
+.env
+.env.*
+
+# WordPress packaging output, if ever built into this repo
+/build/
+/dist/
