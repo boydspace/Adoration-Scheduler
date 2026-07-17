@@ -38,14 +38,15 @@ class PersonsListTable extends \WP_List_Table {
 
     public function get_columns(): array {
         return [
-            'cb'            => '<input type="checkbox" />',
-            'id'            => __('ID', 'adoration-scheduler'),
-            'name'          => __('Name', 'adoration-scheduler'),
-            'email'         => __('Email', 'adoration-scheduler'),
-            'phone'         => __('Phone', 'adoration-scheduler'),
-            'approval'      => __('Access', 'adoration-scheduler'),
-            'signup_count'  => __('Signups', 'adoration-scheduler'),
-            'last_signup'   => __('Last Signup', 'adoration-scheduler'),
+            'cb'                => '<input type="checkbox" />',
+            'id'                => __('ID', 'adoration-scheduler'),
+            'name'              => __('Name', 'adoration-scheduler'),
+            'email'             => __('Email', 'adoration-scheduler'),
+            'phone'             => __('Phone', 'adoration-scheduler'),
+            'approval'          => __('Access', 'adoration-scheduler'),
+            'approval_actions'  => '', // Accept/Reject buttons — own always-visible column, not a hover-only row action
+            'signup_count'      => __('Signups', 'adoration-scheduler'),
+            'last_signup'       => __('Last Signup', 'adoration-scheduler'),
         ];
     }
 
@@ -129,6 +130,51 @@ class PersonsListTable extends \WP_List_Table {
             esc_attr($color),
             esc_html($label)
         );
+    }
+
+    /**
+     * ✅ Accept/Reject buttons — own always-visible column (not a
+     * hover-only row action). Previously these lived inside row_actions()
+     * in column_name(), but that "Accept" button wasn't reliably visible
+     * for some users even though the server-rendered HTML was correct
+     * (confirmed via view-source) — a dedicated column sidesteps whatever
+     * was hiding it in that context.
+     */
+    public function column_approval_actions($item): string {
+        $id     = (int)($item['id'] ?? 0);
+        $status = $this->repo->approval_status_of($item);
+
+        $approval_form = function (string $target_status, string $label, string $confirm, string $button_class) use ($id) {
+            return sprintf(
+                '<form method="post" action="%s" style="display:inline-block;margin:0 4px 0 0;">
+                    %s
+                    <input type="hidden" name="action" value="adoration_set_person_approval" />
+                    <input type="hidden" name="page" value="%s" />
+                    <input type="hidden" name="person_id" value="%d" />
+                    <input type="hidden" name="approval_status" value="%s" />
+                    <button type="submit" class="button button-small %s"%s>%s</button>
+                </form>',
+                esc_url(admin_url('admin-post.php')),
+                wp_nonce_field('adoration_set_person_approval_' . $id, '_wpnonce', true, false),
+                esc_attr($this->page_slug),
+                $id,
+                esc_attr($target_status),
+                esc_attr($button_class),
+                $confirm !== '' ? ' onclick="return confirm(' . wp_json_encode($confirm) . ');"' : '',
+                esc_html($label)
+            );
+        };
+
+        $out = '';
+
+        if ($status !== PersonsRepository::STATUS_APPROVED) {
+            $out .= $approval_form(PersonsRepository::STATUS_APPROVED, __('Accept', 'adoration-scheduler'), '', 'button-primary');
+        }
+        if ($status !== PersonsRepository::STATUS_REJECTED) {
+            $out .= $approval_form(PersonsRepository::STATUS_REJECTED, __('Reject', 'adoration-scheduler'), __('Reject this person\'s access request?', 'adoration-scheduler'), '');
+        }
+
+        return $out !== '' ? $out : '—';
     }
 
     /**
@@ -247,40 +293,14 @@ class PersonsListTable extends \WP_List_Table {
             esc_html__('Merge…', 'adoration-scheduler')
         );
 
-        // ✅ Accept/Reject row actions (privacy/approval gate). Rendered as
-        // visible small buttons (not plain row-action text links) so
-        // they're obvious at a glance, especially on Pending/Rejected rows —
-        // a rejected person still gets an "Accept" button here since that's
-        // the same underlying transition (target status = approved).
-        $status = $this->repo->approval_status_of($item);
-
-        $approval_form = function (string $target_status, string $label, string $confirm, string $button_class) use ($id) {
-            return sprintf(
-                '<form method="post" action="%s" style="display:inline;">
-                    %s
-                    <input type="hidden" name="action" value="adoration_set_person_approval" />
-                    <input type="hidden" name="page" value="%s" />
-                    <input type="hidden" name="person_id" value="%d" />
-                    <input type="hidden" name="approval_status" value="%s" />
-                    <button type="submit" class="button button-small %s"%s>%s</button>
-                </form>',
-                esc_url(admin_url('admin-post.php')),
-                wp_nonce_field('adoration_set_person_approval_' . $id, '_wpnonce', true, false),
-                esc_attr($this->page_slug),
-                $id,
-                esc_attr($target_status),
-                esc_attr($button_class),
-                $confirm !== '' ? ' onclick="return confirm(' . wp_json_encode($confirm) . ');"' : '',
-                esc_html($label)
-            );
-        };
-
-        if ($status !== PersonsRepository::STATUS_APPROVED) {
-            $actions['approve'] = $approval_form(PersonsRepository::STATUS_APPROVED, __('Accept', 'adoration-scheduler'), '', 'button-primary');
-        }
-        if ($status !== PersonsRepository::STATUS_REJECTED) {
-            $actions['reject'] = $approval_form(PersonsRepository::STATUS_REJECTED, __('Reject', 'adoration-scheduler'), __('Reject this person\'s access request?', 'adoration-scheduler'), '');
-        }
+        // NOTE: Accept/Reject used to live here as row actions, but they
+        // turned out to be unreliable — present in the server-rendered
+        // HTML (verified via view-source) yet not visually appearing for
+        // some people, most likely a browser extension (cookie-consent
+        // auto-blockers commonly hide/strip any button whose text matches
+        // "Accept") interfering with a button literally labeled "Accept"
+        // inside the hover-only .row-actions area. Moved to their own
+        // always-visible table column instead — see column_approval_actions().
 
         /**
          * Single-row delete uses admin-post.php so redirects happen BEFORE any output.
