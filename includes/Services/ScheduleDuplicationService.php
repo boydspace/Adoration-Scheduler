@@ -316,7 +316,7 @@ class ScheduleDuplicationService {
     private static function redirect_with_toast(string $message, string $type = 'info'): void {
         $url = add_query_arg([
             'page'          => 'adoration_scheduler_schedules',
-            'as_toast'      => $message,
+            'as_toast'      => rawurlencode($message),
             'as_toast_type' => $type,
         ], admin_url('admin.php'));
 

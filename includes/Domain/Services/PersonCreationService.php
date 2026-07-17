@@ -94,7 +94,7 @@ class PersonCreationService {
             array_merge(
                 [
                     'page'          => 'adoration_scheduler_people',
-                    'as_toast'      => $msg,          // DO NOT rawurlencode; add_query_arg() encodes.
+                    'as_toast'      => rawurlencode($msg),
                     'as_toast_type' => 'success',
                 ],
                 $preserve
@@ -254,7 +254,10 @@ class PersonCreationService {
                     'page'               => 'adoration_scheduler_people_add',
                     'person_create_error'=> sanitize_key($code),
 
-                    'as_toast'           => $msg,     // DO NOT rawurlencode; add_query_arg() encodes.
+                    // ✅ add_query_arg() does NOT urlencode new values — must
+                    // encode ourselves or punctuation (e.g. apostrophes) can
+                    // ride raw into the URL and get mangled along the way.
+                    'as_toast'           => rawurlencode($msg),
                     'as_toast_type'      => $type,
                     'as_toast_sticky'    => '1',
                 ],

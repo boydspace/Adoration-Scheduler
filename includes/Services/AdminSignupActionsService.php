@@ -518,7 +518,7 @@ class AdminSignupActionsService
         if (strlen($text) > 300) $text = substr($text, 0, 300);
 
         return add_query_arg([
-            'as_toast'        => $text,
+            'as_toast'        => rawurlencode($text),
             'as_toast_type'   => $type,
             'as_toast_sticky' => $sticky ? '1' : '0',
         ], $url);

@@ -6,6 +6,10 @@ use AdorationScheduler\Admin\Pages\EmailTemplates\Tabs\SenderTab;
 use AdorationScheduler\Admin\Pages\EmailTemplates\Tabs\SignupConfirmationTab;
 use AdorationScheduler\Admin\Pages\EmailTemplates\Tabs\Reminder24hTab;
 use AdorationScheduler\Admin\Pages\EmailTemplates\Tabs\MagicLinkTab;
+use AdorationScheduler\Admin\Pages\EmailTemplates\Tabs\AccessRequestAdminTab;
+use AdorationScheduler\Admin\Pages\EmailTemplates\Tabs\AccessApprovedTab;
+use AdorationScheduler\Admin\Pages\EmailTemplates\Tabs\CoverageDigestTab;
+use AdorationScheduler\Admin\Pages\EmailTemplates\Tabs\ReplacementNeededTab;
 
 if ( ! defined('ABSPATH') ) exit;
 
@@ -59,6 +63,42 @@ class EmailTemplatesPage {
                 "If you did not request this link, you may ignore this email.\n\n".
                 "God bless,\n".
                 "{church_name}\n",
+
+            // ✅ NEW: Admin notice — new access request submitted
+            'access_request_admin_subject' => '[{church_name}] New Adoration access request: {requester_name}',
+            'access_request_admin_body'    =>
+                "A new access request was submitted:\n\n".
+                "Name: {requester_name}\n".
+                "Email: {requester_email}\n\n".
+                "Review pending requests:\n".
+                "{review_url}\n",
+
+            // ✅ NEW: Person notice — access request approved
+            'access_approved_subject' => '[{church_name}] Your Adoration access request was approved',
+            'access_approved_body'    =>
+                "Hello {first_name},\n\n".
+                "Good news — your access request has been approved. You can now sign in to view the schedule and manage your Adoration commitments.\n\n".
+                "Sign in here:\n".
+                "{sign_in_url}\n\n".
+                "You'll get a one-time sign-in link by email each time (no password required, unless you set one from your profile once signed in).\n",
+
+            // ✅ NEW: Admin coverage-gap digest (daily cron)
+            'coverage_digest_subject' => '[{church_name}] {gap_count} Adoration hour(s) need coverage',
+            'coverage_digest_body'    =>
+                "The following {gap_count} Adoration hour(s) have nobody signed up, and each starts within the next {window_hours} hours:\n\n".
+                "{gap_list}\n\n".
+                "View the Coverage Calendar or Signups page to assign someone, or share the schedule with parishioners so they can claim it themselves.\n\n".
+                "{signups_url}\n",
+
+            // ✅ NEW: Replacement/coverage-needed notice
+            'replacement_needed_subject' => '[{church_name}] Coverage needed: {slot_label}',
+            'replacement_needed_body'    =>
+                "{requester_name} requested a replacement for their Adoration commitment:\n\n".
+                "When: {slot_label}\n".
+                "Schedule: {schedule_title}\n".
+                "Note: {note}\n\n".
+                "Sign in to view or claim it:\n".
+                "{claim_url}\n",
         ];
     }
 
@@ -88,11 +128,19 @@ class EmailTemplatesPage {
         $out['signup_confirmation_subject'] = sanitize_text_field($in['signup_confirmation_subject'] ?? '');
         $out['reminder_24h_subject']        = sanitize_text_field($in['reminder_24h_subject'] ?? '');
         $out['magic_link_subject']          = sanitize_text_field($in['magic_link_subject'] ?? '');
+        $out['access_request_admin_subject'] = sanitize_text_field($in['access_request_admin_subject'] ?? '');
+        $out['access_approved_subject']      = sanitize_text_field($in['access_approved_subject'] ?? '');
+        $out['coverage_digest_subject']      = sanitize_text_field($in['coverage_digest_subject'] ?? '');
+        $out['replacement_needed_subject']   = sanitize_text_field($in['replacement_needed_subject'] ?? '');
 
         // Bodies
         $out['signup_confirmation_body'] = wp_kses_post($in['signup_confirmation_body'] ?? '');
         $out['reminder_24h_body']        = wp_kses_post($in['reminder_24h_body'] ?? '');
         $out['magic_link_body']          = wp_kses_post($in['magic_link_body'] ?? '');
+        $out['access_request_admin_body'] = wp_kses_post($in['access_request_admin_body'] ?? '');
+        $out['access_approved_body']      = wp_kses_post($in['access_approved_body'] ?? '');
+        $out['coverage_digest_body']      = wp_kses_post($in['coverage_digest_body'] ?? '');
+        $out['replacement_needed_body']   = wp_kses_post($in['replacement_needed_body'] ?? '');
 
         // Fallbacks for sender
         if ($out['from_name'] === '') {
@@ -112,7 +160,11 @@ class EmailTemplatesPage {
         foreach ([
             'signup_confirmation_subject','signup_confirmation_body',
             'reminder_24h_subject','reminder_24h_body',
-            'magic_link_subject','magic_link_body'
+            'magic_link_subject','magic_link_body',
+            'access_request_admin_subject','access_request_admin_body',
+            'access_approved_subject','access_approved_body',
+            'coverage_digest_subject','coverage_digest_body',
+            'replacement_needed_subject','replacement_needed_body',
         ] as $k) {
             if (trim((string)($out[$k] ?? '')) === '') {
                 $out[$k] = $defaults[$k];
@@ -131,6 +183,10 @@ class EmailTemplatesPage {
             'signup_confirmation' => SignupConfirmationTab::class,
             'reminder_24h'        => Reminder24hTab::class,
             'magic_link'          => MagicLinkTab::class,
+            'access_request_admin' => AccessRequestAdminTab::class,
+            'access_approved'      => AccessApprovedTab::class,
+            'coverage_digest'      => CoverageDigestTab::class,
+            'replacement_needed'   => ReplacementNeededTab::class,
         ];
     }
 

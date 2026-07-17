@@ -324,9 +324,12 @@ class ScheduleCreationService {
         $type = sanitize_key($type);
         if (!in_array($type, $allowed, true)) $type = 'info';
 
+        // ✅ add_query_arg() does NOT urlencode new values — must encode
+        // ourselves or punctuation (e.g. apostrophes) can ride raw into
+        // the URL and get mangled along the way.
         $url = add_query_arg([
             'created'         => '0',
-            'as_toast'        => $message,
+            'as_toast'        => rawurlencode($message),
             'as_toast_type'   => $type,
             'as_toast_sticky' => $sticky ? '1' : '0',
         ], $ref);

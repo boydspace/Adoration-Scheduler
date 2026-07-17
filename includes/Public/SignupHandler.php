@@ -287,8 +287,12 @@ class SignupHandler {
 
         // Only add toast params if we actually have text
         if ($text !== '') {
+            // ✅ add_query_arg() does NOT urlencode new values (common WP
+            // gotcha) — without this, punctuation like apostrophes rides
+            // raw into the redirect URL and can get silently mangled/
+            // stripped by browsers or security layers along the way.
             $url = add_query_arg([
-                'as_toast'        => $text,
+                'as_toast'        => rawurlencode($text),
                 'as_toast_type'   => $toast_type,
                 'as_toast_sticky' => $sticky ? '1' : '0',
             ], $url);

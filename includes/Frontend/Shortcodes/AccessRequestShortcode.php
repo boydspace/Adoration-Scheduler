@@ -112,11 +112,11 @@ class AccessRequestShortcode
                     </div>
 
                     <div class="uk-margin">
-                        <label class="uk-form-label">Phone</label>
+                        <label class="uk-form-label">Cell Phone Number</label>
                         <div class="uk-form-controls">
-                            <input class="uk-input" type="text" name="phone" autocomplete="tel" placeholder="(555) 123-4567">
+                            <input class="uk-input" type="tel" name="phone" required autocomplete="tel" placeholder="(555) 123-4567">
                         </div>
-                        <p class="uk-text-meta uk-margin-remove-top">Optional.</p>
+                        <p class="uk-text-meta uk-margin-remove-top">Required — please use a cell phone number, not a landline. We'll use this for text reminders in the future.</p>
                     </div>
 
                     <?php if ($turnstile_enabled && $turnstile_site_key !== ''): ?>

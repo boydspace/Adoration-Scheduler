@@ -14,9 +14,8 @@ use AdorationScheduler\Domain\Repositories\PersonsRepository;
  * "Coverage Needed" list and recently fulfilled requests.
  *
  * Mirrors UpdateContactInfoHandler's signed-in-person pattern for both
- * actions, and AccessRequestHandler's plain wp_mail() notification style
- * (this is an internal/admin-facing notice, not a templated parishioner
- * lifecycle email, so it deliberately doesn't go through NotificationService).
+ * actions. Notifications go through NotificationService (Replacement
+ * Needed template) so admins can edit the wording from Email Templates.
  */
 class ReplacementRequestService
 {
@@ -263,17 +262,6 @@ class ReplacementRequestService
         $target_email = (string)($ctx['target_email'] ?? '');
         $target_name  = trim((string)($ctx['target_first_name'] ?? '') . ' ' . (string)($ctx['target_last_name'] ?? ''));
 
-        $subject = '[' . get_bloginfo('name') . '] Coverage needed: ' . $slot_label;
-
-        $body  = "{$requester_name} requested a replacement for their Adoration commitment:\n\n";
-        $body .= "When: {$slot_label}\n";
-        if ($schedule !== '') $body .= "Schedule: {$schedule}\n";
-        if (trim($note) !== '') $body .= "Note: " . trim($note) . "\n";
-        if ($target_person_id > 0 && $target_name !== '') {
-            $body .= "\nThis was asked specifically of {$target_name}.\n";
-        }
-        $body .= "\nSign in to view or claim it: {$my_adoration_url}\n";
-
         $recipients = [];
 
         $admin_email = get_option('admin_email');
@@ -296,11 +284,23 @@ class ReplacementRequestService
         $recipients = array_values(array_unique(array_filter($recipients, 'is_email')));
         if (empty($recipients)) return;
 
+        // ✅ Now routed through NotificationService so it's editable from
+        // Email Templates (Replacement Needed tab) — previously a plain
+        // wp_mail() loop. Still sent individually (not one multi-recipient
+        // call) so substitutes can't see each other's addresses.
         try {
-            // Send individually rather than one multi-recipient call, so
-            // substitutes can't see each other's addresses.
             foreach ($recipients as $to) {
-                wp_mail($to, $subject, $body);
+                NotificationService::send_replacement_needed([
+                    'to_email'        => $to,
+                    'requester_name'  => $requester_name,
+                    'slot_label'      => $slot_label,
+                    'schedule_name'   => $schedule,
+                    'note'            => $note,
+                    'target_name'     => ($target_person_id > 0) ? $target_name : '',
+                    'claim_url'       => $my_adoration_url,
+                    'signup_id'       => $signup_id,
+                    'context'         => 'admin',
+                ]);
             }
         } catch (\Throwable $e) {
             error_log('[AdorationScheduler] ReplacementRequestService: notify failed: ' . $e->getMessage());

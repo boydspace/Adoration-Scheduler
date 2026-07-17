@@ -274,21 +274,18 @@ JS;
     }
 
     /**
-     * Accepts either:
-     * - raw text (recommended; add_query_arg will encode), OR
-     * - already-encoded text (some callers might rawurlencode)
-     *
-     * We decode only if it *looks* encoded to avoid mangling '+' or '%' unexpectedly.
+     * ✅ Callers now consistently rawurlencode() the message before handing
+     * it to add_query_arg() (which does NOT encode new values itself —
+     * a common WP gotcha; unencoded punctuation like apostrophes could
+     * ride raw into the URL and get silently mangled). $_GET is already
+     * urldecoded once by PHP, so a rawurlencode()'d value shows up here
+     * double-encoded — always decode once more to undo that. Safe no-op
+     * for any legacy/plain-text caller that doesn't contain a literal '%'.
      */
     private static function sanitize_toast_text(string $raw): string
     {
         $raw = wp_unslash($raw);
-
-        // Decode only if it looks like URL encoding.
-        // Note: $_GET is already urldecoded by PHP, but some callers may double-encode.
-        if (strpos($raw, '%') !== false) {
-            $raw = rawurldecode($raw);
-        }
+        $raw = rawurldecode($raw);
 
         $raw = sanitize_text_field($raw);
         $raw = trim($raw);

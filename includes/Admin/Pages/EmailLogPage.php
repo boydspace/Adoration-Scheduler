@@ -160,9 +160,13 @@ class EmailLogPage
             // Build type options (keep your defaults + add any observed)
             $type_options = [
                 '' => __('All types', 'adoration-scheduler'),
-                'signup_confirmation' => 'signup_confirmation',
-                'reminder_24h'        => 'reminder_24h',
-                'magic_link'          => 'magic_link',
+                'signup_confirmation'   => 'signup_confirmation',
+                'reminder_24h'          => 'reminder_24h',
+                'magic_link'            => 'magic_link',
+                'access_request_admin'  => 'access_request_admin',
+                'access_approved'       => 'access_approved',
+                'coverage_digest'       => 'coverage_digest',
+                'replacement_needed'    => 'replacement_needed',
             ];
             foreach ($rows as $r) {
                 $t = sanitize_key((string)($r['type'] ?? ''));

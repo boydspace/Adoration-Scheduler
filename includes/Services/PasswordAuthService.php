@@ -161,7 +161,7 @@ class PasswordAuthService
         if (strlen($text) > 300) $text = substr($text, 0, 300);
 
         $url = add_query_arg([
-            'as_toast'        => $text,
+            'as_toast'        => rawurlencode($text),
             'as_toast_type'   => $type,
             'as_toast_sticky' => ($type === 'error') ? '1' : '0',
         ], $url);

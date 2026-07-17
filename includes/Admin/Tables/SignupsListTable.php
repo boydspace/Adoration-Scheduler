@@ -404,7 +404,7 @@ class SignupsListTable extends \WP_List_Table {
     private function redirect_with_toast(string $msg, string $type = 'success'): void {
         $args = [
             'page'          => 'adoration_scheduler_signups',
-            'as_toast'      => $msg,
+            'as_toast'      => rawurlencode($msg),
             'as_toast_type' => $type,
         ];
 

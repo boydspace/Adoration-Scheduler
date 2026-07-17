@@ -75,7 +75,7 @@ class SignupsPage {
         $base = self::resolve_return_url();
 
         $url = add_query_arg([
-            'as_toast'      => $msg,
+            'as_toast'      => rawurlencode($msg),
             'as_toast_type' => $type,
         ], $base);
 

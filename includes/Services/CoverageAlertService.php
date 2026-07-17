@@ -163,11 +163,8 @@ class CoverageAlertService
     }
 
     /**
-     * Plain wp_mail() digest — deliberately NOT the templated
-     * NotificationService, matching AccessRequestHandler's and
-     * ReplacementRequestService's precedent that internal/admin-facing
-     * notices use plain mail while parishioner lifecycle emails use the
-     * templated system.
+     * ✅ Now routed through NotificationService so it's editable from
+     * Email Templates (Coverage Digest tab) — previously a plain wp_mail().
      */
     private static function send_digest(array $gaps, int $window_hours): void {
         // Configurable recipient (CoverageAlertsSettingsPage's "Send To" field),
@@ -180,34 +177,10 @@ class CoverageAlertService
 
         $count = count($gaps);
 
-        $subject = sprintf(
-            /* translators: 1: site name, 2: number of unfilled hours */
-            _n(
-                '[%1$s] %2$d Adoration hour needs coverage',
-                '[%1$s] %2$d Adoration hours need coverage',
-                $count,
-                'adoration-scheduler'
-            ),
-            get_bloginfo('name'),
-            $count
-        );
-
         $date_format = get_option('date_format');
         $time_format = get_option('time_format');
 
-        $body  = sprintf(
-            /* translators: 1: number of hours, 2: window in hours */
-            _n(
-                'The following Adoration hour has nobody signed up, and starts within the next %2$d hours:',
-                'The following %1$d Adoration hours have nobody signed up, and each starts within the next %2$d hours:',
-                $count,
-                'adoration-scheduler'
-            ),
-            $count,
-            $window_hours
-        );
-        $body .= "\n\n";
-
+        $gap_lines = [];
         foreach ($gaps as $g) {
             $date  = (string)($g['date'] ?? '');
             $start = (string)($g['start_time'] ?? '');
@@ -227,16 +200,21 @@ class CoverageAlertService
             if ($schedule !== '') $line .= " — {$schedule}";
             if ($chapel !== '')   $line .= " ({$chapel})";
 
-            $body .= "• {$line}\n";
+            $gap_lines[] = "• {$line}";
         }
 
-        $body .= "\nView the Coverage Calendar or Signups page to assign someone, or share the schedule with parishioners so they can claim it themselves.\n";
-        $body .= "\n" . admin_url('admin.php?page=adoration_scheduler_signups') . "\n";
-
         try {
-            wp_mail($recipient, $subject, $body);
+            \AdorationScheduler\Services\NotificationService::send_coverage_digest([
+                'to_email'     => $recipient,
+                'gap_count'    => $count,
+                'window_hours' => $window_hours,
+                'gap_list'     => implode("\n", $gap_lines),
+                'signups_url'  => admin_url('admin.php?page=adoration_scheduler_signups'),
+                'context'      => 'admin',
+                'dedupe_key'   => '', // digest already dedupes via coverage_alert_sent_at per slot
+            ]);
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] CoverageAlertService::send_digest wp_mail failed: ' . $e->getMessage());
+            error_log('[AdorationScheduler] CoverageAlertService::send_digest failed: ' . $e->getMessage());
         }
     }
 

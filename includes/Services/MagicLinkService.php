@@ -621,7 +621,7 @@ class MagicLinkService
         }
 
         return add_query_arg([
-            'as_toast'        => $text,
+            'as_toast'        => rawurlencode($text),
             'as_toast_type'   => $type,
             'as_toast_sticky' => $sticky ? '1' : '0', // always explicit
         ], $url);

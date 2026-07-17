@@ -88,14 +88,16 @@ class PeopleAdminActionsService {
         $allowed = ['success','error','warning','info'];
         if (!in_array($type, $allowed, true)) $type = 'success';
 
-        // Do NOT rawurlencode here; add_query_arg() handles encoding.
+        // ✅ add_query_arg() does NOT urlencode new values — must encode
+        // ourselves or punctuation (e.g. apostrophes) can ride raw into
+        // the URL and get mangled along the way.
         $message = sanitize_text_field(wp_strip_all_tags($message));
         if (strlen($message) > 300) {
             $message = substr($message, 0, 300);
         }
 
         $args = [
-            'as_toast'      => $message,
+            'as_toast'      => rawurlencode($message),
             'as_toast_type' => $type,
         ];
         if ($sticky) {

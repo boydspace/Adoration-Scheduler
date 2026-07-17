@@ -152,6 +152,111 @@ class NotificationService
         return self::send_mail($to, $subject, $body, $context, $type, $args, $dedupe_key, $dedupe_ttl);
     }
 
+    /**
+     * ✅ Admin notice: a new access request came in (approval gate).
+     * Previously a hardcoded wp_mail() in AccessRequestHandler — moved
+     * into the templated system so it's editable from Email Templates.
+     */
+    public static function send_access_request_admin_notice(array $args): bool
+    {
+        $args = self::normalize_args($args);
+
+        $to = trim((string)($args['to_email'] ?? ''));
+        if ($to === '' || ! is_email($to)) return false;
+
+        if (!self::should_send($args)) return true;
+
+        $type    = 'access_request_admin';
+        $context = (string)($args['context'] ?? 'admin');
+
+        $subject = self::render_subject($type, $args);
+        $body    = self::render_body($type, $args);
+
+        $dedupe_key = self::build_dedupe_key($type, $args);
+        $dedupe_ttl = self::dedupe_ttl($args);
+
+        return self::send_mail($to, $subject, $body, $context, $type, $args, $dedupe_key, $dedupe_ttl);
+    }
+
+    /**
+     * ✅ Person notice: their access request was approved. Previously a
+     * hardcoded wp_mail() in AccessRequestHandler.
+     */
+    public static function send_access_approved(array $args): bool
+    {
+        $args = self::normalize_args($args);
+
+        $to = trim((string)($args['to_email'] ?? ''));
+        if ($to === '' || ! is_email($to)) return false;
+
+        if (!self::should_send($args)) return true;
+
+        $type    = 'access_approved';
+        $context = (string)($args['context'] ?? 'admin');
+
+        $subject = self::render_subject($type, $args);
+        $body    = self::render_body($type, $args);
+
+        $dedupe_key = self::build_dedupe_key($type, $args);
+        if ($dedupe_key === '') {
+            $dedupe_key = self::fallback_dedupe_key($type, $to, $args);
+        }
+        $dedupe_ttl = self::dedupe_ttl($args);
+
+        return self::send_mail($to, $subject, $body, $context, $type, $args, $dedupe_key, $dedupe_ttl);
+    }
+
+    /**
+     * ✅ Admin coverage-gap digest (daily cron). Previously a hardcoded
+     * wp_mail() in CoverageAlertService.
+     */
+    public static function send_coverage_digest(array $args): bool
+    {
+        $args = self::normalize_args($args);
+
+        $to = trim((string)($args['to_email'] ?? ''));
+        if ($to === '' || ! is_email($to)) return false;
+
+        if (!self::should_send($args)) return true;
+
+        $type    = 'coverage_digest';
+        $context = (string)($args['context'] ?? 'admin');
+
+        $subject = self::render_subject($type, $args);
+        $body    = self::render_body($type, $args);
+
+        $dedupe_key = self::build_dedupe_key($type, $args);
+        $dedupe_ttl = self::dedupe_ttl($args);
+
+        return self::send_mail($to, $subject, $body, $context, $type, $args, $dedupe_key, $dedupe_ttl);
+    }
+
+    /**
+     * ✅ Replacement/coverage-needed notice, sent individually to the
+     * admin and each substitute/target. Previously a hardcoded wp_mail()
+     * loop in ReplacementRequestService.
+     */
+    public static function send_replacement_needed(array $args): bool
+    {
+        $args = self::normalize_args($args);
+
+        $to = trim((string)($args['to_email'] ?? ''));
+        if ($to === '' || ! is_email($to)) return false;
+
+        if (!self::should_send($args)) return true;
+
+        $type    = 'replacement_needed';
+        $context = (string)($args['context'] ?? 'admin');
+
+        $subject = self::render_subject($type, $args);
+        $body    = self::render_body($type, $args);
+
+        $dedupe_key = self::build_dedupe_key($type, $args);
+        $dedupe_ttl = self::dedupe_ttl($args);
+
+        return self::send_mail($to, $subject, $body, $context, $type, $args, $dedupe_key, $dedupe_ttl);
+    }
+
     private static function send_mail(
         string $to,
         string $subject,
@@ -280,6 +385,18 @@ class NotificationService
                     ? sprintf('Reminder: Adoration Tomorrow (%s)', $when)
                     : sprintf('[%s] Reminder', $schedule_name);
 
+            case 'access_request_admin':
+                return sprintf('[%s] New Adoration access request: %s', get_bloginfo('name'), trim((string)($args['requester_name'] ?? '')));
+
+            case 'access_approved':
+                return sprintf('[%s] Your Adoration access request was approved', get_bloginfo('name'));
+
+            case 'coverage_digest':
+                return sprintf('[%s] %d Adoration hour(s) need coverage', get_bloginfo('name'), (int)($args['gap_count'] ?? 0));
+
+            case 'replacement_needed':
+                return sprintf('[%s] Coverage needed: %s', get_bloginfo('name'), trim((string)($args['slot_label'] ?? '')));
+
             default:
                 return sprintf('[%s] Notification', $schedule_name);
         }
@@ -364,6 +481,88 @@ class NotificationService
                 $lines[] = "If you did not request this, you can ignore this email.";
                 $lines[] = '';
                 $lines[] = get_bloginfo('name') ?: 'Your Parish';
+
+                return implode("\n", $lines);
+
+            case 'access_request_admin':
+                $requester_name  = trim((string)($args['requester_name'] ?? $person_name));
+                $requester_email = trim((string)($args['requester_email'] ?? ''));
+                $review_url      = trim((string)($args['review_url'] ?? ''));
+
+                $lines = [];
+                $lines[] = "A new access request was submitted:";
+                $lines[] = '';
+                $lines[] = "Name: {$requester_name}";
+                if ($requester_email !== '') $lines[] = "Email: {$requester_email}";
+                $lines[] = '';
+                if ($review_url !== '') {
+                    $lines[] = "Review pending requests:";
+                    $lines[] = $review_url;
+                }
+
+                return implode("\n", $lines);
+
+            case 'access_approved':
+                $sign_in_url = trim((string)($args['sign_in_url'] ?? $manage_url));
+
+                $lines = [];
+                $lines[] = $hello;
+                $lines[] = '';
+                $lines[] = "Good news — your access request has been approved. You can now sign in to view the schedule and manage your Adoration commitments.";
+                $lines[] = '';
+                if ($sign_in_url !== '') {
+                    $lines[] = "Sign in here:";
+                    $lines[] = $sign_in_url;
+                    $lines[] = '';
+                }
+                $lines[] = "You'll get a one-time sign-in link by email each time (no password required, unless you set one from your profile once signed in).";
+
+                return implode("\n", $lines);
+
+            case 'coverage_digest':
+                $gap_count    = (int)($args['gap_count'] ?? 0);
+                $window_hours = (int)($args['window_hours'] ?? 48);
+                $gap_list     = (string)($args['gap_list'] ?? '');
+                $signups_url  = trim((string)($args['signups_url'] ?? ''));
+
+                $lines = [];
+                $lines[] = sprintf(
+                    "The following %d Adoration hour(s) have nobody signed up, and each starts within the next %d hours:",
+                    $gap_count,
+                    $window_hours
+                );
+                $lines[] = '';
+                if ($gap_list !== '') $lines[] = $gap_list;
+                $lines[] = '';
+                $lines[] = "View the Coverage Calendar or Signups page to assign someone, or share the schedule with parishioners so they can claim it themselves.";
+                if ($signups_url !== '') {
+                    $lines[] = '';
+                    $lines[] = $signups_url;
+                }
+
+                return implode("\n", $lines);
+
+            case 'replacement_needed':
+                $requester_name = trim((string)($args['requester_name'] ?? $person_name));
+                $note_txt       = trim((string)($args['note'] ?? ''));
+                $target_name    = trim((string)($args['target_name'] ?? ''));
+                $claim_url      = trim((string)($args['claim_url'] ?? $manage_url));
+
+                $lines = [];
+                $lines[] = "{$requester_name} requested a replacement for their Adoration commitment:";
+                $lines[] = '';
+                if ($slot_label !== '')    $lines[] = "When: {$slot_label}";
+                if ($schedule_name !== '') $lines[] = "Schedule: {$schedule_name}";
+                if ($note_txt !== '')      $lines[] = "Note: {$note_txt}";
+                if ($target_name !== '') {
+                    $lines[] = '';
+                    $lines[] = "This was asked specifically of {$target_name}.";
+                }
+                $lines[] = '';
+                if ($claim_url !== '') {
+                    $lines[] = "Sign in to view or claim it:";
+                    $lines[] = $claim_url;
+                }
 
                 return implode("\n", $lines);
 
@@ -467,6 +666,23 @@ class NotificationService
             '{church_name}'    => (string)($args['church_name'] ?? get_bloginfo('name')),
             '{manage_url}'     => (string)($args['manage_url'] ?? $args['magic_url'] ?? ''),
             '{magic_url}'      => (string)($args['magic_url'] ?? $args['manage_url'] ?? ''),
+
+            // ✅ Access request / approval tokens
+            '{requester_name}'  => (string)($args['requester_name'] ?? $person_name),
+            '{requester_email}' => (string)($args['requester_email'] ?? ''),
+            '{review_url}'      => (string)($args['review_url'] ?? ''),
+            '{sign_in_url}'     => (string)($args['sign_in_url'] ?? $args['manage_url'] ?? ''),
+
+            // ✅ Coverage-digest tokens
+            '{gap_count}'    => (string)($args['gap_count'] ?? ''),
+            '{window_hours}' => (string)($args['window_hours'] ?? ''),
+            '{gap_list}'     => (string)($args['gap_list'] ?? ''),
+            '{signups_url}'  => (string)($args['signups_url'] ?? ''),
+
+            // ✅ Replacement-request tokens
+            '{note}'        => (string)($args['note'] ?? ''),
+            '{target_name}' => (string)($args['target_name'] ?? ''),
+            '{claim_url}'   => (string)($args['claim_url'] ?? $args['manage_url'] ?? ''),
         ];
 
         return strtr($text, $repl);
@@ -614,6 +830,22 @@ class NotificationService
             'church_name'    => get_bloginfo('name'),
             'manage_url'     => home_url('/my-adoration/?magic=TESTTOKEN'),
             'magic_url'      => home_url('/my-adoration/?magic=TESTTOKEN'),
+
+            // ✅ Sample data for the 4 newer template types (harmless extra
+            // keys for the older 3 — render_body()/replace_tokens() only
+            // pull the keys each type actually uses).
+            'requester_name'  => 'Jane Requester',
+            'requester_email' => 'jane@example.com',
+            'review_url'      => admin_url('admin.php?page=adoration_scheduler_people&approval_status=pending'),
+            'sign_in_url'     => home_url('/my-adoration/'),
+            'gap_count'       => 3,
+            'window_hours'    => 48,
+            'gap_list'        => "• {$slot_date} {$slot_start}–{$slot_end} — Weekly Adoration (Test) (Main Chapel)",
+            'signups_url'     => admin_url('admin.php?page=adoration_scheduler_signups'),
+            'note'            => 'Family emergency, sorry for the short notice.',
+            'target_name'     => 'John Target',
+            'claim_url'       => home_url('/my-adoration/?magic=TESTTOKEN'),
+
             'context'        => 'admin',
             'send'           => true,
             'schedule_id'    => $schedule_id,

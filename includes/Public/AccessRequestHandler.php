@@ -64,14 +64,14 @@ class AccessRequestHandler
         }
 
         $phone_raw = sanitize_text_field((string) wp_unslash($_POST['phone'] ?? ''));
-        $phone = '';
-        if (trim($phone_raw) !== '') {
-            $normalized = self::normalize_phone_us($phone_raw);
-            if ($normalized === null) {
-                SignupHandler::redirect_back('err', 'Please enter a valid US phone number, or leave it blank.');
-                exit;
-            }
-            $phone = $normalized;
+        if (trim($phone_raw) === '') {
+            SignupHandler::redirect_back('err', 'Please enter a cell phone number — it\'s required so we can text you schedule updates.');
+            exit;
+        }
+        $phone = self::normalize_phone_us($phone_raw);
+        if ($phone === null) {
+            SignupHandler::redirect_back('err', 'Please enter a valid 10-digit US cell phone number.');
+            exit;
         }
 
         $email_norm = strtolower(trim($email));
@@ -167,14 +167,14 @@ class AccessRequestHandler
 
         $approve_url = admin_url('admin.php?page=adoration_scheduler_people&approval_status=pending');
 
-        $subject = '[' . get_bloginfo('name') . '] New Adoration access request: ' . $name;
-        $body  = "A new access request was submitted:\n\n";
-        $body .= "Name: {$name}\n";
-        $body .= "Email: {$email}\n\n";
-        $body .= "Review pending requests: {$approve_url}\n";
-
         try {
-            wp_mail($admin_email, $subject, $body);
+            \AdorationScheduler\Services\NotificationService::send_access_request_admin_notice([
+                'to_email'        => $admin_email,
+                'requester_name'  => $name,
+                'requester_email' => $email,
+                'review_url'      => $approve_url,
+                'context'         => 'admin',
+            ]);
         } catch (\Throwable $e) {
             error_log('[AdorationScheduler] AccessRequestHandler: admin notify failed: ' . $e->getMessage());
         }
@@ -189,9 +189,8 @@ class AccessRequestHandler
      * only invoke this on an actual pending/rejected -> approved transition,
      * never on a no-op re-save of an already-approved person.
      *
-     * Deliberately plain wp_mail() (not the templated NotificationService)
-     * to match this file's existing admin-notify precedent, rather than
-     * adding a new template type for a one-line "you're in" message.
+     * ✅ Now routed through NotificationService so it's editable from
+     * Email Templates (Access Approved tab) — previously a plain wp_mail().
      */
     public static function notify_person_approved(?array $person): void
     {
@@ -202,20 +201,21 @@ class AccessRequestHandler
 
         $title      = trim((string)($person['title'] ?? ''));
         $first_name = trim((string)($person['first_name'] ?? ''));
+        $last_name  = trim((string)($person['last_name'] ?? ''));
         $greeting_name = trim($title . ' ' . $first_name);
-        $greeting   = $greeting_name !== '' ? "Hi {$greeting_name}," : 'Hi,';
 
         $sign_in_url = home_url('/my-adoration/');
 
-        $subject = '[' . get_bloginfo('name') . '] Your Adoration access request was approved';
-
-        $body  = "{$greeting}\n\n";
-        $body .= "Good news — your access request has been approved. You can now sign in to view the schedule and manage your Adoration commitments.\n\n";
-        $body .= "Sign in here: {$sign_in_url}\n\n";
-        $body .= "You'll get a one-time sign-in link by email each time (no password required, unless you set one from your profile once signed in).\n";
-
         try {
-            wp_mail($email, $subject, $body);
+            \AdorationScheduler\Services\NotificationService::send_access_approved([
+                'to_email'     => $email,
+                'first_name'   => $greeting_name !== '' ? $greeting_name : $first_name,
+                'last_name'    => $last_name,
+                'person_name'  => $greeting_name,
+                'sign_in_url'  => $sign_in_url,
+                'person_id'    => (int)($person['id'] ?? 0),
+                'context'      => 'admin',
+            ]);
         } catch (\Throwable $e) {
             error_log('[AdorationScheduler] AccessRequestHandler: approval notify failed: ' . $e->getMessage());
         }
