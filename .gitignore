@@ -23,3 +23,6 @@ vendor/
 # WordPress packaging output, if ever built into this repo
 /build/
 /dist/
+
+# One-time local setup helper (not part of the shipped plugin)
+push-to-github.ps1
