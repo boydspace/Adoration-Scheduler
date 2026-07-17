@@ -1,8 +1,6 @@
 <p align="center">
-  <img src="assets/images/adoration-scheduler-logo.png" alt="Adoration Scheduler" width="720">
+  <img src="images/adoration-scheduler-logo.png" alt="Adoration Scheduler" width="720">
 </p>
-
-<p align="center"><strong>Never miss your hour with Him.</strong></p>
 
 Adoration Scheduler turns WordPress into a complete Eucharistic Adoration scheduling system for parishes. It brings scheduling, signups, substitute coordination, communications, and access control together in one WordPress admin experience — with a secure public portal adorers can use without ever creating a WordPress account.
 
