@@ -6,6 +6,8 @@ use AdorationScheduler\Frontend\UikitLoader;
 use AdorationScheduler\Frontend\SharedStyles;
 use AdorationScheduler\Frontend\Handlers\UpdateContactInfoHandler;
 use AdorationScheduler\Frontend\Handlers\PasswordSetHandler;
+use AdorationScheduler\Frontend\Handlers\DataExportHandler;
+use AdorationScheduler\Services\AccountDeletionService;
 use AdorationScheduler\Domain\Repositories\PersonsRepository;
 
 if ( ! defined('ABSPATH') ) {
@@ -49,6 +51,8 @@ class ProfileCardShortcode
         $contact_nonce  = ($person_id > 0) ? wp_create_nonce('adoration_update_contact_' . $person_id) : '';
         $password_nonce = ($person_id > 0) ? wp_create_nonce('adoration_set_password_' . $person_id) : '';
         $logout_nonce   = wp_create_nonce('adoration_magic_logout');
+        $export_nonce   = ($person_id > 0) ? wp_create_nonce(DataExportHandler::ACTION . '_' . $person_id) : '';
+        $delete_nonce   = ($person_id > 0) ? wp_create_nonce(AccountDeletionService::ACTION . '_' . $person_id) : '';
         $persons_repo   = new PersonsRepository();
         $has_password   = $persons_repo->has_password($person);
         $display_name   = $persons_repo->full_name_with_title($person);
@@ -105,6 +109,23 @@ class ProfileCardShortcode
                                 <?php echo $has_password ? 'Change Password' : 'Set a Password'; ?>
                             </button>
                             <?php if (!$viewing_as_admin_match): ?>
+                                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block;margin:0;">
+                                    <input type="hidden" name="action" value="<?php echo esc_attr(DataExportHandler::ACTION); ?>" />
+                                    <input type="hidden" name="_wpnonce" value="<?php echo esc_attr($export_nonce); ?>" />
+                                    <button type="submit" class="<?php echo esc_attr($btn_edit_class); ?>">
+                                        Download My Data
+                                    </button>
+                                </form>
+                                <button
+                                    type="button"
+                                    class="<?php echo esc_attr($btn_edit_class); ?> as-open-delete"
+                                    data-as-open-delete="1"
+                                    <?php if ($has_uikit_js): ?>
+                                        uk-toggle="target: #<?php echo esc_attr($uid); ?>_delete_modal"
+                                    <?php endif; ?>
+                                >
+                                    Delete My Account
+                                </button>
                                 <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block;margin:0;">
                                     <input type="hidden" name="action" value="adoration_magic_logout" />
                                     <input type="hidden" name="_wpnonce" value="<?php echo esc_attr($logout_nonce); ?>" />
@@ -392,6 +413,66 @@ class ProfileCardShortcode
                 </div>
             <?php endif; ?>
 
+            <!-- Delete Account Modal -->
+            <?php if (!$viewing_as_admin_match): ?>
+                <?php
+                $delete_form_inner = function() use ($uid, $delete_nonce) {
+                    ?>
+                    <p class="uk-text-meta as-muted uk-margin-small">
+                        This permanently removes your name, email, and phone number from our records and cancels
+                        any upcoming Adoration hours or standing commitments you have. Past hours you've already
+                        served stay on the schedule so coverage history stays accurate, but they'll no longer be
+                        linked to your name. This cannot be undone.
+                    </p>
+
+                    <form method="post"
+                          action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
+                          class="uk-form-stacked uk-margin"
+                          style="margin:0;">
+                        <input type="hidden" name="action" value="<?php echo esc_attr(AccountDeletionService::ACTION); ?>" />
+                        <input type="hidden" name="_wpnonce" value="<?php echo esc_attr($delete_nonce); ?>" />
+
+                        <label style="display:flex;align-items:flex-start;gap:6px;">
+                            <input type="checkbox" class="uk-checkbox" name="confirm_delete" value="1" required />
+                            <span class="uk-text-small">
+                                I understand this permanently deletes my account and cannot be undone.
+                            </span>
+                        </label>
+
+                        <p class="uk-text-right uk-margin-top">
+                            <button type="submit" class="uk-button uk-button-danger adoration-btn adoration-btn-danger"
+                                onclick="return window.confirm('Delete your account? This cannot be undone.');">
+                                Delete My Account
+                            </button>
+                        </p>
+                    </form>
+                    <?php
+                };
+                ?>
+
+                <?php if ($has_uikit_js): ?>
+                    <div id="<?php echo esc_attr($uid); ?>_delete_modal" uk-modal>
+                        <div class="uk-modal-dialog uk-modal-body">
+                            <h3 class="uk-modal-title">Delete My Account</h3>
+                            <?php $delete_form_inner(); ?>
+                        </div>
+                    </div>
+                <?php else: ?>
+                    <div id="<?php echo esc_attr($uid); ?>_delete_modal" class="as-modal" aria-hidden="true">
+                        <div class="as-modal__backdrop" data-as-close-delete="1"></div>
+                        <div class="as-modal__panel" role="dialog" aria-modal="true" aria-labelledby="<?php echo esc_attr($uid); ?>_delete_title">
+                            <div class="as-modal__header">
+                                <h3 class="as-modal__title" id="<?php echo esc_attr($uid); ?>_delete_title">Delete My Account</h3>
+                                <button type="button" class="as-modal__close" aria-label="Close" data-as-close-delete="1">×</button>
+                            </div>
+                            <div class="as-modal__body">
+                                <?php $delete_form_inner(); ?>
+                            </div>
+                        </div>
+                    </div>
+                <?php endif; ?>
+            <?php endif; ?>
+
             <script>
             (function() {
                 const root = document.getElementById(<?php echo json_encode($uid); ?>);
@@ -464,6 +545,41 @@ class ProfileCardShortcode
 
                     document.addEventListener('keydown', function(e) {
                         if (e.key === 'Escape') closePasswordModal();
+                    });
+                }
+
+                // --- Delete-account modal fallback wiring (only for .as-modal) ---
+                const deleteModalId = <?php echo json_encode($uid . '_delete_modal'); ?>;
+                const deleteModal   = document.getElementById(deleteModalId);
+
+                function openDeleteModal() {
+                    if (!deleteModal) return;
+                    deleteModal.classList.add('is-open');
+                    deleteModal.setAttribute('aria-hidden', 'false');
+                }
+                function closeDeleteModal() {
+                    if (!deleteModal) return;
+                    deleteModal.classList.remove('is-open');
+                    deleteModal.setAttribute('aria-hidden', 'true');
+                }
+
+                if (deleteModal && deleteModal.classList.contains('as-modal')) {
+                    root.querySelectorAll('[data-as-open-delete="1"]').forEach(btn => {
+                        btn.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            openDeleteModal();
+                        });
+                    });
+
+                    deleteModal.querySelectorAll('[data-as-close-delete="1"]').forEach(btn => {
+                        btn.addEventListener('click', function(e) {
+                            e.preventDefault();
+                            closeDeleteModal();
+                        });
+                    });
+
+                    document.addEventListener('keydown', function(e) {
+                        if (e.key === 'Escape') closeDeleteModal();
                     });
                 }
             })();

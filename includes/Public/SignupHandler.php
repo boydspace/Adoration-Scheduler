@@ -5,6 +5,7 @@ use AdorationScheduler\Domain\Repositories\SchedulesRepository;
 use AdorationScheduler\Domain\Repositories\SlotsRepository;
 use AdorationScheduler\Domain\Repositories\PersonsRepository;
 use AdorationScheduler\Domain\Repositories\SignupsRepository;
+use AdorationScheduler\Domain\Repositories\WaitlistRepository;
 use AdorationScheduler\Services\NotificationService;
 use AdorationScheduler\Services\ReminderScheduler;
 
@@ -329,6 +330,7 @@ class SignupHandler {
             self::redirect_back('err', 'Missing schedule or slot.');
         }
 
+        $title = sanitize_text_field(wp_unslash($_POST['title'] ?? ''));
         $first = sanitize_text_field(wp_unslash($_POST['first_name'] ?? ''));
         $last  = sanitize_text_field(wp_unslash($_POST['last_name'] ?? ''));
         $email = sanitize_email(wp_unslash($_POST['email'] ?? ''));
@@ -391,6 +393,7 @@ class SignupHandler {
         }
 
         $person_id = $personsRepo->upsert_by_email([
+            'title'      => $title,
             'first_name' => $first,
             'last_name'  => $last,
             'email'      => $email_norm,
@@ -465,8 +468,46 @@ class SignupHandler {
             }
 
             if ($confirmed >= $max) {
-                $wpdb->query('ROLLBACK');
-                self::redirect_back('err', 'That slot is full.');
+                $join_waitlist = isset($_POST['join_waitlist']) && (string) wp_unslash($_POST['join_waitlist']) === '1';
+
+                // Nothing was written to the signups table yet in this
+                // transaction, so it's safe to just release the lock and
+                // hand off to the (separate-table) waitlist instead.
+                $wpdb->query('COMMIT');
+
+                if (!$join_waitlist) {
+                    self::redirect_back('err', 'That slot is full. You can join the waitlist and we\'ll email you if a spot opens up.');
+                }
+
+                $waitlist_repo = new WaitlistRepository();
+                $waitlist_id = $waitlist_repo->join((int)$person_id, $schedule_id, $slot_id, $signup_date);
+
+                if ($waitlist_id <= 0) {
+                    self::redirect_back('err', 'Could not join the waitlist. Please try again.');
+                }
+
+                $position = $waitlist_repo->position_in_line($waitlist_id);
+
+                try {
+                    NotificationService::send_waitlist_joined([
+                        'to_email'       => $email_norm,
+                        'first_name'     => $first,
+                        'last_name'      => $last,
+                        'person_name'    => trim($first . ' ' . $last),
+                        'schedule_title' => trim((string)($schedule['name'] ?? $schedule['title'] ?? 'Adoration')),
+                        'schedule_name'  => trim((string)($schedule['name'] ?? $schedule['title'] ?? 'Adoration')),
+                        'slot_date'      => $signup_date,
+                        'slot_start'     => trim((string)($slot['start_time'] ?? $slot['start'] ?? '')),
+                        'slot_end'       => trim((string)($slot['end_time'] ?? $slot['end'] ?? '')),
+                        'position'       => $position,
+                        'manage_url'     => home_url('/my-adoration/'),
+                        'send'           => true,
+                    ]);
+                } catch (\Throwable $e) {
+                    error_log('[AdorationScheduler] Waitlist joined email exception: ' . $e->getMessage());
+                }
+
+                self::redirect_back('ok', "You're #{$position} on the waitlist. We'll email you if a spot opens up.");
             }
         }
 

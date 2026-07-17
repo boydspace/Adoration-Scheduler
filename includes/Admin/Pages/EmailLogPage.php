@@ -167,6 +167,9 @@ class EmailLogPage
                 'access_approved'       => 'access_approved',
                 'coverage_digest'       => 'coverage_digest',
                 'replacement_needed'    => 'replacement_needed',
+                'account_deleted'       => 'account_deleted',
+                'waitlist_joined'       => 'waitlist_joined',
+                'waitlist_promoted'     => 'waitlist_promoted',
             ];
             foreach ($rows as $r) {
                 $t = sanitize_key((string)($r['type'] ?? ''));

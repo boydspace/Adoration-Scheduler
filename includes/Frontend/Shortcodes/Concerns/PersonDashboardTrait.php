@@ -46,26 +46,12 @@ trait PersonDashboardTrait
             ];
         }
 
-        $person = MagicLinkService::current_person();
         $viewing_as_admin_match = false;
+        $person = MagicLinkService::current_person_or_admin_match($viewing_as_admin_match);
         $admin_email_for_notice = '';
 
-        if (!$person && is_user_logged_in() && current_user_can('manage_options')) {
-            $wp_user = wp_get_current_user();
-            $admin_email_for_notice = (string)($wp_user->user_email ?? '');
-
-            if ($admin_email_for_notice !== '' && class_exists(PersonsRepository::class)) {
-                try {
-                    $repo = new PersonsRepository();
-                    $matched = $repo->find_by_email($admin_email_for_notice);
-                    if ($matched) {
-                        $person = $matched;
-                        $viewing_as_admin_match = true;
-                    }
-                } catch (\Throwable $e) {
-                    error_log('[AdorationScheduler] Admin->person email match failed: ' . $e->getMessage());
-                }
-            }
+        if ($viewing_as_admin_match && is_user_logged_in()) {
+            $admin_email_for_notice = (string)(wp_get_current_user()->user_email ?? '');
         }
 
         if (!$person) {

@@ -11,7 +11,7 @@ class Installer {
      * Bump this whenever you change DB schema.
      * Keep it monotonic.
      */
-    public const DB_VERSION = '2026-07-16-13';
+    public const DB_VERSION = '2026-07-17-03';
 
     /**
      * Plugin capabilities (v1.0 guard rails).
@@ -36,7 +36,7 @@ class Installer {
      * Adoration page is now provisioned with this stack instead. Existing
      * pages with real content are never touched (see ensure_my_adoration_page()).
      */
-    private const MY_ADORATION_SHORTCODE = "[adoration_account_status]\n[adoration_profile_card]\n[adoration_next_adoration_hour]\n[adoration_announcements]\n[adoration_my_schedule]\n[adoration_my_replacement_requests]\n[adoration_needed_replacements]";
+    private const MY_ADORATION_SHORTCODE = "[adoration_account_status]\n[adoration_profile_card]\n[adoration_next_adoration_hour]\n[adoration_announcements]\n[adoration_calendar_subscribe]\n[adoration_my_schedule]\n[adoration_my_replacement_requests]\n[adoration_needed_replacements]";
 
     /**
      * Request Access page option + defaults.
@@ -474,6 +474,12 @@ class Installer {
         if (!self::column_exists($persons_table, 'title'))  return false;
         if (!self::column_exists($persons_table, 'parish')) return false;
 
+        // ✅ Personal iCal feed token (2026-07-17).
+        if (!self::column_exists($persons_table, 'calendar_token')) return false;
+
+        // ✅ Self-service account deletion (2026-07-17).
+        if (!self::column_exists($persons_table, 'anonymized_at')) return false;
+
         foreach ([
             'needs_replacement',
             'replacement_requested_at',
@@ -540,6 +546,11 @@ class Installer {
         // ✅ Monthly recurrence (2026-07-16): nth-weekday-of-month templates.
         if (!self::column_exists($date_patterns_table, 'week_of_month')) return false;
 
+        // ✅ Waitlists (2026-07-17): separate table, see the CREATE TABLE comment.
+        $waitlist_table = $prefix . 'waitlist';
+        if (!self::table_exists($waitlist_table)) return false;
+        if (!self::column_exists($waitlist_table, 'status')) return false;
+
         return true;
     }
 
@@ -597,6 +608,13 @@ class Installer {
         // (e.g. "Chapel closed for repairs Sat") — the "news" piece of the
         // modular shortcode family that replaced [adoration_my_adoration].
         $announcements_table = $prefix . 'announcements';
+
+        // ✅ Waitlists (2026-07-17): when a slot is full, an adorer can queue
+        // instead of being turned away. A separate table (not a new signups
+        // status) so the many existing `status = 'confirmed'` filters across
+        // exports, the iCal feed, coverage alerts, and reminders keep working
+        // unchanged — a waiting entry never looks like a real signup to them.
+        $waitlist_table = $prefix . 'waitlist';
 
         /**
          * IMPORTANT:
@@ -722,10 +740,13 @@ class Installer {
             password_hash VARCHAR(255) NULL,
             password_set_at DATETIME NULL,
             substitute_opt_in TINYINT(1) NOT NULL DEFAULT 0,
+            calendar_token CHAR(64) NULL,
+            anonymized_at DATETIME NULL,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
             UNIQUE KEY `email` (`email`),
+            UNIQUE KEY `calendar_token` (`calendar_token`),
             KEY `idx_wp_user_id` (`wp_user_id`),
             KEY `idx_approval_status` (`approval_status`),
             KEY `idx_substitute_opt_in` (`substitute_opt_in`)
@@ -892,6 +913,23 @@ class Installer {
             KEY `idx_created_at` (`created_at`)
         ) {$charset_collate};";
 
+        // ✅ Waitlists (2026-07-17)
+        $sql_waitlist = "CREATE TABLE {$waitlist_table} (
+            id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+            person_id BIGINT(20) UNSIGNED NOT NULL,
+            schedule_id BIGINT(20) UNSIGNED NOT NULL,
+            slot_id BIGINT(20) UNSIGNED NOT NULL,
+            date DATE NOT NULL,
+            status VARCHAR(20) NOT NULL DEFAULT 'waiting',
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            KEY `idx_slot_status_created` (`slot_id`,`status`,`created_at`),
+            KEY `idx_person_status` (`person_id`,`status`),
+            KEY `idx_schedule_id` (`schedule_id`),
+            KEY `idx_date` (`date`)
+        ) {$charset_collate};";
+
         dbDelta($sql_chapels);
         dbDelta($sql_schedules);
         dbDelta($sql_date_patterns);
@@ -909,12 +947,14 @@ class Installer {
         dbDelta($sql_standing_commitments);
         dbDelta($sql_schedule_closures);
         dbDelta($sql_announcements);
+        dbDelta($sql_waitlist);
 
         // Harden upgrades
         self::ensure_chapels_columns($chapels_table); // ✅ NEW
         $main_chapel_id = self::ensure_main_chapel_exists($chapels_table); // ✅ NEW
 
         self::ensure_persons_columns($persons_table);
+        self::ensure_unique_index($persons_table, 'calendar_token', ['calendar_token']);
         self::ensure_signups_columns($signups_table);
         self::ensure_slots_columns($slots_table);
         self::ensure_schedules_columns($schedules_table);
@@ -1499,6 +1539,27 @@ class Installer {
         // optional free text, NULL by default.
         if (!isset($have['title']))  $alters[] = "ADD COLUMN title VARCHAR(50) NULL";
         if (!isset($have['parish'])) $alters[] = "ADD COLUMN parish VARCHAR(190) NULL";
+
+        // ✅ Personal iCal feed token (2026-07-17): bearer credential embedded
+        // in each person's calendar-subscribe URL. Deliberately stored
+        // retrievable (NOT hashed like a password/session) — unlike a login
+        // credential, this needs to be re-displayed on the dashboard every
+        // time so the person can re-copy/re-share it, matching how other
+        // WP plugins handle "feed key"-style calendar subscribe URLs.
+        // Regeneratable if it ever leaks. NULL until first generated.
+        if (!isset($have['calendar_token'])) {
+            $alters[] = "ADD COLUMN calendar_token CHAR(64) NULL";
+        }
+
+        // ✅ Self-service account deletion (2026-07-17): set the moment a
+        // person anonymizes their own account (Download My Data / Delete My
+        // Account on the profile card). The row itself is kept, not
+        // hard-deleted — signups and standing commitments still reference
+        // this id, and hard-deleting would either orphan that history or
+        // require a much larger cascade. NULL means "never anonymized."
+        if (!isset($have['anonymized_at'])) {
+            $alters[] = "ADD COLUMN anonymized_at DATETIME NULL";
+        }
 
         if (!empty($alters)) {
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery

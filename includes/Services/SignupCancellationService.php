@@ -56,7 +56,7 @@ class SignupCancellationService
             exit;
         }
 
-        $person = \AdorationScheduler\Services\MagicLinkService::current_person();
+        $person = \AdorationScheduler\Services\MagicLinkService::current_person_or_admin_match();
         if (!$person || empty($person['id'])) {
             $fail2 = self::add_toast($return, 'error', 'Please sign in to manage your signups.');
             wp_safe_redirect($fail2);
@@ -294,6 +294,18 @@ class SignupCancellationService
             $fmt,
             ['%d', '%d']
         );
+
+        // A confirmed seat was just freed — offer it to whoever's been
+        // waiting longest for this slot (best-effort; never blocks cancel).
+        if ($updated !== false && $slot_id > 0
+            && class_exists('\\AdorationScheduler\\Services\\WaitlistService')
+            && method_exists('\\AdorationScheduler\\Services\\WaitlistService', 'promote_next_for_slot')) {
+            try {
+                \AdorationScheduler\Services\WaitlistService::promote_next_for_slot($slot_id);
+            } catch (\Throwable $e) {
+                error_log('[AdorationScheduler] SignupCancellationService waitlist promotion failed signup_id=' . $signup_id . ' err=' . $e->getMessage());
+            }
+        }
 
         return ($updated !== false);
     }

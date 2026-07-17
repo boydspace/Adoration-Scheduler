@@ -43,6 +43,8 @@ class PagesShortcodesPage
             'adoration_my_schedule'                => 'My Adoration portal: upcoming signups list',
             'adoration_my_replacement_requests'   => 'My Adoration portal: my replacement requests',
             'adoration_needed_replacements'       => 'My Adoration portal: open replacement requests to claim',
+            'adoration_open_hours'                 => 'Public open-hours board (no names) + calendar subscribe link',
+            'adoration_calendar_subscribe'          => 'My Adoration portal: personal calendar subscribe link',
         ];
 
         $registration = [];

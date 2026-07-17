@@ -18,24 +18,31 @@ Adoration Scheduler turns WordPress into a complete Eucharistic Adoration schedu
 - Replacement requests let an adorer flag an hour as needing coverage without cancelling outright.
 - Direct-to-person swap requests let an adorer ask one specific person to cover an hour privately, or open the request to the whole community of opted-in substitutes.
 - A "Coverage Needed" board and an "Asked of You" view keep everyone aware of open requests.
+- Waitlists: signing up for a full hour offers a spot in line instead of a dead end, and whoever's been waiting longest is automatically confirmed the moment someone cancels — no admin action needed.
 
 ### Accounts and access
 - Secure "magic link" email sign-in, with an optional password as a second sign-in method.
 - Optional approval-gated access, so a parish can require a short request before adorers can use the portal.
 - A modular "My Adoration" portal built from composable shortcodes — standing hours, upcoming signups, profile card, replacement requests, announcements — so a parish can lay out its own page.
 - Self-service profile editing, including clergy titles and parish affiliation.
+- Self-service "Download My Data" export and "Delete My Account" — an adorer can download a copy of their profile, standing hours, and signup history, or anonymize their own account, cancelling future hours and revoking sign-in access without disturbing past coverage history.
 
 ### Communications
-- Automatic email confirmations, reminders, and cancellations.
+- Automatic email confirmations, reminders, and cancellations — every outgoing email is editable from Email Templates, with merge tags and a send-test tool.
 - Daily coverage-gap alert emails warning staff about unfilled hours coming up soon, with a configurable time window and recipient address.
 - Parish announcements shortcode for the portal.
 - Admin email log with resend tools.
+- Personal iCal subscribe feed so an adorer's own confirmed hours stay synced to their phone or computer calendar automatically.
+- Public "open hours" board and calendar feed per schedule, showing fill status with no adorer names — safe to advertise on a public page.
 
 ### Administration
 - Consolidated, simplified admin menu.
 - Signup audit trail for accountability.
 - Built-in Pages & Shortcodes diagnostic tool to confirm the portal is wired up correctly.
 - Privacy controls for what's shown on public listings.
+- Bulk roster import and export in CSV or XLSX (Excel) format, with a review-before-you-commit preview that flags new people, updates, and email conflicts.
+- Schedules list export in CSV or XLSX.
+- Printable rosters — a clean, chapel-binder-friendly page per schedule and date range, grouped by date/time with names and phone numbers, ready to print or save as a PDF from the browser.
 
 ## Requirements
 
@@ -61,10 +68,7 @@ Adoration Scheduler turns WordPress into a complete Eucharistic Adoration schedu
 
 ## Roadmap
 
-- iCal subscription feed for personal calendars
-- CSV import for bulk-loading existing adorer rosters
 - SMS reminders (pending a provider decision)
-- Adorer-facing data export and erasure tools
 - Expanded accessibility and mobile usability review
 
 ## Development status

@@ -72,6 +72,27 @@ class SchedulesRepository {
     }
 
     /**
+     * Every schedule, every status (draft/active/trash alike), with the
+     * chapel name joined in — for the admin CSV/XLSX export. Unlike
+     * list_all()/admin_list(), this is intentionally unfiltered and
+     * unpaginated: an export should reflect everything that exists, not
+     * just what the on-screen "All" view (which hides trash) shows.
+     */
+    public function export_rows(): array {
+        global $wpdb;
+
+        $chapels = $wpdb->prefix . 'adoration_chapels';
+
+        $sql = "SELECT s.*, c.name AS chapel_name
+                FROM {$this->table} s
+                LEFT JOIN {$chapels} c ON c.id = s.chapel_id
+                ORDER BY s.name ASC";
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
+        return (array) $wpdb->get_results( $sql, ARRAY_A );
+    }
+
+    /**
      * ✅ Perpetual adoration: active, non-trashed schedules of type 'perpetual'.
      * Used by PerpetualScheduleGeneratorService's rolling-window cron job.
      */

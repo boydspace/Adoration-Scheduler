@@ -128,6 +128,16 @@ class Menu {
             [__CLASS__, 'render_merge_people_page']
         );
 
+        // ✅ Import / Export (bulk CSV/XLSX roster import + export)
+        add_submenu_page(
+            'adoration_scheduler_dashboard',
+            __('Import / Export', 'adoration-scheduler'),
+            __('Import / Export', 'adoration-scheduler'),
+            self::CAP_MANAGE_PEOPLE,
+            'adoration_scheduler_people_import_export',
+            [__CLASS__, 'render_people_import_export_page']
+        );
+
         // ✅ Chapels (treat as settings-level) — this is also the visible
         // "Settings" entry point; its sidebar label is "Settings" but the
         // page itself still renders as "Chapels" with a tab bar (see
@@ -259,6 +269,7 @@ class Menu {
             'adoration_scheduler_people_access_requests',
             'adoration_scheduler_people_add',
             'adoration_scheduler_people_merge',
+            'adoration_scheduler_people_import_export',
             'adoration_scheduler_email_templates',
             'adoration_scheduler_email_log',
             'adoration_scheduler_antispam',
@@ -327,6 +338,7 @@ class Menu {
             'adoration_scheduler_people_access_requests'  => $access_requests_label,
             'adoration_scheduler_people_add'              => __('Add Person', 'adoration-scheduler'),
             'adoration_scheduler_people_merge'            => __('Merge People', 'adoration-scheduler'),
+            'adoration_scheduler_people_import_export'    => __('Import / Export', 'adoration-scheduler'),
         ];
 
         self::render_tab_bar($tabs, $active);
@@ -593,6 +605,22 @@ SVG;
         self::require_admin_page_file($candidates);
 
         $class = '\\AdorationScheduler\\Admin\\Pages\\MergePeoplePage';
+        if (!class_exists($class)) {
+            self::die_missing($class, $candidates);
+        }
+
+        (new $class())->render();
+    }
+
+    public static function render_people_import_export_page(): void {
+        if ( ! current_user_can(self::CAP_MANAGE_PEOPLE) && ! current_user_can('manage_options') ) {
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+        }
+
+        $candidates = ['Pages/PeopleImportExportPage.php'];
+        self::require_admin_page_file($candidates);
+
+        $class = '\\AdorationScheduler\\Admin\\Pages\\PeopleImportExportPage';
         if (!class_exists($class)) {
             self::die_missing($class, $candidates);
         }

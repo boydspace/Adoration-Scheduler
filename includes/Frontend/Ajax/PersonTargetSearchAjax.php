@@ -9,9 +9,10 @@ if ( ! defined('ABSPATH') ) exit;
 /**
  * AJAX search backing the "ask a specific person" picker in the Request
  * Replacement modal (Direct-to-person swap requests). Public-facing but
- * signed-in-only: authenticated via MagicLinkService::current_person()
- * (the parishioner session cookie), NOT current_user_can(), since most
- * parishioners aren't WP users. Deliberately returns only id + display
+ * signed-in-only: authenticated via
+ * MagicLinkService::current_person_or_admin_match() (the parishioner
+ * session cookie, or a WP staff admin's own email-matched person record).
+ * Deliberately returns only id + display
  * name — no email/phone — via PersonsRepository::search_by_name_for_target(),
  * a narrower method than the admin-facing people search.
  */
@@ -32,7 +33,7 @@ class PersonTargetSearchAjax
             wp_send_json_error(['message' => 'Bad nonce'], 400);
         }
 
-        $person = MagicLinkService::current_person();
+        $person = MagicLinkService::current_person_or_admin_match();
         $person_id = (int)($person['id'] ?? 0);
         if ($person_id <= 0) {
             wp_send_json_error(['message' => 'Please sign in again.'], 403);

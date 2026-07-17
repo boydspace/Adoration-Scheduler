@@ -435,6 +435,7 @@ class EditSchedulePage {
 
         $signup_counts = [];
         $signups_by_slot = [];
+        $waitlist_by_slot = [];
 
         $current_page_slug = sanitize_key($_GET['page'] ?? 'adoration_scheduler_schedules');
         if ($current_page_slug === '') $current_page_slug = 'adoration_scheduler_schedules';
@@ -1556,6 +1557,18 @@ class EditSchedulePage {
                     if ($sid <= 0) continue;
                     if (!isset($signups_by_slot[$sid])) $signups_by_slot[$sid] = [];
                     $signups_by_slot[$sid][] = $su;
+                }
+
+                // ✅ Waitlist (2026-07-17): who's waiting per slot, for admin visibility.
+                if (class_exists(\AdorationScheduler\Domain\Repositories\WaitlistRepository::class)) {
+                    $waitlist_repo_for_tab = new \AdorationScheduler\Domain\Repositories\WaitlistRepository();
+                    $all_waiting = $waitlist_repo_for_tab->list_for_schedule($schedule_id, true);
+                    foreach ($all_waiting as $wl) {
+                        $sid = (int)($wl['slot_id'] ?? 0);
+                        if ($sid <= 0) continue;
+                        if (!isset($waitlist_by_slot[$sid])) $waitlist_by_slot[$sid] = [];
+                        $waitlist_by_slot[$sid][] = $wl;
+                    }
                 }
             }
         }

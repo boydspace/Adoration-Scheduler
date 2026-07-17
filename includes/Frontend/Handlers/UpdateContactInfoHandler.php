@@ -59,8 +59,8 @@ class UpdateContactInfoHandler
     {
         $return = isset($_POST['return']) ? esc_url_raw((string) $_POST['return']) : home_url('/');
 
-        // Must be signed in.
-        $person = MagicLinkService::current_person();
+        // Must be signed in (or a WP admin previewing a matching person record).
+        $person = MagicLinkService::current_person_or_admin_match();
         $person_id = (int)($person['id'] ?? 0);
         if ($person_id <= 0) {
             self::redirect_with_toast($return, 'Please sign in again to update your information.', 'error');

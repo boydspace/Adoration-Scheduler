@@ -58,6 +58,7 @@ class StandingSignupHandler {
             SignupHandler::redirect_back('err', 'Missing schedule or weekly hour.');
         }
 
+        $title = sanitize_text_field(wp_unslash($_POST['title'] ?? ''));
         $first = sanitize_text_field(wp_unslash($_POST['first_name'] ?? ''));
         $last  = sanitize_text_field(wp_unslash($_POST['last_name'] ?? ''));
         $email = sanitize_email(wp_unslash($_POST['email'] ?? ''));
@@ -149,6 +150,7 @@ class StandingSignupHandler {
         }
 
         $person_id = $personsRepo->upsert_by_email([
+            'title'      => $title,
             'first_name' => $first,
             'last_name'  => $last,
             'email'      => $email_norm,

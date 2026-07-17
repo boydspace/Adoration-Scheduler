@@ -339,6 +339,48 @@ class Plugin {
                 'PersonCreationService'
             );
 
+            // People bulk import/export (CSV + XLSX)
+            self::require_first_existing($includes_dir, [
+                'Domain/Services/PeopleImportExportService.php',
+                'domain/Services/PeopleImportExportService.php',
+            ]);
+
+            self::try_register_service(
+                [
+                    'AdorationScheduler\\Domain\\Services\\PeopleImportExportService',
+                ],
+                ['register', 'init', 'bootstrap', 'boot'],
+                'PeopleImportExportService'
+            );
+
+            // Schedules export (CSV + XLSX)
+            self::require_first_existing($includes_dir, [
+                'Domain/Services/ScheduleExportService.php',
+                'domain/Services/ScheduleExportService.php',
+            ]);
+
+            self::try_register_service(
+                [
+                    'AdorationScheduler\\Domain\\Services\\ScheduleExportService',
+                ],
+                ['register', 'init', 'bootstrap', 'boot'],
+                'ScheduleExportService'
+            );
+
+            // Printable rosters (2026-07-17): staff-only chapel-binder view
+            self::require_first_existing($includes_dir, [
+                'Domain/Services/RosterPrintService.php',
+                'domain/Services/RosterPrintService.php',
+            ]);
+
+            self::try_register_service(
+                [
+                    'AdorationScheduler\\Domain\\Services\\RosterPrintService',
+                ],
+                ['register', 'init', 'bootstrap', 'boot'],
+                'RosterPrintService'
+            );
+
             // ADMIN AJAX: People search
             self::require_first_existing($includes_dir, [
                 'Admin/Ajax/PeopleSearchAjax.php',
@@ -778,6 +820,19 @@ class Plugin {
             error_log('[AdorationScheduler] MagicLinkService missing or no register() method: ' . $magicSvc);
         }
 
+        // ✅ Personal + public iCal subscribe feeds (2026-07-17)
+        self::require_first_existing($includes_dir, [
+            'Services/CalendarFeedService.php',
+            'services/CalendarFeedService.php',
+        ]);
+
+        $calendarFeedSvc = 'AdorationScheduler\\Services\\CalendarFeedService';
+        if (class_exists($calendarFeedSvc) && method_exists($calendarFeedSvc, 'register')) {
+            $calendarFeedSvc::register();
+        } else {
+            error_log('[AdorationScheduler] CalendarFeedService missing or no register() method: ' . $calendarFeedSvc);
+        }
+
         // ✅ Hybrid auth (Phase 2): optional "sign in with password"
         self::require_first_existing($includes_dir, [
             'Services/PasswordAuthService.php',
@@ -815,6 +870,48 @@ class Plugin {
             $replacementSvc::register();
         } else {
             error_log('[AdorationScheduler] ReplacementRequestService missing or no register() method: ' . $replacementSvc);
+        }
+
+        // ✅ Waitlists (2026-07-17): leave-waitlist + admin-remove handlers,
+        // plus promote_next_for_slot() used by cancellation call sites above.
+        self::require_first_existing($includes_dir, [
+            'Services/WaitlistService.php',
+            'services/WaitlistService.php',
+        ]);
+
+        $waitlistSvc = 'AdorationScheduler\\Services\\WaitlistService';
+        if (class_exists($waitlistSvc) && method_exists($waitlistSvc, 'register')) {
+            $waitlistSvc::register();
+        } else {
+            error_log('[AdorationScheduler] WaitlistService missing or no register() method: ' . $waitlistSvc);
+        }
+
+        // ✅ Self-service data export ("Download My Data")
+        self::require_first_existing($includes_dir, [
+            'Frontend/Handlers/DataExportHandler.php',
+            'Frontend/handlers/DataExportHandler.php',
+        ]);
+
+        $dataExportHandler = 'AdorationScheduler\\Frontend\\Handlers\\DataExportHandler';
+        if (class_exists($dataExportHandler) && method_exists($dataExportHandler, 'register')) {
+            $dataExportHandler::register();
+        } else {
+            error_log('[AdorationScheduler] DataExportHandler missing or no register() method: ' . $dataExportHandler);
+        }
+
+        // ✅ Self-service account deletion ("Delete My Account") — anonymizes
+        // the person row rather than hard-deleting; see AccountDeletionService
+        // docblock for why.
+        self::require_first_existing($includes_dir, [
+            'Services/AccountDeletionService.php',
+            'services/AccountDeletionService.php',
+        ]);
+
+        $accountDeletionSvc = 'AdorationScheduler\\Services\\AccountDeletionService';
+        if (class_exists($accountDeletionSvc) && method_exists($accountDeletionSvc, 'register')) {
+            $accountDeletionSvc::register();
+        } else {
+            error_log('[AdorationScheduler] AccountDeletionService missing or no register() method: ' . $accountDeletionSvc);
         }
 
         // ✅ Direct-to-person swap requests: public, signed-in-only AJAX
@@ -855,6 +952,8 @@ class Plugin {
             'MyReplacementRequestsShortcode',
             'NextAdorationHourShortcode',
             'AnnouncementsShortcode',
+            'OpenHoursShortcode',
+            'CalendarSubscribeShortcode',
         ] as $shortcode_class_name) {
             self::require_first_existing($includes_dir, [
                 "Frontend/Shortcodes/{$shortcode_class_name}.php",

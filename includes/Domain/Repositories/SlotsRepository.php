@@ -305,6 +305,147 @@ class SlotsRepository {
     }
 
     /**
+     * ✅ iCal feed / [adoration_open_hours]: upcoming active slots for a
+     * schedule, with chapel name and confirmed-signup count attached —
+     * deliberately no join to persons/signups beyond a COUNT(), so this
+     * never has adorer names to leak. Shared by the public calendar feed
+     * and the public open-hours shortcode.
+     *
+     * @return array<int, array{
+     *   id:int, date:string, start_time:string, end_time:string,
+     *   start_at:?string, end_at:?string, min_adorers:?int, max_adorers:?int,
+     *   chapel_name:string, confirmed_count:int, is_full:bool
+     * }>
+     */
+    public function list_upcoming_with_status(int $schedule_id, int $days_ahead = 180): array {
+        global $wpdb;
+
+        if ($schedule_id <= 0) return [];
+        $days_ahead = max(1, min(365, $days_ahead));
+
+        $chapels_table = $wpdb->prefix . 'adoration_chapels';
+        $signups_table = $wpdb->prefix . 'adoration_signups';
+
+        $has_dt = $this->has_start_at_columns();
+
+        if ($has_dt) {
+            $tz  = function_exists('wp_timezone') ? wp_timezone() : new \DateTimeZone('UTC');
+            $now = new \DateTimeImmutable('now', $tz);
+
+            $window_start = $now->format('Y-m-d H:i:s');
+            $window_end   = $now->modify('+' . $days_ahead . ' days')->format('Y-m-d H:i:s');
+
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $sql = $wpdb->prepare(
+                "SELECT s.id, s.`date`, s.start_time, s.end_time, s.start_at, s.end_at,
+                        s.min_adorers, s.max_adorers, ch.name AS chapel_name,
+                        (SELECT COUNT(*) FROM {$signups_table} sig
+                          WHERE sig.slot_id = s.id AND sig.status = 'confirmed') AS confirmed_count
+                 FROM {$this->table} s
+                 LEFT JOIN {$chapels_table} ch ON ch.id = s.chapel_id
+                 WHERE s.schedule_id = %d
+                   AND s.is_active = 1
+                   AND s.start_at >= %s
+                   AND s.start_at <  %s
+                 ORDER BY s.start_at ASC",
+                $schedule_id,
+                $window_start,
+                $window_end
+            );
+        } else {
+            $today = current_time('Y-m-d');
+            $until = date('Y-m-d', strtotime($today . ' +' . $days_ahead . ' days'));
+
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $sql = $wpdb->prepare(
+                "SELECT s.id, s.`date`, s.start_time, s.end_time, NULL AS start_at, NULL AS end_at,
+                        s.min_adorers, s.max_adorers, ch.name AS chapel_name,
+                        (SELECT COUNT(*) FROM {$signups_table} sig
+                          WHERE sig.slot_id = s.id AND sig.status = 'confirmed') AS confirmed_count
+                 FROM {$this->table} s
+                 LEFT JOIN {$chapels_table} ch ON ch.id = s.chapel_id
+                 WHERE s.schedule_id = %d
+                   AND s.is_active = 1
+                   AND s.`date` >= %s
+                   AND s.`date` <= %s
+                 ORDER BY s.`date` ASC, s.start_time ASC",
+                $schedule_id,
+                $today,
+                $until
+            );
+        }
+
+        $rows = (array) $wpdb->get_results($sql, ARRAY_A);
+
+        foreach ($rows as &$row) {
+            $max = isset($row['max_adorers']) && $row['max_adorers'] !== null ? (int)$row['max_adorers'] : null;
+            $count = (int)($row['confirmed_count'] ?? 0);
+            $row['confirmed_count'] = $count;
+            $row['is_full'] = ($max !== null && $count >= $max);
+        }
+        unset($row);
+
+        return $rows;
+    }
+
+    /**
+     * ✅ Printable roster (2026-07-17): active slots for a schedule within an
+     * explicit [from_ymd, to_ymd] date range, chronological, with chapel
+     * name — for the admin "Print Roster" view. Sibling to
+     * list_upcoming_with_status() (which takes a rolling "days ahead from
+     * now" window instead of an explicit range) but this one doesn't
+     * compute confirmed_count/is_full since the roster page joins actual
+     * signup rows separately to get names, not just counts.
+     */
+    public function list_for_roster(int $schedule_id, string $from_ymd, string $to_ymd): array {
+        global $wpdb;
+
+        $schedule_id = (int)$schedule_id;
+        $from_ymd = sanitize_text_field($from_ymd);
+        $to_ymd   = sanitize_text_field($to_ymd);
+        if ($schedule_id <= 0 || $from_ymd === '' || $to_ymd === '') return [];
+
+        $chapels_table = $wpdb->prefix . 'adoration_chapels';
+        $has_dt = $this->has_start_at_columns();
+
+        if ($has_dt) {
+            $sql = $wpdb->prepare(
+                "SELECT s.id, s.`date`, s.start_time, s.end_time, s.start_at, s.end_at,
+                        s.min_adorers, s.max_adorers, ch.name AS chapel_name
+                 FROM {$this->table} s
+                 LEFT JOIN {$chapels_table} ch ON ch.id = s.chapel_id
+                 WHERE s.schedule_id = %d
+                   AND s.is_active = 1
+                   AND s.`date` BETWEEN %s AND %s
+                 ORDER BY
+                   CASE WHEN s.start_at IS NULL THEN 1 ELSE 0 END ASC,
+                   s.start_at ASC,
+                   s.id ASC",
+                $schedule_id,
+                $from_ymd,
+                $to_ymd
+            );
+        } else {
+            $sql = $wpdb->prepare(
+                "SELECT s.id, s.`date`, s.start_time, s.end_time, NULL AS start_at, NULL AS end_at,
+                        s.min_adorers, s.max_adorers, ch.name AS chapel_name
+                 FROM {$this->table} s
+                 LEFT JOIN {$chapels_table} ch ON ch.id = s.chapel_id
+                 WHERE s.schedule_id = %d
+                   AND s.is_active = 1
+                   AND s.`date` BETWEEN %s AND %s
+                 ORDER BY s.`date` ASC, s.start_time ASC, s.id ASC",
+                $schedule_id,
+                $from_ymd,
+                $to_ymd
+            );
+        }
+
+        $rows = (array) $wpdb->get_results($sql, ARRAY_A);
+        return $rows;
+    }
+
+    /**
      * List ACTIVE slots only.
      */
     public function list_active_for_schedule(int $schedule_id): array {

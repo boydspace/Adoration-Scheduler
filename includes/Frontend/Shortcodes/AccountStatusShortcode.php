@@ -34,25 +34,8 @@ class AccountStatusShortcode
 
         $sign_in_url = self::normalize_url((string)$atts['sign_in_url']);
 
-        $person = MagicLinkService::current_person();
-
         $viewing_as_admin_match = false;
-        if (!$person && is_user_logged_in() && current_user_can('manage_options')) {
-            try {
-                $wp_user = wp_get_current_user();
-                $email = (string)($wp_user->user_email ?? '');
-                if ($email !== '' && class_exists(\AdorationScheduler\Domain\Repositories\PersonsRepository::class)) {
-                    $repo = new \AdorationScheduler\Domain\Repositories\PersonsRepository();
-                    $matched = $repo->find_by_email($email);
-                    if ($matched) {
-                        $person = $matched;
-                        $viewing_as_admin_match = true;
-                    }
-                }
-            } catch (\Throwable $e) {
-                error_log('[AdorationScheduler] AccountStatusShortcode admin match failed: ' . $e->getMessage());
-            }
-        }
+        $person = MagicLinkService::current_person_or_admin_match($viewing_as_admin_match);
 
         $uid = self::new_uid('asstatus');
         $logout_nonce = wp_create_nonce('adoration_magic_logout');

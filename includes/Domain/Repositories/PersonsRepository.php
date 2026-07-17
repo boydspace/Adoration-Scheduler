@@ -605,6 +605,133 @@ class PersonsRepository {
     }
 
     // -------------------------------------------------------------------------
+    // SELF-SERVICE ACCOUNT DELETION
+    // -------------------------------------------------------------------------
+
+    /**
+     * Anonymize a person's own record on self-service "Delete My Account".
+     *
+     * Deliberately NOT a hard delete: this row's id is still referenced by
+     * adoration_signups (historical coverage counts) and possibly
+     * adoration_standing_commitments, so removing the row outright would
+     * either orphan that history or require a much larger cascade the
+     * caller is responsible for running FIRST (cancelling future signups,
+     * ending standing commitments, clearing any replacement_target
+     * pointers aimed at this person — see AccountDeletionService, which
+     * orchestrates all of that before calling this method).
+     *
+     * The replacement email is unique (satisfies the `email` UNIQUE key)
+     * so the person's real email address becomes free for them (or anyone
+     * else) to sign up with again as a brand-new person in the future.
+     */
+    public function anonymize_person(int $person_id): bool {
+        global $wpdb;
+
+        if ($person_id <= 0) return false;
+
+        $placeholder_email = 'removed-' . $person_id . '-' . substr(md5(uniqid((string)$person_id, true)), 0, 12) . '@removed.invalid';
+
+        $res = $wpdb->update(
+            $this->table,
+            [
+                'first_name'        => 'Removed',
+                'last_name'         => 'Adorer',
+                'title'             => null,
+                'parish'            => null,
+                'email'             => $placeholder_email,
+                'phone'             => null,
+                'notes'             => null,
+                'password_hash'     => null,
+                'password_set_at'   => null,
+                'substitute_opt_in' => 0,
+                'calendar_token'    => null,
+                'anonymized_at'     => gmdate('Y-m-d H:i:s'),
+            ],
+            ['id' => $person_id],
+            ['%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s'],
+            ['%d']
+        );
+
+        return $res !== false;
+    }
+
+    /**
+     * True if this person has already gone through self-service deletion.
+     */
+    public function is_anonymized(array $person): bool {
+        return !empty($person['anonymized_at']);
+    }
+
+    // -------------------------------------------------------------------------
+    // PERSONAL ICAL FEED TOKEN
+    // -------------------------------------------------------------------------
+
+    /**
+     * Return this person's calendar subscribe token, generating and
+     * persisting one on first use. Unlike password/session credentials,
+     * this is deliberately stored retrievable (not hashed) so it can be
+     * re-displayed on the dashboard any time — see the schema comment in
+     * Installer.php::ensure_persons_columns() for why.
+     */
+    public function get_or_create_calendar_token(int $person_id): ?string {
+        if ($person_id <= 0) return null;
+
+        $person = $this->find($person_id);
+        if (!$person) return null;
+
+        $existing = trim((string)($person['calendar_token'] ?? ''));
+        if ($existing !== '') return $existing;
+
+        return $this->regenerate_calendar_token($person_id);
+    }
+
+    /**
+     * Issue a brand-new token, replacing any previous one (e.g. if a
+     * person suspects their subscribe URL leaked). Old calendar-app
+     * subscriptions using the previous token will stop working.
+     */
+    public function regenerate_calendar_token(int $person_id): ?string {
+        global $wpdb;
+
+        if ($person_id <= 0) return null;
+
+        // 32 raw bytes -> 64 hex chars, matches the CHAR(64) column.
+        $token = bin2hex(random_bytes(32));
+
+        $res = $wpdb->update(
+            $this->table,
+            ['calendar_token' => $token],
+            ['id' => $person_id],
+            ['%s'],
+            ['%d']
+        );
+
+        return ($res !== false) ? $token : null;
+    }
+
+    /**
+     * Look up a person by their raw calendar token (as it appears in the
+     * subscribe URL). Returns null on no match — callers should treat
+     * that identically to "feed not found" without leaking why.
+     */
+    public function find_by_calendar_token(string $token): ?array {
+        global $wpdb;
+
+        $token = trim($token);
+        if ($token === '') return null;
+
+        $row = $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT * FROM {$this->table} WHERE calendar_token = %s LIMIT 1",
+                $token
+            ),
+            ARRAY_A
+        );
+
+        return $row ?: null;
+    }
+
+    // -------------------------------------------------------------------------
     // REPLACEMENT REQUESTS (Phase 3): substitute opt-in
     // -------------------------------------------------------------------------
 

@@ -273,6 +273,17 @@ class SchedulesPage {
                 <?php esc_html_e('Add New', 'adoration-scheduler'); ?>
             </a>
 
+            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block;margin-left:4px;">
+                <input type="hidden" name="action" value="<?php echo esc_attr(\AdorationScheduler\Domain\Services\ScheduleExportService::ACTION_EXPORT_CSV); ?>" />
+                <?php wp_nonce_field('adoration_schedules_export'); ?>
+                <button type="submit" class="button"><?php esc_html_e('Export CSV', 'adoration-scheduler'); ?></button>
+            </form>
+            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block;margin-left:4px;">
+                <input type="hidden" name="action" value="<?php echo esc_attr(\AdorationScheduler\Domain\Services\ScheduleExportService::ACTION_EXPORT_XLSX); ?>" />
+                <?php wp_nonce_field('adoration_schedules_export'); ?>
+                <button type="submit" class="button"><?php esc_html_e('Export XLSX', 'adoration-scheduler'); ?></button>
+            </form>
+
             <hr class="wp-header-end">
 
             <?php

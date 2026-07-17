@@ -245,6 +245,85 @@ class SignupsRepository {
     }
 
     /**
+     * Self-service account deletion: cancel every NOT-YET-OCCURRED signup
+     * for this person (status <> 'cancelled' AND date >= $from_date), so
+     * those hours immediately become open for someone else to cover
+     * instead of quietly staying "confirmed" under a name that no longer
+     * resolves to a real, contactable adorer. Past signups are left
+     * exactly as they are — they're history, not something to undo.
+     *
+     * Returns the number of rows cancelled.
+     */
+    public function cancel_all_future_for_person(int $person_id, string $from_date): int {
+        global $wpdb;
+
+        $person_id = (int)$person_id;
+        if ($person_id <= 0) return 0;
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
+        $ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT id FROM {$this->table}
+             WHERE person_id = %d AND status <> 'cancelled' AND date >= %s",
+            $person_id,
+            $from_date
+        ));
+
+        if (empty($ids)) return 0;
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
+        $updated = $wpdb->query($wpdb->prepare(
+            "UPDATE {$this->table}
+             SET status = 'cancelled', is_active = 0
+             WHERE person_id = %d AND status <> 'cancelled' AND date >= %s",
+            $person_id,
+            $from_date
+        ));
+
+        foreach ($ids as $id) {
+            $this->audit_log((int)$id, 'cancelled_account_deletion', ['person_id' => $person_id]);
+        }
+
+        return $updated !== false ? (int)$updated : 0;
+    }
+
+    /**
+     * Self-service account deletion: any OTHER person's signup that has an
+     * exclusive direct-to-person swap request aimed at this person
+     * (replacement_target_person_id) would otherwise dangle once this
+     * person is anonymized — nobody could ever claim it, since the only
+     * person allowed to is gone. Reopen those requests to the general
+     * substitute pool instead of leaving them stuck.
+     *
+     * Returns the number of rows updated.
+     */
+    public function clear_targets_pointing_at(int $target_person_id): int {
+        global $wpdb;
+
+        $target_person_id = (int)$target_person_id;
+        if ($target_person_id <= 0) return 0;
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
+        $ids = $wpdb->get_col($wpdb->prepare(
+            "SELECT id FROM {$this->table} WHERE replacement_target_person_id = %d",
+            $target_person_id
+        ));
+
+        if (empty($ids)) return 0;
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
+        $updated = $wpdb->query($wpdb->prepare(
+            "UPDATE {$this->table} SET replacement_target_person_id = NULL WHERE replacement_target_person_id = %d",
+            $target_person_id
+        ));
+
+        foreach ($ids as $id) {
+            $this->audit_log((int)$id, 'replacement_target_cleared_account_deletion', ['target_person_id' => $target_person_id]);
+        }
+
+        return $updated !== false ? (int)$updated : 0;
+    }
+
+    /**
      * ✅ List signups for a schedule (optionally only confirmed),
      * JOINED with persons so UI can show name/email/phone.
      *

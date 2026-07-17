@@ -55,7 +55,7 @@ class ReplacementRequestService
     {
         $return = isset($_POST['return']) ? esc_url_raw((string) $_POST['return']) : home_url('/');
 
-        $person = MagicLinkService::current_person();
+        $person = MagicLinkService::current_person_or_admin_match();
         $person_id = (int)($person['id'] ?? 0);
         if ($person_id <= 0) {
             self::redirect_with_toast($return, 'Please sign in again to request a replacement.', 'error');
@@ -113,7 +113,7 @@ class ReplacementRequestService
     {
         $return = isset($_POST['return']) ? esc_url_raw((string) $_POST['return']) : home_url('/');
 
-        $person = MagicLinkService::current_person();
+        $person = MagicLinkService::current_person_or_admin_match();
         $person_id = (int)($person['id'] ?? 0);
         if ($person_id <= 0) {
             self::redirect_with_toast($return, 'Please sign in again.', 'error');
@@ -146,7 +146,7 @@ class ReplacementRequestService
     {
         $return = isset($_POST['return']) ? esc_url_raw((string) $_POST['return']) : home_url('/');
 
-        $person = MagicLinkService::current_person();
+        $person = MagicLinkService::current_person_or_admin_match();
         $person_id = (int)($person['id'] ?? 0);
         if ($person_id <= 0) {
             self::redirect_with_toast($return, 'Please sign in again to claim this slot.', 'error');
@@ -193,7 +193,7 @@ class ReplacementRequestService
     {
         $return = isset($_POST['return']) ? esc_url_raw((string) $_POST['return']) : home_url('/');
 
-        $person = MagicLinkService::current_person();
+        $person = MagicLinkService::current_person_or_admin_match();
         $person_id = (int)($person['id'] ?? 0);
         if ($person_id <= 0) {
             self::redirect_with_toast($return, 'Please sign in again.', 'error');

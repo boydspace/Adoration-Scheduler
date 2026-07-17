@@ -377,6 +377,18 @@ class AdminSignupActionsService
             return false;
         }
 
+        // A confirmed seat was just freed — offer it to whoever's been
+        // waiting longest for this slot (best-effort; never blocks cancel).
+        if ($slot_id > 0
+            && class_exists('\\AdorationScheduler\\Services\\WaitlistService')
+            && method_exists('\\AdorationScheduler\\Services\\WaitlistService', 'promote_next_for_slot')) {
+            try {
+                \AdorationScheduler\Services\WaitlistService::promote_next_for_slot($slot_id);
+            } catch (\Throwable $e) {
+                error_log('[AdorationScheduler] Admin cancel waitlist promotion failed signup_id=' . $signup_id . ' err=' . $e->getMessage());
+            }
+        }
+
         // best-effort: unschedule reminder
         try {
             if (class_exists('\\AdorationScheduler\\Services\\ReminderScheduler')
@@ -413,12 +425,33 @@ class AdminSignupActionsService
         global $wpdb;
         $table = $wpdb->prefix . 'adoration_signups';
 
+        // Capture slot_id + status BEFORE deleting so we know whether this
+        // removal actually freed a confirmed seat worth offering to the
+        // waitlist (deleting an already-cancelled row frees nothing new).
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
+        $row = $wpdb->get_row(
+            $wpdb->prepare("SELECT slot_id, status FROM {$table} WHERE id = %d LIMIT 1", $signup_id),
+            ARRAY_A
+        );
+        $slot_id     = is_array($row) ? (int)($row['slot_id'] ?? 0) : 0;
+        $was_confirmed = is_array($row) && (string)($row['status'] ?? '') === 'confirmed';
+
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
         $deleted = $wpdb->delete($table, ['id' => $signup_id], ['%d']);
 
         if ($deleted === false) {
             error_log('[AdorationScheduler] Admin delete failed signup_id=' . $signup_id . ' err=' . $wpdb->last_error);
             return false;
+        }
+
+        if ($was_confirmed && $slot_id > 0
+            && class_exists('\\AdorationScheduler\\Services\\WaitlistService')
+            && method_exists('\\AdorationScheduler\\Services\\WaitlistService', 'promote_next_for_slot')) {
+            try {
+                \AdorationScheduler\Services\WaitlistService::promote_next_for_slot($slot_id);
+            } catch (\Throwable $e) {
+                error_log('[AdorationScheduler] Admin delete waitlist promotion failed signup_id=' . $signup_id . ' err=' . $e->getMessage());
+            }
         }
 
         return true;

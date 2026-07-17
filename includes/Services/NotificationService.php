@@ -207,6 +207,36 @@ class NotificationService
     }
 
     /**
+     * ✅ Self-service "Delete My Account" confirmation — sent to the
+     * person's original email address right before AccountDeletionService
+     * replaces it with an anonymized placeholder, so they have a written
+     * record the request went through.
+     */
+    public static function send_account_deleted(array $args): bool
+    {
+        $args = self::normalize_args($args);
+
+        $to = trim((string)($args['to_email'] ?? ''));
+        if ($to === '' || ! is_email($to)) return false;
+
+        if (!self::should_send($args)) return true;
+
+        $type    = 'account_deleted';
+        $context = (string)($args['context'] ?? 'person');
+
+        $subject = self::render_subject($type, $args);
+        $body    = self::render_body($type, $args);
+
+        $dedupe_key = self::build_dedupe_key($type, $args);
+        if ($dedupe_key === '') {
+            $dedupe_key = self::fallback_dedupe_key($type, $to, $args);
+        }
+        $dedupe_ttl = self::dedupe_ttl($args);
+
+        return self::send_mail($to, $subject, $body, $context, $type, $args, $dedupe_key, $dedupe_ttl);
+    }
+
+    /**
      * ✅ Admin coverage-gap digest (daily cron). Previously a hardcoded
      * wp_mail() in CoverageAlertService.
      */
@@ -252,6 +282,65 @@ class NotificationService
         $body    = self::render_body($type, $args);
 
         $dedupe_key = self::build_dedupe_key($type, $args);
+        $dedupe_ttl = self::dedupe_ttl($args);
+
+        return self::send_mail($to, $subject, $body, $context, $type, $args, $dedupe_key, $dedupe_ttl);
+    }
+
+    /**
+     * ✅ Confirmation that a person was added to a slot's waitlist because
+     * it was at capacity, sent right after WaitlistRepository::join().
+     */
+    public static function send_waitlist_joined(array $args): bool
+    {
+        $args = self::normalize_args($args);
+
+        $to = trim((string)($args['to_email'] ?? ''));
+        if ($to === '' || ! is_email($to)) return false;
+
+        if (!self::should_send($args)) return true;
+
+        $type    = 'waitlist_joined';
+        $context = (string)($args['context'] ?? 'person');
+
+        $subject = self::render_subject($type, $args);
+        $body    = self::render_body($type, $args);
+
+        $dedupe_key = self::build_dedupe_key($type, $args);
+        if ($dedupe_key === '') {
+            $dedupe_key = self::fallback_dedupe_key($type, $to, $args);
+        }
+        $dedupe_ttl = self::dedupe_ttl($args);
+
+        return self::send_mail($to, $subject, $body, $context, $type, $args, $dedupe_key, $dedupe_ttl);
+    }
+
+    /**
+     * ✅ "Good news, a spot opened up" notice sent when
+     * WaitlistService::promote_next_for_slot() converts a waiting entry
+     * into a real confirmed signup. Distinct from the normal signup
+     * confirmation email (also sent, via SignupsRepository::create()) so
+     * the person understands WHY they're suddenly signed up.
+     */
+    public static function send_waitlist_promoted(array $args): bool
+    {
+        $args = self::normalize_args($args);
+
+        $to = trim((string)($args['to_email'] ?? ''));
+        if ($to === '' || ! is_email($to)) return false;
+
+        if (!self::should_send($args)) return true;
+
+        $type    = 'waitlist_promoted';
+        $context = (string)($args['context'] ?? 'person');
+
+        $subject = self::render_subject($type, $args);
+        $body    = self::render_body($type, $args);
+
+        $dedupe_key = self::build_dedupe_key($type, $args);
+        if ($dedupe_key === '') {
+            $dedupe_key = self::fallback_dedupe_key($type, $to, $args);
+        }
         $dedupe_ttl = self::dedupe_ttl($args);
 
         return self::send_mail($to, $subject, $body, $context, $type, $args, $dedupe_key, $dedupe_ttl);
@@ -391,11 +480,20 @@ class NotificationService
             case 'access_approved':
                 return sprintf('[%s] Your Adoration access request was approved', get_bloginfo('name'));
 
+            case 'account_deleted':
+                return sprintf('[%s] Your account has been deleted', get_bloginfo('name'));
+
             case 'coverage_digest':
                 return sprintf('[%s] %d Adoration hour(s) need coverage', get_bloginfo('name'), (int)($args['gap_count'] ?? 0));
 
             case 'replacement_needed':
                 return sprintf('[%s] Coverage needed: %s', get_bloginfo('name'), trim((string)($args['slot_label'] ?? '')));
+
+            case 'waitlist_joined':
+                return sprintf("[%s] You're on the waitlist", $schedule_name);
+
+            case 'waitlist_promoted':
+                return sprintf('[%s] A spot opened up — you\'re confirmed!', $schedule_name);
 
             default:
                 return sprintf('[%s] Notification', $schedule_name);
@@ -519,6 +617,22 @@ class NotificationService
 
                 return implode("\n", $lines);
 
+            case 'account_deleted':
+                $lines = [];
+                $lines[] = $hello;
+                $lines[] = '';
+                $lines[] = "As you requested, your Adoration Scheduler account and personal information have been removed from our system.";
+                $lines[] = '';
+                $lines[] = "Any upcoming hours you were signed up for have been cancelled and are now open for someone else to cover. Your past participation history is kept in anonymized form so schedule and coverage records stay accurate — it's no longer linked to your name, email, or phone number.";
+                $lines[] = '';
+                $lines[] = "If this wasn't you, or you'd like to sign up again in the future, please contact the parish office.";
+                $lines[] = '';
+                $lines[] = "Thank you for your time serving in Adoration.";
+                $lines[] = '';
+                $lines[] = get_bloginfo('name') ?: 'Your Parish';
+
+                return implode("\n", $lines);
+
             case 'coverage_digest':
                 $gap_count    = (int)($args['gap_count'] ?? 0);
                 $window_hours = (int)($args['window_hours'] ?? 48);
@@ -563,6 +677,49 @@ class NotificationService
                     $lines[] = "Sign in to view or claim it:";
                     $lines[] = $claim_url;
                 }
+
+                return implode("\n", $lines);
+
+            case 'waitlist_joined':
+                $position = (int)($args['position'] ?? 0);
+
+                $lines = [];
+                $lines[] = $hello;
+                $lines[] = '';
+                $lines[] = "That Adoration hour is currently full, so we've added you to the waitlist instead.";
+                $lines[] = '';
+                if ($schedule_name !== '') $lines[] = "Schedule: {$schedule_name}";
+                if ($slot_label !== '')    $lines[] = "Time: {$slot_label}";
+                if ($position > 0)         $lines[] = "Your position: #{$position}";
+                $lines[] = '';
+                $lines[] = "If someone cancels, we'll automatically move you into the open spot and email you right away — no action needed from you.";
+                $lines[] = '';
+                if ($manage_url !== '') {
+                    $lines[] = "You can view or leave the waitlist here:";
+                    $lines[] = $manage_url;
+                    $lines[] = '';
+                }
+                $lines[] = get_bloginfo('name') ?: 'Your Parish';
+
+                return implode("\n", $lines);
+
+            case 'waitlist_promoted':
+                $lines = [];
+                $lines[] = $hello;
+                $lines[] = '';
+                $lines[] = "Good news — a spot opened up, and you've been moved from the waitlist to a confirmed Adoration signup.";
+                $lines[] = '';
+                if ($schedule_name !== '') $lines[] = "Schedule: {$schedule_name}";
+                if ($slot_label !== '')    $lines[] = "Time: {$slot_label}";
+                $lines[] = '';
+                if ($manage_url !== '') {
+                    $lines[] = "Manage your commitment here:";
+                    $lines[] = $manage_url;
+                    $lines[] = '';
+                }
+                $lines[] = "Thank you for your faithful presence in prayer.";
+                $lines[] = '';
+                $lines[] = get_bloginfo('name') ?: 'Your Parish';
 
                 return implode("\n", $lines);
 
@@ -683,6 +840,9 @@ class NotificationService
             '{note}'        => (string)($args['note'] ?? ''),
             '{target_name}' => (string)($args['target_name'] ?? ''),
             '{claim_url}'   => (string)($args['claim_url'] ?? $args['manage_url'] ?? ''),
+
+            // ✅ Waitlist tokens
+            '{position}' => (string)($args['position'] ?? ''),
         ];
 
         return strtr($text, $repl);
@@ -845,6 +1005,7 @@ class NotificationService
             'note'            => 'Family emergency, sorry for the short notice.',
             'target_name'     => 'John Target',
             'claim_url'       => home_url('/my-adoration/?magic=TESTTOKEN'),
+            'position'        => 3,
 
             'context'        => 'admin',
             'send'           => true,

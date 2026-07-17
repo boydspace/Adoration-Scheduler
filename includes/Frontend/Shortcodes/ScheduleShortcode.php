@@ -11,6 +11,7 @@ use AdorationScheduler\Domain\Services\PerpetualSlotGenerator;
 use AdorationScheduler\Utils\NameFormatter;
 use AdorationScheduler\Frontend\UikitLoader;
 use AdorationScheduler\Services\AccessGateService;
+use AdorationScheduler\Services\MagicLinkService;
 
 if (!defined('ABSPATH')) exit;
 
@@ -106,13 +107,28 @@ class ScheduleShortcode {
         $form_id      = "adoration-public-signup-form-{$uid}";
         $sched_id     = "adoration_public_schedule_id-{$uid}";
         $slot_id_el   = "adoration_public_slot_id-{$uid}";
+        $join_wl_id   = "adoration_public_join_waitlist-{$uid}";
+        $submit_id    = "adoration-public-submit-{$uid}";
 
+        $person_title_id = "adoration_pub_title-{$uid}";
         $first_id     = "adoration_pub_first-{$uid}";
         $last_id      = "adoration_pub_last-{$uid}";
         $email_id     = "adoration_pub_email-{$uid}";
         $phone_id     = "adoration_pub_phone-{$uid}";
 
         $ts_container_id = "adoration-turnstile-container-{$uid}";
+
+        // If this visitor is already signed in (custom person-session, not a
+        // WP account), pre-fill the signup fields from their person record.
+        // A WP admin browsing without a magic-link session still gets
+        // prefilled from whatever person record matches their WP account
+        // email, if any (see MagicLinkService::current_person_or_admin_match()).
+        $current_person = MagicLinkService::current_person_or_admin_match();
+        $cp_title = esc_attr((string)($current_person['title'] ?? ''));
+        $cp_first = esc_attr((string)($current_person['first_name'] ?? ''));
+        $cp_last  = esc_attr((string)($current_person['last_name'] ?? ''));
+        $cp_email = esc_attr((string)($current_person['email'] ?? ''));
+        $cp_phone = esc_attr((string)($current_person['phone'] ?? ''));
 
         $notice_html = self::render_notice_from_query();
 
@@ -686,28 +702,34 @@ class ScheduleShortcode {
                             </p>
 
                             <div class="uk-grid-small" uk-grid>
+                                <div class="uk-width-1-1">
+                                    <label class="uk-form-label" for="<?php echo esc_attr($person_title_id); ?>">Title <span class="uk-text-meta">(optional)</span></label>
+                                    <div class="uk-form-controls">
+                                        <input class="uk-input" type="text" name="title" id="<?php echo esc_attr($person_title_id); ?>" autocomplete="honorific-prefix" placeholder="Father, Deacon, Bishop, Msgr., etc." value="<?php echo $cp_title; ?>">
+                                    </div>
+                                </div>
                                 <div class="uk-width-1-2@s">
                                     <label class="uk-form-label" for="<?php echo esc_attr($first_id); ?>">First name</label>
                                     <div class="uk-form-controls">
-                                        <input class="uk-input" type="text" name="first_name" id="<?php echo esc_attr($first_id); ?>" required>
+                                        <input class="uk-input" type="text" name="first_name" id="<?php echo esc_attr($first_id); ?>" required value="<?php echo $cp_first; ?>">
                                     </div>
                                 </div>
                                 <div class="uk-width-1-2@s">
                                     <label class="uk-form-label" for="<?php echo esc_attr($last_id); ?>">Last name</label>
                                     <div class="uk-form-controls">
-                                        <input class="uk-input" type="text" name="last_name" id="<?php echo esc_attr($last_id); ?>" required>
+                                        <input class="uk-input" type="text" name="last_name" id="<?php echo esc_attr($last_id); ?>" required value="<?php echo $cp_last; ?>">
                                     </div>
                                 </div>
                                 <div class="uk-width-1-1">
                                     <label class="uk-form-label" for="<?php echo esc_attr($email_id); ?>">Email</label>
                                     <div class="uk-form-controls">
-                                        <input class="uk-input" type="email" name="email" id="<?php echo esc_attr($email_id); ?>" required>
+                                        <input class="uk-input" type="email" name="email" id="<?php echo esc_attr($email_id); ?>" required value="<?php echo $cp_email; ?>">
                                     </div>
                                 </div>
                                 <div class="uk-width-1-1">
                                     <label class="uk-form-label" for="<?php echo esc_attr($phone_id); ?>">Phone</label>
                                     <div class="uk-form-controls">
-                                        <input class="uk-input" type="text" name="phone" id="<?php echo esc_attr($phone_id); ?>" required placeholder="(555) 123-4567">
+                                        <input class="uk-input" type="text" name="phone" id="<?php echo esc_attr($phone_id); ?>" required placeholder="(555) 123-4567" value="<?php echo $cp_phone; ?>">
                                     </div>
                                 </div>
                             </div>
@@ -779,20 +801,24 @@ class ScheduleShortcode {
 
                             <table class="form-table" role="presentation">
                                 <tr>
+                                    <th><label>Title <span class="description">(optional)</span></label></th>
+                                    <td><input type="text" name="title" class="regular-text" autocomplete="honorific-prefix" placeholder="Father, Deacon, Bishop, Msgr., etc." value="<?php echo $cp_title; ?>"></td>
+                                </tr>
+                                <tr>
                                     <th><label>First name</label></th>
-                                    <td><input type="text" name="first_name" class="regular-text" required></td>
+                                    <td><input type="text" name="first_name" class="regular-text" required value="<?php echo $cp_first; ?>"></td>
                                 </tr>
                                 <tr>
                                     <th><label>Last name</label></th>
-                                    <td><input type="text" name="last_name" class="regular-text" required></td>
+                                    <td><input type="text" name="last_name" class="regular-text" required value="<?php echo $cp_last; ?>"></td>
                                 </tr>
                                 <tr>
                                     <th><label>Email</label></th>
-                                    <td><input type="email" name="email" class="regular-text" required></td>
+                                    <td><input type="email" name="email" class="regular-text" required value="<?php echo $cp_email; ?>"></td>
                                 </tr>
                                 <tr>
                                     <th><label>Phone</label></th>
-                                    <td><input type="text" name="phone" class="regular-text" required placeholder="(555) 123-4567" data-as-fb-phone="1"></td>
+                                    <td><input type="text" name="phone" class="regular-text" required placeholder="(555) 123-4567" data-as-fb-phone="1" value="<?php echo $cp_phone; ?>"></td>
                                 </tr>
                             </table>
 
@@ -1133,8 +1159,19 @@ class ScheduleShortcode {
                                 </td>
 
                                 <td class="adoration-col-action">
-                                    <?php if ($is_full): ?>
+                                    <?php if ($is_full && !$signups_enabled): ?>
                                         <span class="adoration-btn is-disabled" aria-disabled="true">Full</span>
+                                    <?php elseif ($is_full): ?>
+                                        <button
+                                            type="button"
+                                            class="adoration-btn adoration-btn-secondary adoration-open-signup"
+                                            data-schedule-id="<?php echo (int)$schedule_id; ?>"
+                                            data-slot-id="<?php echo (int)$slot_id_val; ?>"
+                                            data-slot-label="<?php echo esc_attr($slot_label); ?>"
+                                            data-join-waitlist="1"
+                                        >
+                                            Join Waitlist
+                                        </button>
                                     <?php elseif (!$signups_enabled): ?>
                                         <span class="adoration-btn is-disabled" aria-disabled="true">Sign up</span>
                                     <?php else: ?>
@@ -1185,30 +1222,37 @@ class ScheduleShortcode {
 
                             <input type="hidden" name="schedule_id" id="<?php echo esc_attr($sched_id); ?>" value="">
                             <input type="hidden" name="slot_id" id="<?php echo esc_attr($slot_id_el); ?>" value="">
+                            <input type="hidden" name="join_waitlist" id="<?php echo esc_attr($join_wl_id); ?>" value="0">
 
                             <div class="uk-grid-small" uk-grid>
+                                <div class="uk-width-1-1">
+                                    <label class="uk-form-label" for="<?php echo esc_attr($person_title_id); ?>">Title <span class="uk-text-meta">(optional)</span></label>
+                                    <div class="uk-form-controls">
+                                        <input class="uk-input" type="text" name="title" id="<?php echo esc_attr($person_title_id); ?>" autocomplete="honorific-prefix" placeholder="Father, Deacon, Bishop, Msgr., etc." value="<?php echo $cp_title; ?>">
+                                    </div>
+                                </div>
                                 <div class="uk-width-1-2@s">
                                     <label class="uk-form-label" for="<?php echo esc_attr($first_id); ?>">First name</label>
                                     <div class="uk-form-controls">
-                                        <input class="uk-input" type="text" name="first_name" id="<?php echo esc_attr($first_id); ?>" required>
+                                        <input class="uk-input" type="text" name="first_name" id="<?php echo esc_attr($first_id); ?>" required value="<?php echo $cp_first; ?>">
                                     </div>
                                 </div>
                                 <div class="uk-width-1-2@s">
                                     <label class="uk-form-label" for="<?php echo esc_attr($last_id); ?>">Last name</label>
                                     <div class="uk-form-controls">
-                                        <input class="uk-input" type="text" name="last_name" id="<?php echo esc_attr($last_id); ?>" required>
+                                        <input class="uk-input" type="text" name="last_name" id="<?php echo esc_attr($last_id); ?>" required value="<?php echo $cp_last; ?>">
                                     </div>
                                 </div>
                                 <div class="uk-width-1-1">
                                     <label class="uk-form-label" for="<?php echo esc_attr($email_id); ?>">Email</label>
                                     <div class="uk-form-controls">
-                                        <input class="uk-input" type="email" name="email" id="<?php echo esc_attr($email_id); ?>" required>
+                                        <input class="uk-input" type="email" name="email" id="<?php echo esc_attr($email_id); ?>" required value="<?php echo $cp_email; ?>">
                                     </div>
                                 </div>
                                 <div class="uk-width-1-1">
                                     <label class="uk-form-label" for="<?php echo esc_attr($phone_id); ?>">Phone</label>
                                     <div class="uk-form-controls">
-                                        <input class="uk-input" type="text" name="phone" id="<?php echo esc_attr($phone_id); ?>" required placeholder="(555) 123-4567">
+                                        <input class="uk-input" type="text" name="phone" id="<?php echo esc_attr($phone_id); ?>" required placeholder="(555) 123-4567" value="<?php echo $cp_phone; ?>">
                                     </div>
                                 </div>
                             </div>
@@ -1226,7 +1270,7 @@ class ScheduleShortcode {
 
                             <p class="uk-text-right uk-margin-medium-top">
                                 <button type="button" class="uk-button uk-button-default uk-modal-close">Cancel</button>
-                                <button type="submit" class="uk-button uk-button-primary">Confirm Signup</button>
+                                <button type="submit" class="uk-button uk-button-primary" id="<?php echo esc_attr($submit_id); ?>">Confirm Signup</button>
                             </p>
                         </form>
                     </div>
@@ -1264,23 +1308,28 @@ class ScheduleShortcode {
 
                             <input type="hidden" name="schedule_id" value="" data-as-fb-schedule="1">
                             <input type="hidden" name="slot_id" value="" data-as-fb-slot="1">
+                            <input type="hidden" name="join_waitlist" value="0" data-as-fb-joinwaitlist="1">
 
                             <table class="form-table" role="presentation">
                                 <tr>
+                                    <th><label>Title <span class="description">(optional)</span></label></th>
+                                    <td><input type="text" name="title" class="regular-text" autocomplete="honorific-prefix" placeholder="Father, Deacon, Bishop, Msgr., etc." value="<?php echo $cp_title; ?>"></td>
+                                </tr>
+                                <tr>
                                     <th><label>First name</label></th>
-                                    <td><input type="text" name="first_name" class="regular-text" required></td>
+                                    <td><input type="text" name="first_name" class="regular-text" required value="<?php echo $cp_first; ?>"></td>
                                 </tr>
                                 <tr>
                                     <th><label>Last name</label></th>
-                                    <td><input type="text" name="last_name" class="regular-text" required></td>
+                                    <td><input type="text" name="last_name" class="regular-text" required value="<?php echo $cp_last; ?>"></td>
                                 </tr>
                                 <tr>
                                     <th><label>Email</label></th>
-                                    <td><input type="email" name="email" class="regular-text" required></td>
+                                    <td><input type="email" name="email" class="regular-text" required value="<?php echo $cp_email; ?>"></td>
                                 </tr>
                                 <tr>
                                     <th><label>Phone</label></th>
-                                    <td><input type="text" name="phone" class="regular-text" required placeholder="(555) 123-4567" data-as-fb-phone="1"></td>
+                                    <td><input type="text" name="phone" class="regular-text" required placeholder="(555) 123-4567" data-as-fb-phone="1" value="<?php echo $cp_phone; ?>"></td>
                                 </tr>
                             </table>
 
@@ -1292,7 +1341,7 @@ class ScheduleShortcode {
 
                             <div style="margin-top:14px; display:flex; gap:10px; justify-content:flex-end;">
                                 <button type="button" class="adoration-btn-secondary" data-as-fb-close="1">Cancel</button>
-                                <button type="submit" class="adoration-btn">Confirm Signup</button>
+                                <button type="submit" class="adoration-btn" data-as-fb-submit="1">Confirm Signup</button>
                             </div>
                         </form>
                     </div>
@@ -1322,6 +1371,9 @@ class ScheduleShortcode {
                     const labelEl      = document.getElementById(<?php echo json_encode($slotlabel_id); ?>);
                     const scheduleIdEl = document.getElementById(<?php echo json_encode($sched_id); ?>);
                     const slotIdEl     = document.getElementById(<?php echo json_encode($slot_id_el); ?>);
+                    const joinWlEl     = document.getElementById(<?php echo json_encode($join_wl_id); ?>);
+                    const titleEl      = document.getElementById(<?php echo json_encode($title_id); ?>);
+                    const submitEl     = document.getElementById(<?php echo json_encode($submit_id); ?>);
                     const form         = document.getElementById(<?php echo json_encode($form_id); ?>);
                     const firstEl      = document.getElementById(<?php echo json_encode($first_id); ?>);
                     const phoneEl      = document.getElementById(<?php echo json_encode($phone_id); ?>);
@@ -1365,17 +1417,20 @@ class ScheduleShortcode {
                         }
                     }
 
-                    function openWithUIkit(scheduleId, slotId, label) {
+                    function openWithUIkit(scheduleId, slotId, label, joinWaitlist) {
                         if (form) form.reset();
                         if (scheduleIdEl) scheduleIdEl.value = scheduleId || '';
                         if (slotIdEl) slotIdEl.value = slotId || '';
+                        if (joinWlEl) joinWlEl.value = joinWaitlist ? '1' : '0';
                         if (labelEl) labelEl.textContent = label || '—';
+                        if (titleEl) titleEl.textContent = joinWaitlist ? 'Join Waitlist' : 'Sign up for Adoration';
+                        if (submitEl) submitEl.textContent = joinWaitlist ? 'Join Waitlist' : 'Confirm Signup';
 
                         try {
                             const inst = window.UIkit.modal(uikitModal);
                             inst.show();
                         } catch(e) {
-                            openWithFallback(scheduleId, slotId, label);
+                            openWithFallback(scheduleId, slotId, label, joinWaitlist);
                             return;
                         }
 
@@ -1383,20 +1438,26 @@ class ScheduleShortcode {
                         setTimeout(() => { try { if (firstEl) firstEl.focus(); } catch(e) {} }, 80);
                     }
 
-                    function openWithFallback(scheduleId, slotId, label) {
+                    function openWithFallback(scheduleId, slotId, label, joinWaitlist) {
                         if (!fbModal || !fbBackdrop) return;
 
-                        const fbLabel = fbModal.querySelector('[data-as-fb-slotlabel="1"]');
-                        const fbSched = fbModal.querySelector('[data-as-fb-schedule="1"]');
-                        const fbSlot  = fbModal.querySelector('[data-as-fb-slot="1"]');
-                        const fbForm  = fbModal.querySelector('[data-as-fb-form="1"]');
-                        const fbPhone = fbModal.querySelector('[data-as-fb-phone="1"]');
-                        const fbTs    = fbModal.querySelector('[data-as-fb-ts="1"]');
+                        const fbLabel  = fbModal.querySelector('[data-as-fb-slotlabel="1"]');
+                        const fbSched  = fbModal.querySelector('[data-as-fb-schedule="1"]');
+                        const fbSlot   = fbModal.querySelector('[data-as-fb-slot="1"]');
+                        const fbJoinWl = fbModal.querySelector('[data-as-fb-joinwaitlist="1"]');
+                        const fbForm   = fbModal.querySelector('[data-as-fb-form="1"]');
+                        const fbPhone  = fbModal.querySelector('[data-as-fb-phone="1"]');
+                        const fbTs     = fbModal.querySelector('[data-as-fb-ts="1"]');
+                        const fbTitle  = document.getElementById(<?php echo json_encode($title_id . '-fb'); ?>);
+                        const fbSubmit = fbModal.querySelector('[data-as-fb-submit="1"]');
 
                         if (fbForm) fbForm.reset();
                         if (fbSched) fbSched.value = scheduleId || '';
                         if (fbSlot)  fbSlot.value  = slotId || '';
+                        if (fbJoinWl) fbJoinWl.value = joinWaitlist ? '1' : '0';
                         if (fbLabel) fbLabel.textContent = label || '—';
+                        if (fbTitle) fbTitle.textContent = joinWaitlist ? 'Join Waitlist' : 'Sign up for Adoration';
+                        if (fbSubmit) fbSubmit.textContent = joinWaitlist ? 'Join Waitlist' : 'Confirm Signup';
 
                         fbBackdrop.style.display = 'block';
                         fbModal.style.display = 'block';
@@ -1424,14 +1485,15 @@ class ScheduleShortcode {
 
                     root.querySelectorAll('.adoration-open-signup').forEach(btn => {
                         btn.addEventListener('click', function() {
-                            const scheduleId = btn.getAttribute('data-schedule-id');
-                            const slotId     = btn.getAttribute('data-slot-id');
-                            const label      = btn.getAttribute('data-slot-label');
+                            const scheduleId   = btn.getAttribute('data-schedule-id');
+                            const slotId       = btn.getAttribute('data-slot-id');
+                            const label        = btn.getAttribute('data-slot-label');
+                            const joinWaitlist = btn.getAttribute('data-join-waitlist') === '1';
 
                             if (hasUIkitNow() && uikitModal) {
-                                openWithUIkit(scheduleId, slotId, label);
+                                openWithUIkit(scheduleId, slotId, label, joinWaitlist);
                             } else {
-                                openWithFallback(scheduleId, slotId, label);
+                                openWithFallback(scheduleId, slotId, label, joinWaitlist);
                             }
                         });
                     });

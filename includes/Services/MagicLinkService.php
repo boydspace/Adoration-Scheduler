@@ -79,6 +79,60 @@ class MagicLinkService
     }
 
     /**
+     * Same as current_person(), but with a fallback: a WP admin (or anyone
+     * with any of this plugin's "manage" capabilities) who has no
+     * parishioner session gets matched to the person record with their own
+     * WP account email, if one exists. This is the single canonical
+     * implementation of the "admin preview" convention used across the
+     * dashboard-family shortcodes (originally duplicated inline in
+     * PersonDashboardTrait::guard_and_get_person(), AccountStatusShortcode,
+     * and ScheduleShortcode) — reuse this instead of re-deriving it.
+     *
+     * Pass $is_admin_match by reference if the caller needs to know whether
+     * the match came from the fallback (e.g. to hide a "Log out" button,
+     * since there's no real session to clear in that case).
+     */
+    public static function current_person_or_admin_match(?bool &$is_admin_match = null): ?array
+    {
+        $is_admin_match = false;
+
+        $person = self::current_person();
+        if ($person) return $person;
+
+        if (!is_user_logged_in()) return null;
+
+        $is_staff = false;
+        foreach ([
+            'manage_options',
+            'adoration_manage_signups',
+            'adoration_manage_schedules',
+            'adoration_manage_people',
+            'adoration_manage_settings',
+        ] as $cap) {
+            if (current_user_can($cap)) { $is_staff = true; break; }
+        }
+        if (!$is_staff) return null;
+
+        $email = (string)(wp_get_current_user()->user_email ?? '');
+        if ($email === '') return null;
+
+        if (!class_exists(\AdorationScheduler\Domain\Repositories\PersonsRepository::class)) return null;
+
+        try {
+            $repo = new \AdorationScheduler\Domain\Repositories\PersonsRepository();
+            $matched = $repo->find_by_email($email);
+            if ($matched) {
+                $is_admin_match = true;
+                return $matched;
+            }
+        } catch (\Throwable $e) {
+            error_log('[AdorationScheduler] Admin->person email match failed: ' . $e->getMessage());
+        }
+
+        return null;
+    }
+
+    /**
      * Request a magic link email.
      *
      * IMPORTANT SAFETY:
@@ -481,6 +535,33 @@ class MagicLinkService
         $out = self::add_toast($return, 'success', 'Signed out.');
         wp_safe_redirect($out);
         exit;
+    }
+
+    /**
+     * Self-service account deletion: unlike handle_logout() (which only
+     * ends the CURRENT browser's session), this revokes every session and
+     * pending magic link this person has across every device, and clears
+     * the current request's cookie too. Called by AccountDeletionService
+     * right before PersonsRepository::anonymize_person() wipes the row's
+     * PII, so nothing is left that could still authenticate as this
+     * person after their data is gone.
+     */
+    public static function revoke_all_for_person(int $person_id): void
+    {
+        if ($person_id <= 0) return;
+
+        global $wpdb;
+
+        $sessions = $wpdb->prefix . 'adoration_sessions';
+        $links    = $wpdb->prefix . 'adoration_magic_links';
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        $wpdb->delete($sessions, ['person_id' => $person_id], ['%d']);
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        $wpdb->delete($links, ['person_id' => $person_id], ['%d']);
+
+        self::clear_session_cookie();
     }
 
     private static function hash_token(string $raw): string

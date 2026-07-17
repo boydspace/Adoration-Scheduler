@@ -5,6 +5,8 @@ use AdorationScheduler\Frontend\Shortcodes\Concerns\PersonDashboardTrait;
 use AdorationScheduler\Frontend\UikitLoader;
 use AdorationScheduler\Frontend\SharedStyles;
 use AdorationScheduler\Services\ReplacementRequestService;
+use AdorationScheduler\Services\WaitlistService;
+use AdorationScheduler\Domain\Repositories\WaitlistRepository;
 use AdorationScheduler\Frontend\Ajax\PersonTargetSearchAjax;
 
 if ( ! defined('ABSPATH') ) {
@@ -173,6 +175,63 @@ class MyScheduleShortcode
                                                     Need a Replacement
                                                 </button>
                                             <?php endif; ?>
+                                        <?php else: ?>
+                                            —
+                                        <?php endif; ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                <?php endif; ?>
+
+                <?php
+                $waitlist_repo = new WaitlistRepository();
+                $waitlist_rows = $waitlist_repo->list_for_person((int)($person['id'] ?? 0), true);
+                if (!empty($waitlist_rows)):
+                ?>
+                    <h3 class="uk-margin-top">My Waitlist</h3>
+                    <p class="uk-text-meta as-muted uk-margin-remove-top">
+                        These hours were full when you signed up. We'll email you and confirm you automatically if a spot opens.
+                    </p>
+                    <div class="uk-overflow-auto">
+                        <table class="uk-table uk-table-divider uk-table-small adoration-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Time</th>
+                                    <th>Schedule</th>
+                                    <th>Position</th>
+                                    <th class="uk-text-right">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                            <?php foreach ($waitlist_rows as $w): ?>
+                                <?php
+                                $waitlist_id = (int)($w['id'] ?? 0);
+                                $wl_nonce    = ($waitlist_id > 0) ? wp_create_nonce(WaitlistService::ACTION_LEAVE . '_' . $waitlist_id) : '';
+                                $wl_date     = self::fmt_date((string)($w['date'] ?? ''));
+                                $wl_time     = self::fmt_time_range((string)($w['slot_start_time'] ?? ''), (string)($w['slot_end_time'] ?? ''));
+                                $wl_sched    = (string)($w['schedule_name'] ?? '');
+                                $wl_position = $waitlist_id > 0 ? $waitlist_repo->position_in_line($waitlist_id) : 0;
+                                ?>
+                                <tr>
+                                    <td><?php echo esc_html($wl_date); ?></td>
+                                    <td><?php echo esc_html($wl_time); ?></td>
+                                    <td><?php echo esc_html($wl_sched); ?></td>
+                                    <td><?php echo $wl_position > 0 ? '#' . esc_html((string)$wl_position) : '—'; ?></td>
+                                    <td class="uk-text-right">
+                                        <?php if ($waitlist_id > 0): ?>
+                                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline;margin:0;">
+                                                <input type="hidden" name="action" value="<?php echo esc_attr(WaitlistService::ACTION_LEAVE); ?>" />
+                                                <input type="hidden" name="waitlist_id" value="<?php echo esc_attr((string)$waitlist_id); ?>" />
+                                                <input type="hidden" name="return" value="<?php echo esc_attr($redirect_url); ?>" />
+                                                <input type="hidden" name="_wpnonce" value="<?php echo esc_attr($wl_nonce); ?>" />
+                                                <button type="submit" class="uk-button uk-button-danger uk-button-small adoration-btn adoration-btn-danger">
+                                                    Leave Waitlist
+                                                </button>
+                                            </form>
                                         <?php else: ?>
                                             —
                                         <?php endif; ?>

@@ -6,10 +6,14 @@
  * - $slots_rows (array) slots for the schedule (already ordered in SQL!)
  * - $signup_counts (array) [slot_id => confirmed_count]
  * - $signups_by_slot (array) [slot_id => [signup_rows...]] (joined with persons)
+ * - $waitlist_by_slot (array) [slot_id => [waitlist_rows...]] (joined with persons)
  * - $schedule (array)
  */
 
 if ( ! defined('ABSPATH') ) exit;
+
+use AdorationScheduler\Services\WaitlistService;
+use AdorationScheduler\Domain\Services\RosterPrintService;
 
 // Stable return URL (so admin-post actions can redirect cleanly)
 $page_slug   = sanitize_key($_GET['page'] ?? 'adoration_scheduler_schedules');
@@ -195,6 +199,30 @@ $as_admin_post_form = function(
     <?php esc_html_e('Click a TIME to add a signup for that specific slot.', 'adoration-scheduler'); ?>
 </p>
 
+<?php
+$roster_today   = current_time('Y-m-d');
+$roster_default_to = date('Y-m-d', strtotime($roster_today . ' +30 days'));
+$roster_nonce   = wp_create_nonce(RosterPrintService::ACTION . '_' . $schedule_id);
+?>
+<form method="get" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" target="_blank"
+      style="display:flex; align-items:flex-end; gap:10px; flex-wrap:wrap; margin: 12px 0 18px; padding:10px 12px; background:#f6f7f7; border:1px solid #dcdcde;">
+    <input type="hidden" name="action" value="<?php echo esc_attr(RosterPrintService::ACTION); ?>">
+    <input type="hidden" name="schedule_id" value="<?php echo (int)$schedule_id; ?>">
+    <input type="hidden" name="_wpnonce" value="<?php echo esc_attr($roster_nonce); ?>">
+
+    <div>
+        <label style="display:block; font-size:12px; color:#646970;" for="as_roster_from"><?php esc_html_e('From', 'adoration-scheduler'); ?></label>
+        <input type="date" id="as_roster_from" name="from" value="<?php echo esc_attr($roster_today); ?>">
+    </div>
+    <div>
+        <label style="display:block; font-size:12px; color:#646970;" for="as_roster_to"><?php esc_html_e('To', 'adoration-scheduler'); ?></label>
+        <input type="date" id="as_roster_to" name="to" value="<?php echo esc_attr($roster_default_to); ?>">
+    </div>
+
+    <button type="submit" class="button button-primary"><?php esc_html_e('Print Roster', 'adoration-scheduler'); ?></button>
+    <span class="description" style="margin:0;"><?php esc_html_e('Opens a printable page for the chapel binder — names and phone numbers, no admin chrome.', 'adoration-scheduler'); ?></span>
+</form>
+
 <?php if (empty($slots_rows)): ?>
     <p><em><?php esc_html_e('No slots found. Generate slots first.', 'adoration-scheduler'); ?></em></p>
 <?php else: ?>
@@ -205,6 +233,7 @@ $as_admin_post_form = function(
             <th><?php esc_html_e('Date', 'adoration-scheduler'); ?></th>
             <th><?php esc_html_e('Time (click to add)', 'adoration-scheduler'); ?></th>
             <th><?php esc_html_e('Confirmed', 'adoration-scheduler'); ?></th>
+            <th><?php esc_html_e('Waiting', 'adoration-scheduler'); ?></th>
             <th><?php esc_html_e('Details', 'adoration-scheduler'); ?></th>
         </tr>
     </thead>
@@ -221,6 +250,7 @@ $as_admin_post_form = function(
 
             $confirmed_count = (int)($signup_counts[$slot_id] ?? 0);
             $signups_here    = $signups_by_slot[$slot_id] ?? [];
+            $waiting_here    = $waitlist_by_slot[$slot_id] ?? [];
             ?>
             <tr>
                 <td><?php echo esc_html($date_cell); ?></td>
@@ -238,6 +268,8 @@ $as_admin_post_form = function(
                 </td>
 
                 <td><strong><?php echo (int)$confirmed_count; ?></strong></td>
+
+                <td><?php echo !empty($waiting_here) ? '<strong>' . (int)count($waiting_here) . '</strong>' : '—'; ?></td>
 
                 <td>
                     <details>
@@ -313,6 +345,53 @@ $as_admin_post_form = function(
                                                         </button>
                                                     <?php endif; ?>
 
+                                                <?php else: ?>
+                                                    —
+                                                <?php endif; ?>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        <?php endif; ?>
+
+                        <?php if (!empty($waiting_here)): ?>
+                            <p style="margin:10px 0 4px;"><strong><?php esc_html_e('Waitlist', 'adoration-scheduler'); ?></strong></p>
+                            <table class="widefat striped" style="margin:0 0 8px;">
+                                <thead>
+                                    <tr>
+                                        <th><?php esc_html_e('#', 'adoration-scheduler'); ?></th>
+                                        <th><?php esc_html_e('Name', 'adoration-scheduler'); ?></th>
+                                        <th><?php esc_html_e('Email', 'adoration-scheduler'); ?></th>
+                                        <th><?php esc_html_e('Phone', 'adoration-scheduler'); ?></th>
+                                        <th><?php esc_html_e('Actions', 'adoration-scheduler'); ?></th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php foreach ($waiting_here as $wpos => $wl): ?>
+                                        <?php
+                                        $wl_id    = (int)($wl['id'] ?? 0);
+                                        $wl_name  = trim((string)($wl['first_name'] ?? '') . ' ' . (string)($wl['last_name'] ?? ''));
+                                        $wl_email = (string)($wl['email'] ?? '');
+                                        $wl_phone = (string)($wl['phone'] ?? '');
+                                        ?>
+                                        <tr>
+                                            <td><?php echo (int)$wpos + 1; ?></td>
+                                            <td><?php echo esc_html($wl_name !== '' ? $wl_name : '—'); ?></td>
+                                            <td><?php echo esc_html($wl_email !== '' ? $wl_email : '—'); ?></td>
+                                            <td><?php echo esc_html($wl_phone !== '' ? $wl_phone : '—'); ?></td>
+                                            <td>
+                                                <?php if ($wl_id > 0): ?>
+                                                    <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block;margin:0;">
+                                                        <input type="hidden" name="action" value="<?php echo esc_attr(WaitlistService::ACTION_ADMIN_REMOVE); ?>">
+                                                        <input type="hidden" name="waitlist_id" value="<?php echo esc_attr((string)$wl_id); ?>">
+                                                        <input type="hidden" name="return" value="<?php echo esc_attr($return_url); ?>">
+                                                        <?php wp_nonce_field(WaitlistService::ACTION_ADMIN_REMOVE . '_' . $wl_id); ?>
+                                                        <button type="submit" class="button button-small button-link-delete"
+                                                            onclick="return confirm('<?php echo esc_js(__('Remove this person from the waitlist?', 'adoration-scheduler')); ?>');">
+                                                            <?php esc_html_e('Remove', 'adoration-scheduler'); ?>
+                                                        </button>
+                                                    </form>
                                                 <?php else: ?>
                                                     —
                                                 <?php endif; ?>

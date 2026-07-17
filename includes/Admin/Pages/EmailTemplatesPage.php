@@ -10,6 +10,9 @@ use AdorationScheduler\Admin\Pages\EmailTemplates\Tabs\AccessRequestAdminTab;
 use AdorationScheduler\Admin\Pages\EmailTemplates\Tabs\AccessApprovedTab;
 use AdorationScheduler\Admin\Pages\EmailTemplates\Tabs\CoverageDigestTab;
 use AdorationScheduler\Admin\Pages\EmailTemplates\Tabs\ReplacementNeededTab;
+use AdorationScheduler\Admin\Pages\EmailTemplates\Tabs\AccountDeletedTab;
+use AdorationScheduler\Admin\Pages\EmailTemplates\Tabs\WaitlistJoinedTab;
+use AdorationScheduler\Admin\Pages\EmailTemplates\Tabs\WaitlistPromotedTab;
 
 if ( ! defined('ABSPATH') ) exit;
 
@@ -99,6 +102,38 @@ class EmailTemplatesPage {
                 "Note: {note}\n\n".
                 "Sign in to view or claim it:\n".
                 "{claim_url}\n",
+
+            // ✅ NEW: Self-service account deletion confirmation
+            'account_deleted_subject' => '[{church_name}] Your account has been deleted',
+            'account_deleted_body'    =>
+                "Hello {first_name},\n\n".
+                "As you requested, your Adoration Scheduler account and personal information have been removed from our system.\n\n".
+                "Any upcoming hours you were signed up for have been cancelled and are now open for someone else to cover. Your past participation history is kept in anonymized form so schedule and coverage records stay accurate — it's no longer linked to your name, email, or phone number.\n\n".
+                "If this wasn't you, or you'd like to sign up again in the future, please contact the parish office.\n\n".
+                "Thank you for your time serving in Adoration.\n",
+
+            // ✅ NEW: Waitlist joined (slot was full)
+            'waitlist_joined_subject' => "[{church_name}] You're on the waitlist",
+            'waitlist_joined_body'    =>
+                "Hello {first_name},\n\n".
+                "That Adoration hour is currently full, so we've added you to the waitlist instead.\n\n".
+                "Schedule: {schedule_title}\n".
+                "When: {slot_date} {slot_start}–{slot_end}\n".
+                "Your position: #{position}\n\n".
+                "If someone cancels, we'll automatically move you into the open spot and email you right away — no action needed from you.\n\n".
+                "You can view or leave the waitlist here:\n".
+                "{manage_url}\n",
+
+            // ✅ NEW: Waitlist promoted (a spot opened up)
+            'waitlist_promoted_subject' => "[{church_name}] A spot opened up — you're confirmed!",
+            'waitlist_promoted_body'    =>
+                "Hello {first_name},\n\n".
+                "Good news — a spot opened up, and you've been moved from the waitlist to a confirmed Adoration signup.\n\n".
+                "Schedule: {schedule_title}\n".
+                "When: {slot_date} {slot_start}–{slot_end}\n\n".
+                "Manage your commitment here:\n".
+                "{manage_url}\n\n".
+                "Thank you for your faithful presence in prayer.\n",
         ];
     }
 
@@ -132,6 +167,9 @@ class EmailTemplatesPage {
         $out['access_approved_subject']      = sanitize_text_field($in['access_approved_subject'] ?? '');
         $out['coverage_digest_subject']      = sanitize_text_field($in['coverage_digest_subject'] ?? '');
         $out['replacement_needed_subject']   = sanitize_text_field($in['replacement_needed_subject'] ?? '');
+        $out['account_deleted_subject']      = sanitize_text_field($in['account_deleted_subject'] ?? '');
+        $out['waitlist_joined_subject']      = sanitize_text_field($in['waitlist_joined_subject'] ?? '');
+        $out['waitlist_promoted_subject']    = sanitize_text_field($in['waitlist_promoted_subject'] ?? '');
 
         // Bodies
         $out['signup_confirmation_body'] = wp_kses_post($in['signup_confirmation_body'] ?? '');
@@ -141,6 +179,9 @@ class EmailTemplatesPage {
         $out['access_approved_body']      = wp_kses_post($in['access_approved_body'] ?? '');
         $out['coverage_digest_body']      = wp_kses_post($in['coverage_digest_body'] ?? '');
         $out['replacement_needed_body']   = wp_kses_post($in['replacement_needed_body'] ?? '');
+        $out['account_deleted_body']      = wp_kses_post($in['account_deleted_body'] ?? '');
+        $out['waitlist_joined_body']      = wp_kses_post($in['waitlist_joined_body'] ?? '');
+        $out['waitlist_promoted_body']    = wp_kses_post($in['waitlist_promoted_body'] ?? '');
 
         // Fallbacks for sender
         if ($out['from_name'] === '') {
@@ -165,6 +206,9 @@ class EmailTemplatesPage {
             'access_approved_subject','access_approved_body',
             'coverage_digest_subject','coverage_digest_body',
             'replacement_needed_subject','replacement_needed_body',
+            'account_deleted_subject','account_deleted_body',
+            'waitlist_joined_subject','waitlist_joined_body',
+            'waitlist_promoted_subject','waitlist_promoted_body',
         ] as $k) {
             if (trim((string)($out[$k] ?? '')) === '') {
                 $out[$k] = $defaults[$k];
@@ -187,6 +231,9 @@ class EmailTemplatesPage {
             'access_approved'      => AccessApprovedTab::class,
             'coverage_digest'      => CoverageDigestTab::class,
             'replacement_needed'   => ReplacementNeededTab::class,
+            'account_deleted'      => AccountDeletedTab::class,
+            'waitlist_joined'       => WaitlistJoinedTab::class,
+            'waitlist_promoted'     => WaitlistPromotedTab::class,
         ];
     }
 
