@@ -100,9 +100,12 @@ class PersonsListTable extends \WP_List_Table {
 
     protected function get_bulk_actions(): array {
         // Matches WP Posts behavior (bulk action label "Delete" but we enforce safe delete)
+        // NOTE: the array KEY ('approve') is the internal action value posted
+        // to process_bulk_action() and PeopleAdminActionsService — only the
+        // label changed to "Accept" for clarity, the key stays as-is.
         return [
             'delete'  => __('Delete', 'adoration-scheduler'),
-            'approve' => __('Approve', 'adoration-scheduler'),
+            'approve' => __('Accept', 'adoration-scheduler'),
             'reject'  => __('Reject', 'adoration-scheduler'),
         ];
     }
@@ -244,10 +247,14 @@ class PersonsListTable extends \WP_List_Table {
             esc_html__('Merge…', 'adoration-scheduler')
         );
 
-        // ✅ Approve/Reject row actions (privacy/approval gate)
+        // ✅ Accept/Reject row actions (privacy/approval gate). Rendered as
+        // visible small buttons (not plain row-action text links) so
+        // they're obvious at a glance, especially on Pending/Rejected rows —
+        // a rejected person still gets an "Accept" button here since that's
+        // the same underlying transition (target status = approved).
         $status = $this->repo->approval_status_of($item);
 
-        $approval_form = function (string $target_status, string $label, string $confirm) use ($id) {
+        $approval_form = function (string $target_status, string $label, string $confirm, string $button_class) use ($id) {
             return sprintf(
                 '<form method="post" action="%s" style="display:inline;">
                     %s
@@ -255,23 +262,24 @@ class PersonsListTable extends \WP_List_Table {
                     <input type="hidden" name="page" value="%s" />
                     <input type="hidden" name="person_id" value="%d" />
                     <input type="hidden" name="approval_status" value="%s" />
-                    <button type="submit" class="button-link" style="color:inherit;"%s>%s</button>
+                    <button type="submit" class="button button-small %s"%s>%s</button>
                 </form>',
                 esc_url(admin_url('admin-post.php')),
                 wp_nonce_field('adoration_set_person_approval_' . $id, '_wpnonce', true, false),
                 esc_attr($this->page_slug),
                 $id,
                 esc_attr($target_status),
+                esc_attr($button_class),
                 $confirm !== '' ? ' onclick="return confirm(' . wp_json_encode($confirm) . ');"' : '',
                 esc_html($label)
             );
         };
 
         if ($status !== PersonsRepository::STATUS_APPROVED) {
-            $actions['approve'] = $approval_form(PersonsRepository::STATUS_APPROVED, __('Approve', 'adoration-scheduler'), '');
+            $actions['approve'] = $approval_form(PersonsRepository::STATUS_APPROVED, __('Accept', 'adoration-scheduler'), '', 'button-primary');
         }
         if ($status !== PersonsRepository::STATUS_REJECTED) {
-            $actions['reject'] = $approval_form(PersonsRepository::STATUS_REJECTED, __('Reject', 'adoration-scheduler'), __('Reject this person\'s access request?', 'adoration-scheduler'));
+            $actions['reject'] = $approval_form(PersonsRepository::STATUS_REJECTED, __('Reject', 'adoration-scheduler'), __('Reject this person\'s access request?', 'adoration-scheduler'), '');
         }
 
         /**

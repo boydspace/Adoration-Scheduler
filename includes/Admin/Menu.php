@@ -33,19 +33,33 @@ class Menu {
         // ✅ Custom icon (monstrance) as data-uri SVG (reliable, no CSS hacks).
         $icon = self::menu_icon_monstrance_data_uri();
 
-        // Top-level menu (Schedules)
+        // Top-level menu (Dashboard) — the landing page when an admin
+        // clicks "Adoration Scheduler". Schedules is now its own explicit
+        // sibling submenu below rather than doubling as the top-level page.
         add_menu_page(
             __('Adoration Scheduler', 'adoration-scheduler'),
             __('Adoration Scheduler', 'adoration-scheduler'),
             self::CAP_MANAGE_SCHEDULES,
-            'adoration_scheduler_schedules',
-            [__CLASS__, 'render_schedules_page'],
+            'adoration_scheduler_dashboard',
+            [__CLASS__, 'render_dashboard_page'],
             $icon
         );
 
-        // Schedules list (same callback as top-level)
+        // Dashboard (same-slug trick as Chapels/Settings below: relabels
+        // the auto-created first submenu item from "Adoration Scheduler"
+        // to "Dashboard").
         add_submenu_page(
-            'adoration_scheduler_schedules',
+            'adoration_scheduler_dashboard',
+            __('Dashboard', 'adoration-scheduler'),
+            __('Dashboard', 'adoration-scheduler'),
+            self::CAP_MANAGE_SCHEDULES,
+            'adoration_scheduler_dashboard',
+            [__CLASS__, 'render_dashboard_page']
+        );
+
+        // Schedules list
+        add_submenu_page(
+            'adoration_scheduler_dashboard',
             __('Schedules', 'adoration-scheduler'),
             __('Schedules', 'adoration-scheduler'),
             self::CAP_MANAGE_SCHEDULES,
@@ -55,7 +69,7 @@ class Menu {
 
         // Add New Schedule
         add_submenu_page(
-            'adoration_scheduler_schedules',
+            'adoration_scheduler_dashboard',
             __('Add New Schedule', 'adoration-scheduler'),
             __('Add New Schedule', 'adoration-scheduler'),
             self::CAP_MANAGE_SCHEDULES,
@@ -65,7 +79,7 @@ class Menu {
 
         // ✅ Signups
         add_submenu_page(
-            'adoration_scheduler_schedules',
+            'adoration_scheduler_dashboard',
             __('Signups', 'adoration-scheduler'),
             __('Signups', 'adoration-scheduler'),
             self::CAP_MANAGE_SIGNUPS,
@@ -75,7 +89,7 @@ class Menu {
 
         // People
         add_submenu_page(
-            'adoration_scheduler_schedules',
+            'adoration_scheduler_dashboard',
             __('People', 'adoration-scheduler'),
             __('People', 'adoration-scheduler'),
             self::CAP_MANAGE_PEOPLE,
@@ -83,9 +97,20 @@ class Menu {
             [__CLASS__, 'render_people_page']
         );
 
+        // ✅ Access Requests (pending-registration review queue, split out
+        // of All People so Accept/Reject are unmissable)
+        add_submenu_page(
+            'adoration_scheduler_dashboard',
+            __('Access Requests', 'adoration-scheduler'),
+            __('Access Requests', 'adoration-scheduler'),
+            self::CAP_MANAGE_PEOPLE,
+            'adoration_scheduler_people_access_requests',
+            [__CLASS__, 'render_access_requests_page']
+        );
+
         // Add Person
         add_submenu_page(
-            'adoration_scheduler_schedules',
+            'adoration_scheduler_dashboard',
             __('Add Person', 'adoration-scheduler'),
             __('Add Person', 'adoration-scheduler'),
             self::CAP_MANAGE_PEOPLE,
@@ -95,7 +120,7 @@ class Menu {
 
         // Merge People
         add_submenu_page(
-            'adoration_scheduler_schedules',
+            'adoration_scheduler_dashboard',
             __('Merge People', 'adoration-scheduler'),
             __('Merge People', 'adoration-scheduler'),
             self::CAP_MANAGE_PEOPLE,
@@ -110,7 +135,7 @@ class Menu {
         // pages below, all of which stay registered but are hidden from
         // the sidebar via remove_submenu_page() at the end of this method.
         $chapels_hook = add_submenu_page(
-            'adoration_scheduler_schedules',
+            'adoration_scheduler_dashboard',
             __('Chapels', 'adoration-scheduler'),
             __('Settings', 'adoration-scheduler'),
             self::CAP_MANAGE_SETTINGS,
@@ -125,7 +150,7 @@ class Menu {
 
         // Email Templates (settings-level)
         add_submenu_page(
-            'adoration_scheduler_schedules',
+            'adoration_scheduler_dashboard',
             __('Email Templates', 'adoration-scheduler'),
             __('Email Templates', 'adoration-scheduler'),
             self::CAP_MANAGE_SETTINGS,
@@ -135,7 +160,7 @@ class Menu {
 
         // ✅ Email Log (settings-level / admin)
         add_submenu_page(
-            'adoration_scheduler_schedules',
+            'adoration_scheduler_dashboard',
             __('Email Log', 'adoration-scheduler'),
             __('Email Log', 'adoration-scheduler'),
             self::CAP_MANAGE_SETTINGS,
@@ -145,7 +170,7 @@ class Menu {
 
         // Anti-Spam (settings-level)
         add_submenu_page(
-            'adoration_scheduler_schedules',
+            'adoration_scheduler_dashboard',
             __('Anti-Spam', 'adoration-scheduler'),
             __('Anti-Spam', 'adoration-scheduler'),
             self::CAP_MANAGE_SETTINGS,
@@ -155,7 +180,7 @@ class Menu {
 
         // ✅ Pages & Shortcodes (settings-level diagnostic page)
         add_submenu_page(
-            'adoration_scheduler_schedules',
+            'adoration_scheduler_dashboard',
             __('Pages & Shortcodes', 'adoration-scheduler'),
             __('Pages & Shortcodes', 'adoration-scheduler'),
             self::CAP_MANAGE_SETTINGS,
@@ -165,7 +190,7 @@ class Menu {
 
         // ✅ Access & Privacy (optional approval gate settings)
         add_submenu_page(
-            'adoration_scheduler_schedules',
+            'adoration_scheduler_dashboard',
             __('Access & Privacy', 'adoration-scheduler'),
             __('Access & Privacy', 'adoration-scheduler'),
             self::CAP_MANAGE_SETTINGS,
@@ -175,7 +200,7 @@ class Menu {
 
         // ✅ Coverage Alerts (admin digest: open hours coming up soon)
         add_submenu_page(
-            'adoration_scheduler_schedules',
+            'adoration_scheduler_dashboard',
             __('Coverage Alerts', 'adoration-scheduler'),
             __('Coverage Alerts', 'adoration-scheduler'),
             self::CAP_MANAGE_SETTINGS,
@@ -185,7 +210,7 @@ class Menu {
 
         // ✅ Announcements (front-end "news" feed via [adoration_announcements])
         $announcements_hook = add_submenu_page(
-            'adoration_scheduler_schedules',
+            'adoration_scheduler_dashboard',
             __('Announcements', 'adoration-scheduler'),
             __('Announcements', 'adoration-scheduler'),
             self::CAP_MANAGE_SETTINGS,
@@ -197,14 +222,15 @@ class Menu {
             add_action('load-' . $announcements_hook, [__CLASS__, 'load_announcements_page']);
         }
 
-        // ✅ Consolidation (2026-07-16): all 13 items above stay fully
-        // registered (URLs, load-hooks, and internal self-referencing
-        // redirects all keep working exactly as before), but only 4 are
-        // shown in the sidebar: Schedules, Signups, People, and Settings
-        // (Chapels, relabeled above). The rest are reachable via the tab
-        // bars added to each page's render() (render_settings_tabs() /
-        // render_people_tabs()) or, for Add New Schedule, the existing
-        // "Add New" button already on the Schedules list page.
+        // ✅ Consolidation (2026-07-16, revised for Dashboard): all items
+        // above stay fully registered (URLs, load-hooks, and internal
+        // self-referencing redirects all keep working exactly as before),
+        // but only 5 are shown in the sidebar: Dashboard, Schedules,
+        // Signups, People, and Settings (Chapels, relabeled above). The
+        // rest are reachable via the tab bars added to each page's
+        // render() (render_settings_tabs() / render_people_tabs()) or, for
+        // Add New Schedule, the existing "Add New" button already on the
+        // Schedules list page.
         //
         // ⚠️ Do NOT use remove_submenu_page() for this: it unsets the entry
         // from the $submenu global, and WordPress's own admin.php routing
@@ -230,6 +256,7 @@ class Menu {
     public static function print_hidden_submenu_css(): void {
         $hidden_slugs = [
             'adoration_scheduler_add_new',
+            'adoration_scheduler_people_access_requests',
             'adoration_scheduler_people_add',
             'adoration_scheduler_people_merge',
             'adoration_scheduler_email_templates',
@@ -272,15 +299,34 @@ class Menu {
     }
 
     /**
-     * Shared tab bar for the People-family pages (All People, Add Person,
-     * Merge People) — same hidden-but-registered pattern as the Settings
-     * tabs above.
+     * Shared tab bar for the People-family pages (All People, Access
+     * Requests, Add Person, Merge People) — same hidden-but-registered
+     * pattern as the Settings tabs above.
      */
     public static function render_people_tabs(string $active): void {
+        $access_requests_label = __('Access Requests', 'adoration-scheduler');
+
+        // ✅ Pending-count badge on the tab itself (WP-core "Pending (3)"
+        // convention) so the queue is visible from anywhere in People
+        // without having to click in first.
+        if (class_exists('\\AdorationScheduler\\Domain\\Repositories\\PersonsRepository')) {
+            try {
+                $repo = new \AdorationScheduler\Domain\Repositories\PersonsRepository();
+                $pending_count = (int) $repo->count_by_approval_status(\AdorationScheduler\Domain\Repositories\PersonsRepository::STATUS_PENDING);
+                if ($pending_count > 0) {
+                    $access_requests_label .= ' (' . $pending_count . ')';
+                }
+            } catch (\Throwable $e) {
+                // Silently omit the badge if anything goes wrong — never
+                // let a count query break the tab bar itself.
+            }
+        }
+
         $tabs = [
-            'adoration_scheduler_people'       => __('All People', 'adoration-scheduler'),
-            'adoration_scheduler_people_add'   => __('Add Person', 'adoration-scheduler'),
-            'adoration_scheduler_people_merge' => __('Merge People', 'adoration-scheduler'),
+            'adoration_scheduler_people'                 => __('All People', 'adoration-scheduler'),
+            'adoration_scheduler_people_access_requests'  => $access_requests_label,
+            'adoration_scheduler_people_add'              => __('Add Person', 'adoration-scheduler'),
+            'adoration_scheduler_people_merge'            => __('Merge People', 'adoration-scheduler'),
         ];
 
         self::render_tab_bar($tabs, $active);
@@ -485,6 +531,38 @@ SVG;
         $class = '\\AdorationScheduler\\Admin\\Pages\\PersonsPage';
         if (!class_exists($class)) {
             self::die_missing($class, ['Pages/PersonsPage.php']);
+        }
+
+        (new $class())->render();
+    }
+
+    public static function render_dashboard_page(): void {
+        if ( ! current_user_can(self::CAP_MANAGE_SCHEDULES) && ! current_user_can('manage_options') ) {
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+        }
+
+        $candidates = ['Pages/DashboardPage.php'];
+        self::require_admin_page_file($candidates);
+
+        $class = '\\AdorationScheduler\\Admin\\Pages\\DashboardPage';
+        if (!class_exists($class)) {
+            self::die_missing($class, $candidates);
+        }
+
+        (new $class())->render();
+    }
+
+    public static function render_access_requests_page(): void {
+        if ( ! current_user_can(self::CAP_MANAGE_PEOPLE) && ! current_user_can('manage_options') ) {
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+        }
+
+        $candidates = ['Pages/AccessRequestsPage.php'];
+        self::require_admin_page_file($candidates);
+
+        $class = '\\AdorationScheduler\\Admin\\Pages\\AccessRequestsPage';
+        if (!class_exists($class)) {
+            self::die_missing($class, $candidates);
         }
 
         (new $class())->render();
