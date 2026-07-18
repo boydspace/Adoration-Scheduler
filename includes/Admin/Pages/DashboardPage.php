@@ -5,6 +5,7 @@ use AdorationScheduler\Domain\Repositories\PersonsRepository;
 use AdorationScheduler\Domain\Repositories\SchedulesRepository;
 use AdorationScheduler\Domain\Repositories\SignupsRepository;
 use AdorationScheduler\Domain\Repositories\SlotsRepository;
+use AdorationScheduler\Domain\Services\OnboardingChecklist;
 use AdorationScheduler\Services\AccessGateService;
 
 if ( ! defined('ABSPATH') ) exit;
@@ -25,6 +26,16 @@ class DashboardPage {
             && ! current_user_can('adoration_manage_schedules')
         ) {
             wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+        }
+
+        // "Hide this checklist" — dismiss the onboarding card and reload the
+        // Dashboard with a clean query string. Handled before any output so
+        // we can redirect. Mirrors SetupWizardPage's "Skip for now" handling.
+        if ( isset($_GET['adoration_hide_checklist']) && $_GET['adoration_hide_checklist'] === '1' ) {
+            check_admin_referer('adoration_dashboard_hide_checklist');
+            OnboardingChecklist::dismiss();
+            wp_safe_redirect( admin_url('admin.php?page=adoration_scheduler_dashboard') );
+            exit;
         }
 
         $persons_repo   = new PersonsRepository();
@@ -52,10 +63,32 @@ class DashboardPage {
         $schedule_counts = $schedules_repo->admin_counts_by_status();
         $active_schedules = (int) ($schedule_counts['active'] ?? 0);
 
+        $onboarding_steps = OnboardingChecklist::steps();
+        $onboarding_incomplete = false;
+        foreach ($onboarding_steps as $onboarding_step) {
+            if (empty($onboarding_step['done'])) { $onboarding_incomplete = true; break; }
+        }
+        $show_onboarding_card = $onboarding_incomplete && ! OnboardingChecklist::is_dismissed();
+
         ?>
         <div class="wrap">
             <h1 class="wp-heading-inline"><?php echo esc_html__('Dashboard', 'adoration-scheduler'); ?></h1>
             <hr class="wp-header-end" />
+
+            <?php if ($show_onboarding_card): ?>
+                <div style="background:#fff; border:1px solid #dcdcde; border-left:4px solid #2271b1; border-radius:4px; padding:16px 20px; margin-top:16px; max-width:1100px;">
+                    <div style="display:flex; align-items:center; justify-content:space-between; gap:16px;">
+                        <h2 style="margin:0;"><?php esc_html_e('Finish setting up', 'adoration-scheduler'); ?></h2>
+                        <a href="<?php echo esc_url( wp_nonce_url(
+                            admin_url('admin.php?page=adoration_scheduler_dashboard&adoration_hide_checklist=1'),
+                            'adoration_dashboard_hide_checklist'
+                        ) ); ?>" class="description">
+                            <?php esc_html_e('Hide this checklist', 'adoration-scheduler'); ?>
+                        </a>
+                    </div>
+                    <?php echo OnboardingChecklist::render_list($onboarding_steps, true); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                </div>
+            <?php endif; ?>
 
             <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:16px; margin-top:16px; max-width:1100px;">
 
@@ -109,6 +142,15 @@ class DashboardPage {
                     ),
                     admin_url('admin.php?page=adoration_scheduler_people'),
                     __('View people', 'adoration-scheduler'),
+                    '#646970'
+                ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+
+                <?php echo $this->stat_card(
+                    __('Coverage Report', 'adoration-scheduler'),
+                    '',
+                    __('hours served & fill rate', 'adoration-scheduler'),
+                    admin_url('admin.php?page=adoration_scheduler_coverage_report'),
+                    __('View report', 'adoration-scheduler'),
                     '#646970'
                 ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 

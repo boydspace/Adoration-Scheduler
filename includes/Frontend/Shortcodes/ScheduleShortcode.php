@@ -187,7 +187,8 @@ class ScheduleShortcode {
                 $commit_counts[$key] = ($commit_counts[$key] ?? 0) + 1;
 
                 if ($privacy_mode !== 'counts_only') {
-                    $commit_names[$key][] = NameFormatter::first_last_initial(
+                    $commit_names[$key][] = NameFormatter::format(
+                        $privacy_mode,
                         (string)($row['first_name'] ?? ''),
                         (string)($row['last_name'] ?? '')
                     );
@@ -1118,7 +1119,8 @@ class ScheduleShortcode {
                             if ($privacy_mode !== 'counts_only' && !$hide_signup_display) {
                                 $rows = $signupsRepo->list_for_slot($slot_id_val, true);
                                 foreach ((array)$rows as $r) {
-                                    $signup_names[] = NameFormatter::first_last_initial(
+                                    $signup_names[] = NameFormatter::format(
+                                        $privacy_mode,
                                         (string)($r['first_name'] ?? ''),
                                         (string)($r['last_name'] ?? '')
                                     );

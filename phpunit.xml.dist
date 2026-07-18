@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.5/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         colors="true"
+         cacheDirectory=".phpunit.cache"
+         beStrictAboutOutputDuringTests="true">
+
+    <testsuites>
+        <!--
+            Fast, no-WordPress-install-needed tests. Real WordPress functions are
+            stubbed with Brain Monkey (see tests/Support/AdorationTestCase.php) and
+            $wpdb is a lightweight in-memory double (tests/Support/FakeWpdb.php) —
+            neither PHP nor MySQL from the actual site is involved. Safe to run
+            anywhere, including CI.
+        -->
+        <testsuite name="unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+
+        <!--
+            Not implemented yet. Reserved for a later pass that runs against a real
+            WordPress + MySQL install via the standard wp-phpunit scaffold (closer to
+            production behavior, but slower and needs a real DB — including in CI).
+            See tests/Integration/README.md.
+        -->
+        <testsuite name="integration">
+            <directory>tests/Integration</directory>
+        </testsuite>
+    </testsuites>
+
+    <source>
+        <include>
+            <directory suffix=".php">includes</directory>
+        </include>
+    </source>
+</phpunit>

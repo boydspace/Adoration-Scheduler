@@ -76,6 +76,16 @@ class Plugin {
         if (class_exists($monthlyClass) && method_exists($monthlyClass, 'activate')) {
             $monthlyClass::activate();
         }
+
+        // ✅ Onboarding wizard (2026-07-18): show the first-run setup wizard
+        // once, via a redirect consumed on the next admin page load (see the
+        // admin_init hook below). Only on a genuinely first-time activation —
+        // if this site has already been through onboarding before (dismissed
+        // at some earlier point, e.g. deactivate/reactivate on an already-set-up
+        // site), don't re-trigger it.
+        if (get_option('adoration_scheduler_onboarding_dismissed', false) === false) {
+            update_option('adoration_scheduler_show_setup_wizard', 1, false);
+        }
     }
 
     public static function deactivate(): void {
@@ -380,6 +390,39 @@ class Plugin {
                 ['register', 'init', 'bootstrap', 'boot'],
                 'RosterPrintService'
             );
+
+            // Coverage report (2026-07-17): hours-served + fill-rate CSV export
+            self::require_first_existing($includes_dir, [
+                'Domain/Services/CoverageReportService.php',
+                'domain/Services/CoverageReportService.php',
+            ]);
+
+            self::try_register_service(
+                [
+                    'AdorationScheduler\\Domain\\Services\\CoverageReportService',
+                ],
+                ['register', 'init', 'bootstrap', 'boot'],
+                'CoverageReportService'
+            );
+
+            // ✅ Onboarding wizard (2026-07-18): consume the one-time
+            // "just activated" flag set at the end of Plugin::activate() and
+            // redirect to the setup wizard, exactly once. Runs on admin_init
+            // (not the activation hook itself) because WordPress redirects
+            // aren't safe to send from within register_activation_hook.
+            add_action('admin_init', function () {
+                if (wp_doing_ajax() || (defined('DOING_AJAX') && DOING_AJAX)) return;
+                if ((int) get_option('adoration_scheduler_show_setup_wizard', 0) !== 1) return;
+                if ( ! Plugin::current_user_can_with_fallback(Plugin::CAP_MANAGE_SCHEDULES) ) return;
+
+                delete_option('adoration_scheduler_show_setup_wizard');
+
+                $page = sanitize_key($_GET['page'] ?? '');
+                if ($page === 'adoration_scheduler_setup_wizard') return; // already there
+
+                wp_safe_redirect( admin_url('admin.php?page=adoration_scheduler_setup_wizard') );
+                exit;
+            }, 1);
 
             // ADMIN AJAX: People search
             self::require_first_existing($includes_dir, [

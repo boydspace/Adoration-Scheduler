@@ -1,0 +1,40 @@
+name: Unit tests
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  unit:
+    name: PHP ${{ matrix.php }} unit tests
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['7.4', '8.0', '8.1', '8.2', '8.3']
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+
+      - name: Install Composer dependencies
+        uses: ramsey/composer-install@v3
+        with:
+          composer-options: "--prefer-dist"
+
+      - name: Run unit test suite
+        run: vendor/bin/phpunit --testsuite unit
+
+  # Deferred — see tests/Integration/README.md. Once that suite exists this
+  # job should install a real WordPress + MySQL instance (e.g. via
+  # wp-env or the classic wp-phpunit install script) and run
+  # `vendor/bin/phpunit --testsuite integration` against it.
+  # integration:
+  #   ...

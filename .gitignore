@@ -26,3 +26,8 @@ vendor/
 
 # One-time local setup helper (not part of the shipped plugin)
 push-to-github.ps1
+
+# PHPUnit
+.phpunit.cache/
+.phpunit.result.cache
+composer.lock

@@ -1,0 +1,25 @@
+{
+    "name": "fatherboyd/adoration-scheduler",
+    "description": "A scheduling system for Eucharistic Adoration (WordPress plugin).",
+    "type": "wordpress-plugin",
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.0"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.6 || ^10.0",
+        "brain/monkey": "^2.6"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "AdorationScheduler\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit --testsuite unit",
+        "test:unit": "phpunit --testsuite unit"
+    },
+    "config": {
+        "sort-packages": true
+    }
+}

@@ -446,6 +446,71 @@ class SlotsRepository {
     }
 
     /**
+     * ✅ Coverage report (2026-07-17): month-by-month fill rate within a
+     * date range, optionally scoped to one schedule (0 = all schedules).
+     * "Filled" means at least one confirmed signup, regardless of max —
+     * a separate total_capacity/total_confirmed pair is also returned so
+     * the report can show a capacity-weighted fill % too, since "filled"
+     * alone doesn't distinguish a 1/1 slot from a 1/6 slot.
+     *
+     * Returns rows keyed by 'YYYY-MM': total_slots, filled_slots,
+     * total_capacity, total_confirmed (all ints).
+     */
+    public function fill_rate_by_month(int $schedule_id, string $from_ymd, string $to_ymd): array {
+        global $wpdb;
+
+        $schedule_id = (int)$schedule_id;
+        $from_ymd = sanitize_text_field($from_ymd);
+        $to_ymd   = sanitize_text_field($to_ymd);
+        if ($from_ymd === '' || $to_ymd === '') return [];
+
+        $signups_table = $wpdb->prefix . 'adoration_signups';
+
+        $schedule_where = ($schedule_id > 0) ? "AND s.schedule_id = %d" : "";
+
+        $params = [$from_ymd, $to_ymd];
+        if ($schedule_id > 0) $params[] = $schedule_id;
+
+        $sql = $wpdb->prepare(
+            "SELECT
+                DATE_FORMAT(s.`date`, '%%Y-%%m') AS ym,
+                COUNT(*) AS total_slots,
+                SUM(CASE WHEN COALESCE(c.confirmed_count, 0) > 0 THEN 1 ELSE 0 END) AS filled_slots,
+                SUM(COALESCE(s.max_adorers, 0)) AS total_capacity,
+                SUM(COALESCE(c.confirmed_count, 0)) AS total_confirmed
+             FROM {$this->table} s
+             LEFT JOIN (
+                SELECT slot_id, COUNT(*) AS confirmed_count
+                FROM {$signups_table}
+                WHERE status = 'confirmed'
+                GROUP BY slot_id
+             ) c ON c.slot_id = s.id
+             WHERE s.is_active = 1
+               AND s.`date` BETWEEN %s AND %s
+               {$schedule_where}
+             GROUP BY ym
+             ORDER BY ym ASC",
+            $params
+        );
+
+        $rows = (array) $wpdb->get_results($sql, ARRAY_A);
+
+        $out = [];
+        foreach ($rows as $r) {
+            $ym = (string)($r['ym'] ?? '');
+            if ($ym === '') continue;
+            $out[$ym] = [
+                'total_slots'     => (int)($r['total_slots'] ?? 0),
+                'filled_slots'    => (int)($r['filled_slots'] ?? 0),
+                'total_capacity'  => (int)($r['total_capacity'] ?? 0),
+                'total_confirmed' => (int)($r['total_confirmed'] ?? 0),
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
      * List ACTIVE slots only.
      */
     public function list_active_for_schedule(int $schedule_id): array {

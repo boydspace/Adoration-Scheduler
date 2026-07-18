@@ -269,6 +269,14 @@ class PerpetualSlotGenerator
                     continue; // already has a signup (confirmed or otherwise) for this date
                 }
 
+                // Cross-slot guard: if a duplicate slot row exists for this exact
+                // schedule/date/time (e.g. leftover duplicate weekday-template
+                // segments), don't sign the person up — and email them — again
+                // for the same time under a different slot_id.
+                if ($this->signupsRepo->exists_confirmed_for_schedule_datetime($schedule_id, $person_id, $date, $st)) {
+                    continue;
+                }
+
                 if ($max_adorers !== null) {
                     // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
                     $current = (int) $wpdb->get_var($wpdb->prepare(

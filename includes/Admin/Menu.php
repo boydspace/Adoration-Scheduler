@@ -218,6 +218,36 @@ class Menu {
             [__CLASS__, 'render_coverage_alerts_page']
         );
 
+        // ✅ Coverage Report (2026-07-17): hours-served + fill-rate history,
+        // for stewardship recognition / year-end reports. Grouped into the
+        // Settings tab family like Coverage Alerts and Email Log (both
+        // also signups-adjacent data views rather than actual settings),
+        // so uses CAP_MANAGE_SETTINGS to match that family's capability.
+        add_submenu_page(
+            'adoration_scheduler_dashboard',
+            __('Coverage Report', 'adoration-scheduler'),
+            __('Coverage Report', 'adoration-scheduler'),
+            self::CAP_MANAGE_SETTINGS,
+            'adoration_scheduler_coverage_report',
+            [__CLASS__, 'render_coverage_report_page']
+        );
+
+        // ✅ Setup Wizard (2026-07-18): first-run onboarding, reached only via
+        // the one-time activation redirect (see Plugin.php) or a direct link
+        // from the Dashboard checklist card — never shown in the sidebar and
+        // not part of the Settings tab family (it's not a settings page).
+        // Still needs a real add_submenu_page() registration so admin.php
+        // routing/capability checks resolve it (see the note below about why
+        // remove_submenu_page() isn't used for hiding).
+        add_submenu_page(
+            'adoration_scheduler_dashboard',
+            __('Setup Wizard', 'adoration-scheduler'),
+            __('Setup Wizard', 'adoration-scheduler'),
+            self::CAP_MANAGE_SCHEDULES,
+            'adoration_scheduler_setup_wizard',
+            [__CLASS__, 'render_setup_wizard_page']
+        );
+
         // ✅ Announcements (front-end "news" feed via [adoration_announcements])
         $announcements_hook = add_submenu_page(
             'adoration_scheduler_dashboard',
@@ -276,7 +306,9 @@ class Menu {
             'adoration_scheduler_pages_shortcodes',
             'adoration_scheduler_access',
             'adoration_scheduler_coverage_alerts',
+            'adoration_scheduler_coverage_report',
             'adoration_scheduler_announcements',
+            'adoration_scheduler_setup_wizard',
         ];
 
         echo '<style>';
@@ -302,6 +334,7 @@ class Menu {
             'adoration_scheduler_antispam'          => __('Anti-Spam', 'adoration-scheduler'),
             'adoration_scheduler_access'            => __('Access & Privacy', 'adoration-scheduler'),
             'adoration_scheduler_coverage_alerts'   => __('Coverage Alerts', 'adoration-scheduler'),
+            'adoration_scheduler_coverage_report'   => __('Coverage Report', 'adoration-scheduler'),
             'adoration_scheduler_announcements'     => __('Announcements', 'adoration-scheduler'),
             'adoration_scheduler_pages_shortcodes'  => __('Pages & Shortcodes', 'adoration-scheduler'),
         ];
@@ -782,6 +815,38 @@ SVG;
         if (method_exists($class, 'render')) {
             $class::render();
             return;
+        }
+
+        (new $class())->render();
+    }
+
+    public static function render_coverage_report_page(): void {
+        if ( ! current_user_can(self::CAP_MANAGE_SETTINGS) && ! current_user_can('manage_options') ) {
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+        }
+
+        $candidates = ['Pages/CoverageReportPage.php'];
+        self::require_admin_page_file($candidates);
+
+        $class = '\\AdorationScheduler\\Admin\\Pages\\CoverageReportPage';
+        if (!class_exists($class)) {
+            self::die_missing($class, $candidates);
+        }
+
+        (new $class())->render();
+    }
+
+    public static function render_setup_wizard_page(): void {
+        if ( ! current_user_can(self::CAP_MANAGE_SCHEDULES) && ! current_user_can('manage_options') ) {
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+        }
+
+        $candidates = ['Pages/SetupWizardPage.php'];
+        self::require_admin_page_file($candidates);
+
+        $class = '\\AdorationScheduler\\Admin\\Pages\\SetupWizardPage';
+        if (!class_exists($class)) {
+            self::die_missing($class, $candidates);
         }
 
         (new $class())->render();

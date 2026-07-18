@@ -39,10 +39,12 @@ Adoration Scheduler turns WordPress into a complete Eucharistic Adoration schedu
 - Consolidated, simplified admin menu.
 - Signup audit trail for accountability.
 - Built-in Pages & Shortcodes diagnostic tool to confirm the portal is wired up correctly.
-- Privacy controls for what's shown on public listings.
+- Privacy controls for what's shown on public listings: counts only, first name only, first name + last initial, or full names.
 - Bulk roster import and export in CSV or XLSX (Excel) format, with a review-before-you-commit preview that flags new people, updates, and email conflicts.
 - Schedules list export in CSV or XLSX.
 - Printable rosters — a clean, chapel-binder-friendly page per schedule and date range, grouped by date/time with names and phone numbers, ready to print or save as a PDF from the browser.
+- Coverage Report — hours served per person and month-by-month fill rate over any date range, each with CSV export, for stewardship recognition and year-end reports.
+- First-run Setup Wizard shown once right after activation, plus a persistent "Finish setting up" checklist on the Dashboard for anyone who skips it — walks a new install through creating a schedule, adding hours, activating it, and deciding on the approval gate.
 
 ## Requirements
 
@@ -66,10 +68,31 @@ Adoration Scheduler turns WordPress into a complete Eucharistic Adoration schedu
 - Translation domain: `adoration-scheduler`
 - Public PHP constants and classes: `ADORATION_SCHEDULER_*` and `AdorationScheduler\*`
 
+## Testing
+
+A PHPUnit + Brain Monkey unit test suite covers the plugin's highest-risk
+pure logic (overnight slot-generation math, signup dedupe rules, the
+standing-commitment duplicate-email regression) without needing a real
+WordPress install or MySQL database:
+
+```
+composer install
+composer test
+```
+
+See `tests/Support/AdorationTestCase.php` and `tests/Support/FakeWpdb.php`
+for how WordPress functions and `$wpdb` are faked, and
+`tests/Integration/README.md` for the (not yet built) plan to add a second
+suite that runs against a real WordPress + MySQL install. CI runs the unit
+suite on every push via `.github/workflows/tests.yml`.
+
 ## Roadmap
 
 - SMS reminders (pending a provider decision)
 - Expanded accessibility and mobile usability review
+- WordPress-install setup/onboarding wizard for new sites
+- Attendance/check-in tracking (pending a decision on whether this fits the ministry's approach to self-service prayer hours)
+- wp-phpunit integration test suite (see `tests/Integration/README.md`)
 
 ## Development status
 

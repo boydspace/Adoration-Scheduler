@@ -13,6 +13,7 @@ use AdorationScheduler\Domain\Repositories\ScheduleClosuresRepository;
 use AdorationScheduler\Domain\Services\SlotGenerator;
 use AdorationScheduler\Domain\Services\PerpetualSlotGenerator;
 use AdorationScheduler\Domain\Services\MonthlySlotGenerator;
+use AdorationScheduler\Services\NotificationService;
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
@@ -1092,6 +1093,41 @@ class EditSchedulePage {
                         if ($days_ahead <= 0) $days_ahead = 60;
                         $perpGenerator = new PerpetualSlotGenerator($dateRepo, $segmentsRepo, $slotsRepo, $commitmentsRepo, $signupsRepo);
                         $perpGenerator->sync_window($schedule, $days_ahead);
+
+                        // ✅ One dedicated "your weekly commitment is confirmed" email here,
+                        // mirroring StandingSignupHandler's public flow — sync_window() above
+                        // silently auto-fills every matching future date (see the created_via
+                        // === 'standing_commitment' guard in SignupsRepository::create()), so
+                        // without this the adorer an admin assigns here would get no email at all.
+                        try {
+                            $day_labels = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+                            $day_label = $day_labels[$day_of_week] ?? '';
+                            $schedule_title = trim((string)($schedule['name'] ?? 'Adoration'));
+                            $ts = strtotime('1970-01-01 ' . $start_time);
+                            $ets = strtotime('1970-01-01 ' . $end_time);
+                            $time_label = $ts !== false ? date_i18n('g:i A', $ts) : $start_time;
+                            if ($ets !== false) $time_label .= ' – ' . date_i18n('g:i A', $ets);
+
+                            NotificationService::send_signup_confirmation([
+                                'to_email'       => $email_norm,
+                                'first_name'     => $first,
+                                'last_name'      => $last,
+                                'person_name'    => trim($first . ' ' . $last),
+                                'schedule_title' => $schedule_title,
+                                'schedule_name'  => $schedule_title,
+                                'slot_date'      => '',
+                                'slot_start'     => $start_time,
+                                'slot_end'       => $end_time,
+                                'slot_label'     => 'Every ' . $day_label . ', ' . $time_label,
+                                'manage_url'     => home_url('/my-adoration/'),
+                                'context'        => 'admin_standing',
+                                'send'           => true,
+                                'signup_id'      => 0,
+                                'person_id'      => (int)$person_id,
+                            ]);
+                        } catch (\Throwable $e) {
+                            error_log('[AdorationScheduler] Admin add-commitment confirmation email failed: ' . $e->getMessage());
+                        }
                     }
                 }
                 $tab = 'commitments';

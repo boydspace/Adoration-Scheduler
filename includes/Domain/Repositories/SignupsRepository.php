@@ -167,6 +167,68 @@ class SignupsRepository {
     }
 
     /**
+     * ✅ Coverage report (2026-07-17): confirmed hours served per person
+     * within a date range, optionally scoped to one schedule (0 = all
+     * schedules). Used by the "Hours Served by Person" table on the
+     * Coverage Report admin page — for stewardship recognition / year-end
+     * reports, not for anything the plugin acts on automatically.
+     *
+     * Prefers start_at/end_at (canonical, timezone-correct, handles
+     * overnight slots naturally) for duration; falls back to a
+     * mod-24h TIMEDIFF on start_time/end_time on older installs that
+     * don't have those columns yet, same fallback pattern used elsewhere
+     * in this repository (see list_for_person()).
+     *
+     * Returns rows: person_id, first_name, last_name, email,
+     * signup_count, total_minutes (int).
+     */
+    public function hours_report_by_person(int $schedule_id, string $from_ymd, string $to_ymd): array {
+        global $wpdb;
+
+        $schedule_id = (int)$schedule_id;
+        $from_ymd = sanitize_text_field($from_ymd);
+        $to_ymd   = sanitize_text_field($to_ymd);
+        if ($from_ymd === '' || $to_ymd === '') return [];
+
+        if (!$this->slots_table_exists()) return [];
+
+        $duration_expr = $this->slots_has_start_at_columns()
+            ? "TIMESTAMPDIFF(MINUTE, sl.start_at, sl.end_at)"
+            : "(MOD(TIME_TO_SEC(TIMEDIFF(sl.end_time, sl.start_time)) + 86400, 86400) / 60)";
+
+        $schedule_where = ($schedule_id > 0) ? "AND s.schedule_id = %d" : "";
+
+        $params = [$from_ymd, $to_ymd];
+        if ($schedule_id > 0) $params[] = $schedule_id;
+
+        $sql = $wpdb->prepare(
+            "SELECT
+                s.person_id,
+                p.first_name, p.last_name, p.email,
+                COUNT(*) AS signup_count,
+                SUM({$duration_expr}) AS total_minutes
+             FROM {$this->table} s
+             JOIN {$this->slots_table} sl ON sl.id = s.slot_id
+             JOIN {$this->persons_table} p ON p.id = s.person_id
+             WHERE s.status = 'confirmed'
+               AND s.date BETWEEN %s AND %s
+               {$schedule_where}
+             GROUP BY s.person_id, p.first_name, p.last_name, p.email
+             ORDER BY total_minutes DESC",
+            $params
+        );
+
+        $rows = (array) $wpdb->get_results($sql, ARRAY_A);
+        foreach ($rows as &$r) {
+            $r['signup_count']  = (int)($r['signup_count'] ?? 0);
+            $r['total_minutes'] = (int)round((float)($r['total_minutes'] ?? 0));
+        }
+        unset($r);
+
+        return $rows;
+    }
+
+    /**
      * ✅ List signups for a person (optionally only confirmed).
      * Includes schedule_name/schedule_slug (if schedules table exists)
      * AND slot timing fields (if slots table exists).
@@ -625,6 +687,46 @@ class SignupsRepository {
                 $status
             );
         }
+
+        $found = $wpdb->get_var($sql);
+        return !empty($found);
+    }
+
+    /**
+     * Cross-slot duplicate check: does this person already have a confirmed
+     * signup on this schedule, for this exact date + time-of-day, regardless
+     * of *which* slot row it's attached to?
+     *
+     * exists_for_slot_person_date() alone only protects against re-signing up
+     * for the SAME slot_id. That's not enough for perpetual/standing-commitment
+     * auto-signups (see PerpetualSlotGenerator::apply_standing_commitments()):
+     * if two slot rows ever exist for the same schedule/date/start_time (e.g.
+     * leftover duplicate weekday-template segments from before Quick Setup's
+     * replace-not-stack fix), the per-slot check doesn't catch it and the same
+     * person gets auto-signed-up — and emailed — once per duplicate slot.
+     */
+    public function exists_confirmed_for_schedule_datetime(int $schedule_id, int $person_id, string $date, string $start_time): bool {
+        global $wpdb;
+
+        $schedule_id = (int)$schedule_id;
+        $person_id   = (int)$person_id;
+        $date        = sanitize_text_field($date);
+        $start_time  = substr(sanitize_text_field($start_time), 0, 8);
+
+        if ($schedule_id <= 0 || $person_id <= 0 || $date === '' || $start_time === '') return false;
+
+        $sql = $wpdb->prepare(
+            "SELECT 1
+             FROM {$this->table} s
+             JOIN {$this->slots_table} sl ON sl.id = s.slot_id
+             WHERE s.schedule_id = %d AND s.person_id = %d AND s.date = %s
+               AND s.status = 'confirmed' AND sl.start_time = %s
+             LIMIT 1",
+            $schedule_id,
+            $person_id,
+            $date,
+            $start_time
+        );
 
         $found = $wpdb->get_var($sql);
         return !empty($found);
@@ -1236,17 +1338,31 @@ class SignupsRepository {
         if ($final_status === 'confirmed') {
 
             // 1) Confirmation email
-            try {
-                if (class_exists(EmailService::class)) {
-                    $mailer = new EmailService();
-                    if (method_exists($mailer, 'send_signup_confirmation')) {
-                        $mailer->send_signup_confirmation($insert_id);
-                    } else {
-                        error_log('[AdorationScheduler] EmailService missing send_signup_confirmation()');
+            //
+            // ✅ Bug fix (2026-07-17): skip this for created_via === 'standing_commitment'.
+            // PerpetualSlotGenerator::apply_standing_commitments() calls create() once per
+            // *future occurrence* it auto-fills for a standing commitment — often 8-9 calls
+            // in one sync_window() run (one per matching weekday in the rolling window).
+            // Sending a "signup confirmed" email on every one of those inserts meant a
+            // single "claim this weekly hour" action produced 8-9 near-identical emails in
+            // one burst, on top of the dedicated "your weekly commitment is confirmed" email
+            // already sent by StandingSignupHandler/EditSchedulePage's add-commitment action.
+            // The commitment itself is already confirmed by that one email; each individual
+            // future date doesn't need its own. (The 24h reminder below is unaffected — a
+            // reminder shortly before each specific occurrence is still wanted.)
+            if ($created_via !== 'standing_commitment') {
+                try {
+                    if (class_exists(EmailService::class)) {
+                        $mailer = new EmailService();
+                        if (method_exists($mailer, 'send_signup_confirmation')) {
+                            $mailer->send_signup_confirmation($insert_id);
+                        } else {
+                            error_log('[AdorationScheduler] EmailService missing send_signup_confirmation()');
+                        }
                     }
+                } catch (\Throwable $e) {
+                    error_log('[AdorationScheduler] Confirmation email failed for signup ' . $insert_id . ': ' . $e->getMessage());
                 }
-            } catch (\Throwable $e) {
-                error_log('[AdorationScheduler] Confirmation email failed for signup ' . $insert_id . ': ' . $e->getMessage());
             }
 
             // 2) Reminder scheduling

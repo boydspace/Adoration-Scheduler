@@ -206,7 +206,7 @@ class AddNewSchedulePage {
                                 <option value="counts_only"><?php esc_html_e('Counts only', 'adoration-scheduler'); ?></option>
                                 <option value="first_name_only"><?php esc_html_e('First name only', 'adoration-scheduler'); ?></option>
                                 <option value="first_last_initial"><?php esc_html_e('First name + last initial', 'adoration-scheduler'); ?></option>
-                                <option value="names"><?php esc_html_e('Names (admin only for now)', 'adoration-scheduler'); ?></option>
+                                <option value="names"><?php esc_html_e('Full names', 'adoration-scheduler'); ?></option>
                             </select>
                         </td>
                     </tr>

@@ -221,9 +221,12 @@ if ($rolling_window_days <= 0) $rolling_window_days = 60;
                         <?php esc_html_e('First name + last initial', 'adoration-scheduler'); ?>
                     </option>
                     <option value="names" <?php selected((string)($schedule['privacy_mode'] ?? ''), 'names'); ?>>
-                        <?php esc_html_e('Names (admin only for now)', 'adoration-scheduler'); ?>
+                        <?php esc_html_e('Full names', 'adoration-scheduler'); ?>
                     </option>
                 </select>
+                <p class="description">
+                    <?php esc_html_e('Controls what the public schedule page shows next to each hour: nothing but open/full counts, first name only, first name + last initial, or full names.', 'adoration-scheduler'); ?>
+                </p>
             </td>
         </tr>
 
