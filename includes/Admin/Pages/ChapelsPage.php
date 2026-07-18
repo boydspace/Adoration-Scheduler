@@ -5,6 +5,7 @@ if ( ! defined('ABSPATH') ) exit;
 
 use AdorationScheduler\Domain\Repositories\ChapelsRepository;
 use AdorationScheduler\Admin\Tables\ChapelsListTable;
+use AdorationScheduler\Services\CheckInService;
 
 class ChapelsPage {
 
@@ -113,6 +114,18 @@ class ChapelsPage {
             $ok = $this->repo->delete($id);
             $this->redirect_with_notice($ok ? 'chapel_deleted' : 'chapel_delete_failed');
         }
+
+        // ✅ Attendance / check-in (2026-07-18): regenerate this chapel's
+        // kiosk QR-code link, e.g. if a printed copy is lost or compromised.
+        if ($action === 'regenerate_kiosk_token' && $id > 0) {
+            check_admin_referer('adoration_regenerate_kiosk_token_' . $id);
+
+            $new_token = $this->repo->regenerate_kiosk_token($id);
+            $this->redirect_with_notice(
+                $new_token !== null ? 'kiosk_token_regenerated' : 'kiosk_token_regenerate_failed',
+                ['action' => 'edit', 'id' => $id]
+            );
+        }
     }
 
     public function render(): void {
@@ -180,6 +193,40 @@ class ChapelsPage {
         echo '<h2>' . esc_html__('Edit Chapel', 'adoration-scheduler') . '</h2>';
 
         $this->render_form($chapel);
+        $this->render_kiosk_section($chapel);
+    }
+
+    /**
+     * ✅ Attendance / check-in (2026-07-18): a public, no-login "who's on
+     * right now, tap to check in" page for this chapel — a parish can print
+     * the URL below as a QR code for the chapel entrance. See
+     * CheckInService::handle_kiosk_page().
+     */
+    private function render_kiosk_section(array $chapel): void {
+        $id = (int)($chapel['id'] ?? 0);
+        if ($id <= 0) return;
+
+        $kiosk_url = CheckInService::build_kiosk_url($id);
+        $regen_url = wp_nonce_url(
+            $this->page_url(['action' => 'regenerate_kiosk_token', 'id' => $id]),
+            'adoration_regenerate_kiosk_token_' . $id
+        );
+
+        echo '<h2 style="margin-top:24px;">' . esc_html__('Kiosk Check-in Page', 'adoration-scheduler') . '</h2>';
+        echo '<p class="description" style="max-width:720px;">' . esc_html__('A public page showing who\'s scheduled at this chapel right now, with a one-tap "I\'m here" button — no sign-in needed. Print the link below as a QR code for the chapel entrance, or bookmark it on a tablet kept at the chapel.', 'adoration-scheduler') . '</p>';
+
+        if ($kiosk_url === null) {
+            echo '<p><em>' . esc_html__('Could not generate a kiosk link for this chapel.', 'adoration-scheduler') . '</em></p>';
+            return;
+        }
+
+        echo '<p style="max-width:720px;">';
+        echo '<input type="text" readonly class="regular-text" style="width:100%;max-width:560px;" value="' . esc_attr($kiosk_url) . '" onclick="this.select();">';
+        echo '</p>';
+        echo '<p>';
+        echo '<a class="button" href="' . esc_url($kiosk_url) . '" target="_blank" rel="noopener">' . esc_html__('Open kiosk page', 'adoration-scheduler') . '</a> ';
+        echo '<a class="button" href="' . esc_url($regen_url) . '" onclick="return confirm(' . esc_attr(wp_json_encode(__('Reset this link? Any printed QR code will stop working.', 'adoration-scheduler'))) . ');">' . esc_html__('Reset link', 'adoration-scheduler') . '</a>';
+        echo '</p>';
     }
 
     private function render_form(array $chapel): void {
@@ -230,8 +277,8 @@ class ChapelsPage {
         return add_query_arg($args, $base);
     }
 
-    private function redirect_with_notice(string $key): void {
-        wp_safe_redirect($this->page_url(['adoration_notice' => $key]));
+    private function redirect_with_notice(string $key, array $extra_args = []): void {
+        wp_safe_redirect($this->page_url(array_merge($extra_args, ['adoration_notice' => $key])));
         exit;
     }
 
@@ -283,6 +330,13 @@ class ChapelsPage {
                 break;
             case 'chapel_delete_failed':
                 $this->admin_notice('error', __('Could not delete chapel.', 'adoration-scheduler'));
+                break;
+
+            case 'kiosk_token_regenerated':
+                $this->admin_notice('success', __('Kiosk check-in link reset. Any previously printed QR code will stop working — print the new one below.', 'adoration-scheduler'));
+                break;
+            case 'kiosk_token_regenerate_failed':
+                $this->admin_notice('error', __('Could not reset the kiosk check-in link.', 'adoration-scheduler'));
                 break;
         }
     }

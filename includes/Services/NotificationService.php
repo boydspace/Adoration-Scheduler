@@ -262,6 +262,35 @@ class NotificationService
     }
 
     /**
+     * ✅ Admin no-show digest (2026-07-18): unlike coverage_digest (nobody
+     * signed up in advance), this is for slots where someone WAS confirmed
+     * but never checked in — the safety-alerting half of the check-in
+     * feature. Mirrors send_coverage_digest's shape exactly; dedupe is
+     * handled at the signup level (no_show_alert_sent_at), not via the
+     * mail transient, so dedupe_key is intentionally left unset.
+     */
+    public static function send_no_show_digest(array $args): bool
+    {
+        $args = self::normalize_args($args);
+
+        $to = trim((string)($args['to_email'] ?? ''));
+        if ($to === '' || ! is_email($to)) return false;
+
+        if (!self::should_send($args)) return true;
+
+        $type    = 'no_show_digest';
+        $context = (string)($args['context'] ?? 'admin');
+
+        $subject = self::render_subject($type, $args);
+        $body    = self::render_body($type, $args);
+
+        $dedupe_key = self::build_dedupe_key($type, $args);
+        $dedupe_ttl = self::dedupe_ttl($args);
+
+        return self::send_mail($to, $subject, $body, $context, $type, $args, $dedupe_key, $dedupe_ttl);
+    }
+
+    /**
      * ✅ Replacement/coverage-needed notice, sent individually to the
      * admin and each substitute/target. Previously a hardcoded wp_mail()
      * loop in ReplacementRequestService.
@@ -486,6 +515,9 @@ class NotificationService
             case 'coverage_digest':
                 return sprintf('[%s] %d Adoration hour(s) need coverage', get_bloginfo('name'), (int)($args['gap_count'] ?? 0));
 
+            case 'no_show_digest':
+                return sprintf('[%s] %d possible no-show(s) in Adoration', get_bloginfo('name'), (int)($args['no_show_count'] ?? 0));
+
             case 'replacement_needed':
                 return sprintf('[%s] Coverage needed: %s', get_bloginfo('name'), trim((string)($args['slot_label'] ?? '')));
 
@@ -524,6 +556,8 @@ class NotificationService
 
         switch ($type) {
             case 'signup_confirmation':
+                $checkin_url = trim((string)($args['checkin_url'] ?? ''));
+
                 $lines = [];
                 $lines[] = $hello;
                 $lines[] = '';
@@ -540,6 +574,12 @@ class NotificationService
                     $lines[] = '';
                 }
 
+                if ($checkin_url !== '') {
+                    $lines[] = "When you arrive, you can tap this link to check in:";
+                    $lines[] = $checkin_url;
+                    $lines[] = '';
+                }
+
                 $lines[] = "Thank you for your faithful presence in prayer.";
                 $lines[] = '';
                 $lines[] = get_bloginfo('name') ?: 'Your Parish';
@@ -547,6 +587,8 @@ class NotificationService
                 return implode("\n", $lines);
 
             case 'reminder_24h':
+                $checkin_url = trim((string)($args['checkin_url'] ?? ''));
+
                 $lines = [];
                 $lines[] = $hello;
                 $lines[] = '';
@@ -560,6 +602,12 @@ class NotificationService
                 if ($manage_url !== '') {
                     $lines[] = "Manage your commitment here:";
                     $lines[] = $manage_url;
+                    $lines[] = '';
+                }
+
+                if ($checkin_url !== '') {
+                    $lines[] = "When you arrive, you can tap this link to check in:";
+                    $lines[] = $checkin_url;
                     $lines[] = '';
                 }
 
@@ -652,6 +700,29 @@ class NotificationService
                 if ($signups_url !== '') {
                     $lines[] = '';
                     $lines[] = $signups_url;
+                }
+
+                return implode("\n", $lines);
+
+            case 'no_show_digest':
+                $no_show_count = (int)($args['no_show_count'] ?? 0);
+                $grace_minutes = (int)($args['grace_minutes'] ?? 30);
+                $no_show_list  = (string)($args['no_show_list'] ?? '');
+                $attendance_url = trim((string)($args['attendance_url'] ?? ''));
+
+                $lines = [];
+                $lines[] = sprintf(
+                    "The following %d confirmed Adoration hour(s) started more than %d minutes ago and nobody has checked in:",
+                    $no_show_count,
+                    $grace_minutes
+                );
+                $lines[] = '';
+                if ($no_show_list !== '') $lines[] = $no_show_list;
+                $lines[] = '';
+                $lines[] = "This could mean the chapel is uncovered right now, or it could just mean someone forgot to tap the check-in link. Worth a quick call if this is a safety concern.";
+                if ($attendance_url !== '') {
+                    $lines[] = '';
+                    $lines[] = $attendance_url;
                 }
 
                 return implode("\n", $lines);
@@ -824,6 +895,9 @@ class NotificationService
             '{manage_url}'     => (string)($args['manage_url'] ?? $args['magic_url'] ?? ''),
             '{magic_url}'      => (string)($args['magic_url'] ?? $args['manage_url'] ?? ''),
 
+            // ✅ Check-in tokens (2026-07-18)
+            '{checkin_url}' => (string)($args['checkin_url'] ?? ''),
+
             // ✅ Access request / approval tokens
             '{requester_name}'  => (string)($args['requester_name'] ?? $person_name),
             '{requester_email}' => (string)($args['requester_email'] ?? ''),
@@ -835,6 +909,12 @@ class NotificationService
             '{window_hours}' => (string)($args['window_hours'] ?? ''),
             '{gap_list}'     => (string)($args['gap_list'] ?? ''),
             '{signups_url}'  => (string)($args['signups_url'] ?? ''),
+
+            // ✅ No-show digest tokens (2026-07-18)
+            '{no_show_count}'  => (string)($args['no_show_count'] ?? ''),
+            '{grace_minutes}'  => (string)($args['grace_minutes'] ?? ''),
+            '{no_show_list}'   => (string)($args['no_show_list'] ?? ''),
+            '{attendance_url}' => (string)($args['attendance_url'] ?? ''),
 
             // ✅ Replacement-request tokens
             '{note}'        => (string)($args['note'] ?? ''),
@@ -1006,6 +1086,10 @@ class NotificationService
             'target_name'     => 'John Target',
             'claim_url'       => home_url('/my-adoration/?magic=TESTTOKEN'),
             'position'        => 3,
+            'no_show_count'   => 2,
+            'grace_minutes'   => 30,
+            'no_show_list'    => "• {$slot_date} {$slot_start}–{$slot_end} — Weekly Adoration (Test) (Main Chapel) — Test Person",
+            'attendance_url'  => admin_url('admin.php?page=adoration_scheduler_attendance'),
 
             'context'        => 'admin',
             'send'           => true,

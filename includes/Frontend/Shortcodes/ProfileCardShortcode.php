@@ -486,11 +486,13 @@ class ProfileCardShortcode
                     if (!contactModal) return;
                     contactModal.classList.add('is-open');
                     contactModal.setAttribute('aria-hidden', 'false');
+                    if (window.AdorationA11y) window.AdorationA11y.trap(contactModal);
                 }
                 function closeContactModal() {
                     if (!contactModal) return;
                     contactModal.classList.remove('is-open');
                     contactModal.setAttribute('aria-hidden', 'true');
+                    if (window.AdorationA11y) window.AdorationA11y.release(contactModal);
                 }
 
                 if (contactModal && contactModal.classList.contains('as-modal')) {
@@ -521,11 +523,13 @@ class ProfileCardShortcode
                     if (!passwordModal) return;
                     passwordModal.classList.add('is-open');
                     passwordModal.setAttribute('aria-hidden', 'false');
+                    if (window.AdorationA11y) window.AdorationA11y.trap(passwordModal);
                 }
                 function closePasswordModal() {
                     if (!passwordModal) return;
                     passwordModal.classList.remove('is-open');
                     passwordModal.setAttribute('aria-hidden', 'true');
+                    if (window.AdorationA11y) window.AdorationA11y.release(passwordModal);
                 }
 
                 if (passwordModal && passwordModal.classList.contains('as-modal')) {
@@ -556,11 +560,13 @@ class ProfileCardShortcode
                     if (!deleteModal) return;
                     deleteModal.classList.add('is-open');
                     deleteModal.setAttribute('aria-hidden', 'false');
+                    if (window.AdorationA11y) window.AdorationA11y.trap(deleteModal);
                 }
                 function closeDeleteModal() {
                     if (!deleteModal) return;
                     deleteModal.classList.remove('is-open');
                     deleteModal.setAttribute('aria-hidden', 'true');
+                    if (window.AdorationA11y) window.AdorationA11y.release(deleteModal);
                 }
 
                 if (deleteModal && deleteModal.classList.contains('as-modal')) {

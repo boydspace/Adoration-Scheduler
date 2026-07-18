@@ -946,11 +946,13 @@ class MyAdorationShortcode
                         if (!contactModal) return;
                         contactModal.classList.add('is-open');
                         contactModal.setAttribute('aria-hidden', 'false');
+                        if (window.AdorationA11y) window.AdorationA11y.trap(contactModal);
                     }
                     function closeContactModal() {
                         if (!contactModal) return;
                         contactModal.classList.remove('is-open');
                         contactModal.setAttribute('aria-hidden', 'true');
+                        if (window.AdorationA11y) window.AdorationA11y.release(contactModal);
                     }
 
                     if (contactModal && contactModal.classList.contains('as-modal')) {
@@ -981,11 +983,13 @@ class MyAdorationShortcode
                         if (!passwordModal) return;
                         passwordModal.classList.add('is-open');
                         passwordModal.setAttribute('aria-hidden', 'false');
+                        if (window.AdorationA11y) window.AdorationA11y.trap(passwordModal);
                     }
                     function closePasswordModal() {
                         if (!passwordModal) return;
                         passwordModal.classList.remove('is-open');
                         passwordModal.setAttribute('aria-hidden', 'true');
+                        if (window.AdorationA11y) window.AdorationA11y.release(passwordModal);
                     }
 
                     if (passwordModal && passwordModal.classList.contains('as-modal')) {
@@ -1019,11 +1023,13 @@ class MyAdorationShortcode
                         if (!replacementModal) return;
                         replacementModal.classList.add('is-open');
                         replacementModal.setAttribute('aria-hidden', 'false');
+                        if (window.AdorationA11y) window.AdorationA11y.trap(replacementModal);
                     }
                     function closeReplacementModal() {
                         if (!replacementModal) return;
                         replacementModal.classList.remove('is-open');
                         replacementModal.setAttribute('aria-hidden', 'true');
+                        if (window.AdorationA11y) window.AdorationA11y.release(replacementModal);
                     }
 
                     root.querySelectorAll('[data-as-open-replacement="1"]').forEach(btn => {

@@ -38,10 +38,19 @@ class SharedStyles
             font-size: 13px;
             line-height: 1.4;
             text-decoration: none;
+            /* ✅ Accessibility (2026-07-18): keep tap targets close to the
+               44px guideline even at this compact font size. */
+            min-height: 40px;
+            box-sizing: border-box;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
         .adoration-btn[disabled], .adoration-btn.is-disabled { opacity: .55; cursor: not-allowed; }
         .adoration-btn-secondary {
-            display: inline-block;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
             padding: 6px 10px;
             border-radius: 4px;
             border: 1px solid #dcdcde;
@@ -51,6 +60,8 @@ class SharedStyles
             font-size: 13px;
             line-height: 1.4;
             text-decoration: none;
+            min-height: 40px;
+            box-sizing: border-box;
         }
         .adoration-btn-secondary:hover { background: #f0f0f1; }
         .adoration-btn-danger { border-color: #d63638; background: #d63638; }
@@ -113,6 +124,14 @@ class SharedStyles
             font-size: 22px;
             line-height: 1;
             cursor: pointer;
+            /* ✅ Accessibility (2026-07-18): the glyph itself is small, but
+               the clickable area shouldn't be — pad it out toward the 44px
+               tap-target guideline instead of relying on the font size. */
+            min-width: 40px;
+            min-height: 40px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
         }
         .as-modal__body { padding: 16px; }
         .as-modal__actions {

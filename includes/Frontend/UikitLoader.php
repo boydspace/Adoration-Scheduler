@@ -87,6 +87,78 @@ class UikitLoader
             }
         })();
         </script>
+        <script>
+        (function() {
+            // ✅ Accessibility (2026-07-18): shared keyboard-trap + focus-return
+            // helper for this plugin's own hand-rolled "fallback" modals (the
+            // ones shown when UIkit's JS isn't available — UIkit's own modal
+            // already traps focus and restores it on close, so this is only
+            // needed for the .as-modal / .as-fallback-modal markup this
+            // plugin renders itself). Loaded once here (UikitLoader already
+            // prints once per page no matter how many shortcodes are on it)
+            // so every shortcode's modal-open/close JS can call
+            // window.AdorationA11y.trap(panelEl) / .release(panelEl) instead
+            // of each re-implementing Tab-wrapping and focus-restore.
+            if (window.AdorationA11y) return;
+
+            var lastFocused = null;
+
+            function focusableIn(panel) {
+                if (!panel) return [];
+                var sel = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+                return Array.prototype.slice.call(panel.querySelectorAll(sel)).filter(function(el) {
+                    return el.offsetParent !== null; // skip hidden elements
+                });
+            }
+
+            function onKeydown(ev) {
+                var panel = ev.currentTarget;
+                if (ev.key === 'Tab') {
+                    var items = focusableIn(panel);
+                    if (!items.length) return;
+                    var first = items[0];
+                    var last  = items[items.length - 1];
+                    if (ev.shiftKey && document.activeElement === first) {
+                        ev.preventDefault();
+                        last.focus();
+                    } else if (!ev.shiftKey && document.activeElement === last) {
+                        ev.preventDefault();
+                        first.focus();
+                    }
+                }
+            }
+
+            window.AdorationA11y = {
+                /**
+                 * Call right after showing a fallback modal. Remembers
+                 * whatever had focus (the button that opened it, normally)
+                 * and starts wrapping Tab/Shift+Tab inside the panel.
+                 */
+                trap: function(panel) {
+                    if (!panel) return;
+                    lastFocused = document.activeElement;
+                    panel.addEventListener('keydown', onKeydown);
+                    panel.__adorationTrapBound = true;
+                },
+                /**
+                 * Call right after hiding a fallback modal. Stops the Tab
+                 * wrapping and returns focus to whatever opened the modal,
+                 * so keyboard/screen-reader users land back where they were
+                 * instead of at the top of the page.
+                 */
+                release: function(panel) {
+                    if (panel && panel.__adorationTrapBound) {
+                        panel.removeEventListener('keydown', onKeydown);
+                        panel.__adorationTrapBound = false;
+                    }
+                    if (lastFocused && typeof lastFocused.focus === 'function') {
+                        try { lastFocused.focus(); } catch (e) {}
+                    }
+                    lastFocused = null;
+                }
+            };
+        })();
+        </script>
         <?php
         return (string)ob_get_clean();
     }

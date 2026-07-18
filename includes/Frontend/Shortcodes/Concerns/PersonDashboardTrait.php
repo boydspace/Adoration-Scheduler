@@ -207,8 +207,12 @@ trait PersonDashboardTrait
                 su.status,
                 su.type,
                 su.needs_replacement,
+                su.checked_in_at,
+                su.checked_out_at,
                 sl.start_time,
                 sl.end_time,
+                sl.start_at,
+                sl.end_at,
                 sc.name AS schedule_name,
                 ch.name AS chapel_name
             FROM {$signups} su

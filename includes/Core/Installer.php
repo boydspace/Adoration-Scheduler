@@ -551,6 +551,18 @@ class Installer {
         if (!self::table_exists($waitlist_table)) return false;
         if (!self::column_exists($waitlist_table, 'status')) return false;
 
+        // ✅ Attendance / check-in (2026-07-18).
+        foreach ([
+            'checked_in_at',
+            'checked_out_at',
+            'check_in_method',
+            'checkin_token',
+            'no_show_alert_sent_at',
+        ] as $col) {
+            if (!self::column_exists($signups_table, $col)) return false;
+        }
+        if (!self::column_exists($chapels_table, 'kiosk_token')) return false;
+
         return true;
     }
 
@@ -1028,6 +1040,14 @@ class Installer {
         if (!isset($have['created_at'])) $alters[] = "ADD COLUMN created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP";
         if (!isset($have['updated_at'])) $alters[] = "ADD COLUMN updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP";
 
+        // ✅ Attendance / check-in kiosk mode (2026-07-18): a per-chapel
+        // bearer token for a public, no-login "who's on right now, tap to
+        // check in" page a parish can print as a QR code for the chapel
+        // entrance. Separate from persons.calendar_token / signups.checkin_token
+        // — this one identifies a physical location, not a person or a
+        // specific signup.
+        if (!isset($have['kiosk_token'])) $alters[] = "ADD COLUMN kiosk_token CHAR(64) NULL";
+
         if (!empty($alters)) {
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             $wpdb->query("ALTER TABLE {$table} " . implode(', ', $alters));
@@ -1035,6 +1055,7 @@ class Installer {
 
         self::ensure_unique_index($table, 'slug', ['slug']);
         self::maybe_add_index($table, 'idx_is_active', 'is_active');
+        self::ensure_unique_index($table, 'kiosk_token', ['kiosk_token']);
     }
 
     /**
@@ -1623,6 +1644,22 @@ class Installer {
         // claim it or the requester reopens it to the whole community.
         if (!isset($have['replacement_target_person_id'])) $alters[] = "ADD COLUMN replacement_target_person_id BIGINT(20) UNSIGNED NULL";
 
+        // ✅ Attendance / check-in (2026-07-18): per-occurrence, not per
+        // standing commitment — each date's own signup row gets its own
+        // checked_in_at/checked_out_at, so a weekly commitment can show
+        // "showed up 6 of the last 8 weeks" rather than one all-or-nothing
+        // flag. checkin_token is a bearer token (like persons.calendar_token)
+        // so the confirmation/reminder emails can carry a no-login "I'm here"
+        // link. check_in_method records how it was recorded: self (portal or
+        // email link), kiosk (chapel walk-up page), admin (marked after the
+        // fact). no_show_alert_sent_at dedupes the no-show digest so the same
+        // gap doesn't get re-alerted every time the cron runs.
+        if (!isset($have['checked_in_at']))        $alters[] = "ADD COLUMN checked_in_at DATETIME NULL";
+        if (!isset($have['checked_out_at']))       $alters[] = "ADD COLUMN checked_out_at DATETIME NULL";
+        if (!isset($have['check_in_method']))      $alters[] = "ADD COLUMN check_in_method VARCHAR(20) NULL";
+        if (!isset($have['checkin_token']))        $alters[] = "ADD COLUMN checkin_token CHAR(64) NULL";
+        if (!isset($have['no_show_alert_sent_at'])) $alters[] = "ADD COLUMN no_show_alert_sent_at DATETIME NULL";
+
         if (!empty($alters)) {
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             $wpdb->query("ALTER TABLE {$table} " . implode(', ', $alters));
@@ -1635,6 +1672,8 @@ class Installer {
         self::maybe_add_index($table, 'idx_is_active', 'is_active');
         self::maybe_add_index($table, 'idx_replacement_target', 'replacement_target_person_id');
         self::maybe_add_index($table, 'idx_needs_replacement', 'needs_replacement');
+        self::maybe_add_index($table, 'idx_checked_in_at', 'checked_in_at');
+        self::ensure_unique_index($table, 'checkin_token', ['checkin_token']);
     }
 
     private static function ensure_slots_columns(string $table): void {

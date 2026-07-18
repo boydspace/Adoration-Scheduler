@@ -6,6 +6,7 @@ use AdorationScheduler\Frontend\UikitLoader;
 use AdorationScheduler\Frontend\SharedStyles;
 use AdorationScheduler\Services\ReplacementRequestService;
 use AdorationScheduler\Services\WaitlistService;
+use AdorationScheduler\Services\CheckInService;
 use AdorationScheduler\Domain\Repositories\WaitlistRepository;
 use AdorationScheduler\Frontend\Ajax\PersonTargetSearchAjax;
 
@@ -90,6 +91,7 @@ class MyScheduleShortcode
                 ?>
                     <p class="uk-margin-remove-top">You don’t currently have any upcoming signups.</p>
                 <?php else: ?>
+                    <?php $now_ts = strtotime(current_time('mysql')); ?>
                     <div class="uk-overflow-auto">
                         <table class="uk-table uk-table-divider uk-table-small adoration-table">
                             <thead>
@@ -99,6 +101,7 @@ class MyScheduleShortcode
                                     <th>Chapel</th>
                                     <th>Schedule</th>
                                     <th>Status</th>
+                                    <th>Check-in</th>
                                     <th class="uk-text-right">Actions</th>
                                 </tr>
                             </thead>
@@ -112,7 +115,8 @@ class MyScheduleShortcode
                                 $time_lbl    = self::fmt_time_range((string)($r['start_time'] ?? ''), (string)($r['end_time'] ?? ''));
                                 $chapel      = (string)($r['chapel_name'] ?? '');
                                 $sched       = (string)($r['schedule_name'] ?? '');
-                                $status      = self::pretty_status((string)($r['status'] ?? ''));
+                                $status_raw  = (string)($r['status'] ?? '');
+                                $status      = self::pretty_status($status_raw);
                                 $needs_replacement = !empty($r['needs_replacement']);
 
                                 $slot_label = trim($date_lbl . ' • ' . $time_lbl . ' • ' . $chapel);
@@ -123,6 +127,22 @@ class MyScheduleShortcode
 
                                 $replacement_nonce = ($signup_id > 0) ? wp_create_nonce('adoration_request_replacement_' . $signup_id) : '';
                                 $cancel_replacement_nonce = ($signup_id > 0) ? wp_create_nonce('adoration_cancel_replacement_' . $signup_id) : '';
+
+                                // ✅ Check-in (2026-07-18): "I'm here" only appears once the
+                                // hour is actually close (30 min before start onward) —
+                                // signups.checked_in_at, sl.start_at/end_at come from the
+                                // widened get_person_signups_upcoming() query.
+                                $checked_in_at  = trim((string)($r['checked_in_at'] ?? ''));
+                                $checked_out_at = trim((string)($r['checked_out_at'] ?? ''));
+                                $start_at       = trim((string)($r['start_at'] ?? ''));
+
+                                $checkin_window_open = false;
+                                if ($signup_id > 0 && $status_raw === 'confirmed' && $start_at !== '') {
+                                    $start_ts = strtotime($start_at);
+                                    if ($start_ts !== false && $now_ts >= ($start_ts - 30 * MINUTE_IN_SECONDS)) {
+                                        $checkin_window_open = true;
+                                    }
+                                }
                                 ?>
                                 <tr>
                                     <td>
@@ -135,6 +155,22 @@ class MyScheduleShortcode
                                     <td><?php echo esc_html($chapel); ?></td>
                                     <td><?php echo esc_html($sched); ?></td>
                                     <td><?php echo esc_html($status); ?></td>
+                                    <td>
+                                        <?php if ($checked_in_at !== '' && $checked_out_at !== ''): ?>
+                                            <span class="uk-text-meta as-muted">Checked in &amp; out</span>
+                                        <?php elseif ($checked_in_at !== ''): ?>
+                                            <span class="uk-label uk-label-success" style="font-size:10px; display:block; margin-bottom:4px;">Checked in</span>
+                                            <a class="uk-button uk-button-default uk-button-small adoration-btn-secondary" href="<?php echo esc_url((string) CheckInService::build_checkin_url($signup_id, 'out')); ?>" target="_blank" rel="noopener">
+                                                I'm leaving
+                                            </a>
+                                        <?php elseif ($checkin_window_open): ?>
+                                            <a class="uk-button uk-button-primary uk-button-small adoration-btn" href="<?php echo esc_url((string) CheckInService::build_checkin_url($signup_id, 'in')); ?>" target="_blank" rel="noopener">
+                                                I'm here
+                                            </a>
+                                        <?php else: ?>
+                                            <span class="uk-text-meta as-muted">—</span>
+                                        <?php endif; ?>
+                                    </td>
                                     <td class="uk-text-right">
                                         <?php if ($signup_id > 0): ?>
                                             <button
@@ -449,11 +485,13 @@ class MyScheduleShortcode
                     if (!replacementModal) return;
                     replacementModal.classList.add('is-open');
                     replacementModal.setAttribute('aria-hidden', 'false');
+                    if (window.AdorationA11y) window.AdorationA11y.trap(replacementModal);
                 }
                 function closeReplacementModal() {
                     if (!replacementModal) return;
                     replacementModal.classList.remove('is-open');
                     replacementModal.setAttribute('aria-hidden', 'true');
+                    if (window.AdorationA11y) window.AdorationA11y.release(replacementModal);
                 }
 
                 root.querySelectorAll('[data-as-open-replacement="1"]').forEach(btn => {

@@ -189,4 +189,67 @@ class ChapelsRepository {
         $r = $wpdb->delete($this->table, [ 'id' => $id ], [ '%d' ]);
         return ($r !== false && $r > 0);
     }
+
+    // -------------------------------------------------------------------------
+    // KIOSK CHECK-IN TOKEN (2026-07-18)
+    //
+    // Identifies a physical chapel for the public, no-login "who's on right
+    // now, tap to check in" kiosk page — a QR code printed for the chapel
+    // entrance encodes this URL. Mirrors PersonsRepository's calendar_token
+    // pattern, but scoped to a location rather than a person.
+    // -------------------------------------------------------------------------
+
+    public function get_or_create_kiosk_token(int $chapel_id): ?string {
+        if ($chapel_id <= 0) return null;
+
+        $chapel = $this->find($chapel_id);
+        if (!$chapel) return null;
+
+        $existing = trim((string)($chapel['kiosk_token'] ?? ''));
+        if ($existing !== '') return $existing;
+
+        return $this->regenerate_kiosk_token($chapel_id);
+    }
+
+    /**
+     * Issue a brand-new kiosk token, replacing any previous one (e.g. if a
+     * printed QR code is lost/compromised). Any old QR code stops working.
+     */
+    public function regenerate_kiosk_token(int $chapel_id): ?string {
+        global $wpdb;
+
+        $chapel_id = (int)$chapel_id;
+        if ($chapel_id <= 0) return null;
+
+        $token = bin2hex(random_bytes(32));
+
+        $res = $wpdb->update(
+            $this->table,
+            ['kiosk_token' => $token],
+            ['id' => $chapel_id],
+            ['%s'],
+            ['%d']
+        );
+
+        return ($res !== false) ? $token : null;
+    }
+
+    /**
+     * Look up a chapel by its raw kiosk token (as it appears in the kiosk
+     * page's URL). Returns null on no match.
+     */
+    public function find_by_kiosk_token(string $token): ?array {
+        global $wpdb;
+
+        $token = trim($token);
+        if ($token === '') return null;
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        $row = $wpdb->get_row(
+            $wpdb->prepare("SELECT * FROM {$this->table} WHERE kiosk_token = %s LIMIT 1", $token),
+            ARRAY_A
+        );
+
+        return $row ?: null;
+    }
 }

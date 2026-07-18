@@ -172,6 +172,19 @@ class EmailService
         $slot_label = trim($slot_date . ' ' . $slot_start . '–' . $slot_end);
         if ($slot_label === '–') $slot_label = '';
 
+        // ✅ Check-in (2026-07-18): a no-login "I'm here" link for the
+        // confirmation/reminder emails. Best-effort — if CheckInService or
+        // the checkin_token column somehow isn't available yet (e.g. an
+        // upgrade mid-flight), the email still sends, just without the link.
+        $checkin_url = '';
+        try {
+            if (class_exists(\AdorationScheduler\Services\CheckInService::class)) {
+                $checkin_url = (string) (\AdorationScheduler\Services\CheckInService::build_checkin_url($signup_id, 'in') ?? '');
+            }
+        } catch (\Throwable $e) {
+            $checkin_url = '';
+        }
+
         $args = [
             'signup_id'      => $signup_id,
             'to_email'       => $email,
@@ -187,6 +200,7 @@ class EmailService
             'slot_label'     => $slot_label,
             'church_name'    => get_bloginfo('name'),
             'manage_url'     => home_url('/my-adoration/'),
+            'checkin_url'    => $checkin_url,
             'context'        => 'frontend',
             'send'           => true,
         ];

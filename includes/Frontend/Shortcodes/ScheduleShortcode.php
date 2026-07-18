@@ -365,7 +365,9 @@ class ScheduleShortcode {
                 }
 
                 .adoration-btn {
-                    display: inline-block;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
                     padding: 6px 10px;
                     border-radius: 4px;
                     border: 1px solid #2271b1;
@@ -375,6 +377,13 @@ class ScheduleShortcode {
                     font-size: 13px;
                     line-height: 1.4;
                     text-decoration: none;
+                    /* ✅ Accessibility (2026-07-18): a reasonable tap-target
+                       floor outside the weekly grid's own compact rules
+                       (which set their own smaller min-height for the
+                       7-column layout — see .adoration-weekly-cell-actions
+                       below and its mobile media query). */
+                    min-height: 36px;
+                    box-sizing: border-box;
                 }
                 .adoration-btn[disabled],
                 .adoration-btn.is-disabled {
@@ -382,7 +391,9 @@ class ScheduleShortcode {
                     cursor: not-allowed;
                 }
                 .adoration-btn-secondary {
-                    display: inline-block;
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
                     padding: 6px 10px;
                     border-radius: 4px;
                     border: 1px solid #dcdcde;
@@ -392,6 +403,8 @@ class ScheduleShortcode {
                     font-size: 13px;
                     line-height: 1.4;
                     text-decoration: none;
+                    min-height: 36px;
+                    box-sizing: border-box;
                 }
 
                 .adoration-btn-secondary:hover { background: #f0f0f1; }
@@ -428,7 +441,7 @@ class ScheduleShortcode {
                     font-weight: 600;
                     font-size: 15px;
                 }
-                table.adoration-weekly-table td.adoration-weekly-time-col {
+                table.adoration-weekly-table th.adoration-weekly-time-col {
                     text-align: right;
                     white-space: nowrap;
                     font-weight: 600;
@@ -464,12 +477,18 @@ class ScheduleShortcode {
                         padding: 3px;
                     }
                     table.adoration-weekly-table th { font-size: 12px; }
-                    table.adoration-weekly-table td.adoration-weekly-time-col { font-size: 11px; }
+                    table.adoration-weekly-table th.adoration-weekly-time-col { font-size: 11px; }
                     .adoration-weekly-cell-status { font-size: 11px; }
                     .adoration-weekly-cell-actions .adoration-btn,
                     .adoration-weekly-cell-actions .adoration-btn-secondary {
                         font-size: 11px;
-                        padding: 3px;
+                        padding: 6px 3px;
+                        /* ✅ Accessibility (2026-07-18): keep a reasonable tap
+                           target on phones even at this compact size — full
+                           44px isn't realistic in a 7-column weekly grid, but
+                           the extra vertical padding meaningfully widens the
+                           tappable area over the original 3px. */
+                        min-height: 30px;
                     }
                 }
 
@@ -561,9 +580,9 @@ class ScheduleShortcode {
                     <table class="adoration-weekly-table">
                         <thead>
                             <tr>
-                                <th style="width:90px;"><?php esc_html_e('Time', 'adoration-scheduler'); ?></th>
+                                <th scope="col" style="width:90px;"><?php esc_html_e('Time', 'adoration-scheduler'); ?></th>
                                 <?php foreach ($day_of_week_labels as $lbl): ?>
-                                    <th><?php echo esc_html($lbl); ?></th>
+                                    <th scope="col"><?php echo esc_html($lbl); ?></th>
                                 <?php endforeach; ?>
                             </tr>
                         </thead>
@@ -574,7 +593,7 @@ class ScheduleShortcode {
                                 $row_label = $row_ts !== false ? date_i18n($time_format, $row_ts) : $st;
                                 ?>
                                 <tr>
-                                    <td class="adoration-weekly-time-col"><?php echo esc_html($row_label); ?></td>
+                                    <th scope="row" class="adoration-weekly-time-col"><?php echo esc_html($row_label); ?></th>
                                     <?php for ($dow = 0; $dow <= 6; $dow++): ?>
                                         <?php
                                         $opt = null;
@@ -618,7 +637,11 @@ class ScheduleShortcode {
                                                 </div>
                                                 <div class="adoration-weekly-cell-actions">
                                                     <?php if ($is_full): ?>
-                                                        <span class="adoration-btn is-disabled" aria-disabled="true"><?php esc_html_e('Full', 'adoration-scheduler'); ?></span>
+                                                        <span class="adoration-btn is-disabled" aria-disabled="true" aria-label="<?php echo esc_attr(sprintf(
+                                                            /* translators: %s: day + time, e.g. "Wednesday, 2:00 AM" */
+                                                            __('%s is full', 'adoration-scheduler'),
+                                                            $cell_label
+                                                        )); ?>"><?php esc_html_e('Full', 'adoration-scheduler'); ?></span>
                                                     <?php else: ?>
                                                         <button
                                                             type="button"
@@ -629,6 +652,11 @@ class ScheduleShortcode {
                                                             data-start-time="<?php echo esc_attr($st); ?>"
                                                             data-label="<?php echo esc_attr($cell_label); ?>"
                                                             title="<?php esc_attr_e('Take this as my standing weekly hour', 'adoration-scheduler'); ?>"
+                                                            aria-label="<?php echo esc_attr(sprintf(
+                                                                /* translators: %s: day + time, e.g. "Wednesday, 2:00 AM" */
+                                                                __('Take %s as my standing weekly hour', 'adoration-scheduler'),
+                                                                $cell_label
+                                                            )); ?>"
                                                         >
                                                             <?php esc_html_e('Take', 'adoration-scheduler'); ?>
                                                         </button>
@@ -644,6 +672,11 @@ class ScheduleShortcode {
                                                             data-start-time="<?php echo esc_attr($st); ?>"
                                                             data-label="<?php echo esc_attr($cell_label); ?>"
                                                             title="<?php esc_attr_e('Cover just one date', 'adoration-scheduler'); ?>"
+                                                            aria-label="<?php echo esc_attr(sprintf(
+                                                                /* translators: %s: day + time, e.g. "Wednesday, 2:00 AM" */
+                                                                __('Cover a date for %s', 'adoration-scheduler'),
+                                                                $cell_label
+                                                            )); ?>"
                                                         >
                                                             <?php esc_html_e('Cover a date', 'adoration-scheduler'); ?>
                                                         </button>
@@ -796,30 +829,30 @@ class ScheduleShortcode {
                             <input type="hidden" name="slot_id" value="" data-as-fb-slot="1" data-as-slot="1">
 
                             <p data-as-onetime-wrap="1" style="display:none;">
-                                <label><?php esc_html_e('Choose a date', 'adoration-scheduler'); ?></label>
-                                <select class="regular-text" data-as-onetime-select="1" style="width:100%;"></select>
+                                <label for="<?php echo esc_attr($uid); ?>_fb_onetime_date"><?php esc_html_e('Choose a date', 'adoration-scheduler'); ?></label>
+                                <select class="regular-text" id="<?php echo esc_attr($uid); ?>_fb_onetime_date" data-as-onetime-select="1" style="width:100%;"></select>
                             </p>
 
                             <table class="form-table" role="presentation">
                                 <tr>
-                                    <th><label>Title <span class="description">(optional)</span></label></th>
-                                    <td><input type="text" name="title" class="regular-text" autocomplete="honorific-prefix" placeholder="Father, Deacon, Bishop, Msgr., etc." value="<?php echo $cp_title; ?>"></td>
+                                    <th><label for="<?php echo esc_attr($uid); ?>_fb_title">Title <span class="description">(optional)</span></label></th>
+                                    <td><input type="text" name="title" id="<?php echo esc_attr($uid); ?>_fb_title" class="regular-text" autocomplete="honorific-prefix" placeholder="Father, Deacon, Bishop, Msgr., etc." value="<?php echo $cp_title; ?>"></td>
                                 </tr>
                                 <tr>
-                                    <th><label>First name</label></th>
-                                    <td><input type="text" name="first_name" class="regular-text" required value="<?php echo $cp_first; ?>"></td>
+                                    <th><label for="<?php echo esc_attr($uid); ?>_fb_first">First name</label></th>
+                                    <td><input type="text" name="first_name" id="<?php echo esc_attr($uid); ?>_fb_first" class="regular-text" required value="<?php echo $cp_first; ?>"></td>
                                 </tr>
                                 <tr>
-                                    <th><label>Last name</label></th>
-                                    <td><input type="text" name="last_name" class="regular-text" required value="<?php echo $cp_last; ?>"></td>
+                                    <th><label for="<?php echo esc_attr($uid); ?>_fb_last">Last name</label></th>
+                                    <td><input type="text" name="last_name" id="<?php echo esc_attr($uid); ?>_fb_last" class="regular-text" required value="<?php echo $cp_last; ?>"></td>
                                 </tr>
                                 <tr>
-                                    <th><label>Email</label></th>
-                                    <td><input type="email" name="email" class="regular-text" required value="<?php echo $cp_email; ?>"></td>
+                                    <th><label for="<?php echo esc_attr($uid); ?>_fb_email">Email</label></th>
+                                    <td><input type="email" name="email" id="<?php echo esc_attr($uid); ?>_fb_email" class="regular-text" required value="<?php echo $cp_email; ?>"></td>
                                 </tr>
                                 <tr>
-                                    <th><label>Phone</label></th>
-                                    <td><input type="text" name="phone" class="regular-text" required placeholder="(555) 123-4567" data-as-fb-phone="1" value="<?php echo $cp_phone; ?>"></td>
+                                    <th><label for="<?php echo esc_attr($uid); ?>_fb_phone">Phone</label></th>
+                                    <td><input type="text" name="phone" id="<?php echo esc_attr($uid); ?>_fb_phone" class="regular-text" required placeholder="(555) 123-4567" data-as-fb-phone="1" value="<?php echo $cp_phone; ?>"></td>
                                 </tr>
                             </table>
 
@@ -996,6 +1029,7 @@ class ScheduleShortcode {
 
                         fbBackdrop.style.display = 'block';
                         fbModal.style.display = 'block';
+                        if (window.AdorationA11y) window.AdorationA11y.trap(fbModal);
 
                         applyMode(fbModal, mode);
                         setTimeout(() => ensureTurnstileRendered(fbTs), 50);
@@ -1017,6 +1051,7 @@ class ScheduleShortcode {
                     function closeFallback() {
                         if (fbModal) fbModal.style.display = 'none';
                         if (fbBackdrop) fbBackdrop.style.display = 'none';
+                        if (window.AdorationA11y) window.AdorationA11y.release(fbModal);
                     }
 
                     root.querySelectorAll('.adoration-open-signup').forEach(btn => {
@@ -1072,11 +1107,11 @@ class ScheduleShortcode {
                     <table class="adoration-table">
                         <thead>
                             <tr>
-                                <th class="adoration-col-time">Time</th>
-                                <th class="adoration-col-adorers">
+                                <th class="adoration-col-time" scope="col">Time</th>
+                                <th class="adoration-col-adorers" scope="col">
                                     <?php echo ($privacy_mode === 'counts_only') ? 'Availability' : 'Adorers'; ?>
                                 </th>
-                                <th class="adoration-col-action"></th>
+                                <th class="adoration-col-action" scope="col"><span class="uk-margin-remove" style="position:absolute;width:1px;height:1px;padding:0;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0;">Action</span></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -1133,9 +1168,9 @@ class ScheduleShortcode {
                             $slot_label = $day_heading . ' ' . ($time_label !== '' ? $time_label : '—');
                             ?>
                             <tr style="<?php echo !$signups_enabled ? 'opacity:.9;' : ''; ?>">
-                                <td class="adoration-time">
+                                <th scope="row" class="adoration-time">
                                     <strong><?php echo esc_html($time_label !== '' ? $time_label : '—'); ?></strong>
-                                </td>
+                                </th>
 
                                 <td>
                                     <?php
@@ -1162,7 +1197,11 @@ class ScheduleShortcode {
 
                                 <td class="adoration-col-action">
                                     <?php if ($is_full && !$signups_enabled): ?>
-                                        <span class="adoration-btn is-disabled" aria-disabled="true">Full</span>
+                                        <span class="adoration-btn is-disabled" aria-disabled="true" aria-label="<?php echo esc_attr(sprintf(
+                                            /* translators: %s: date + time label */
+                                            __('%s is full', 'adoration-scheduler'),
+                                            $slot_label
+                                        )); ?>">Full</span>
                                     <?php elseif ($is_full): ?>
                                         <button
                                             type="button"
@@ -1171,11 +1210,20 @@ class ScheduleShortcode {
                                             data-slot-id="<?php echo (int)$slot_id_val; ?>"
                                             data-slot-label="<?php echo esc_attr($slot_label); ?>"
                                             data-join-waitlist="1"
+                                            aria-label="<?php echo esc_attr(sprintf(
+                                                /* translators: %s: date + time label */
+                                                __('Join waitlist for %s', 'adoration-scheduler'),
+                                                $slot_label
+                                            )); ?>"
                                         >
                                             Join Waitlist
                                         </button>
                                     <?php elseif (!$signups_enabled): ?>
-                                        <span class="adoration-btn is-disabled" aria-disabled="true">Sign up</span>
+                                        <span class="adoration-btn is-disabled" aria-disabled="true" aria-label="<?php echo esc_attr(sprintf(
+                                            /* translators: %s: date + time label */
+                                            __('Signups disabled for %s', 'adoration-scheduler'),
+                                            $slot_label
+                                        )); ?>">Sign up</span>
                                     <?php else: ?>
                                         <button
                                             type="button"
@@ -1183,6 +1231,11 @@ class ScheduleShortcode {
                                             data-schedule-id="<?php echo (int)$schedule_id; ?>"
                                             data-slot-id="<?php echo (int)$slot_id_val; ?>"
                                             data-slot-label="<?php echo esc_attr($slot_label); ?>"
+                                            aria-label="<?php echo esc_attr(sprintf(
+                                                /* translators: %s: date + time label */
+                                                __('Sign up for %s', 'adoration-scheduler'),
+                                                $slot_label
+                                            )); ?>"
                                         >
                                             Sign up
                                         </button>
@@ -1314,24 +1367,24 @@ class ScheduleShortcode {
 
                             <table class="form-table" role="presentation">
                                 <tr>
-                                    <th><label>Title <span class="description">(optional)</span></label></th>
-                                    <td><input type="text" name="title" class="regular-text" autocomplete="honorific-prefix" placeholder="Father, Deacon, Bishop, Msgr., etc." value="<?php echo $cp_title; ?>"></td>
+                                    <th><label for="<?php echo esc_attr($uid); ?>_fb2_title">Title <span class="description">(optional)</span></label></th>
+                                    <td><input type="text" name="title" id="<?php echo esc_attr($uid); ?>_fb2_title" class="regular-text" autocomplete="honorific-prefix" placeholder="Father, Deacon, Bishop, Msgr., etc." value="<?php echo $cp_title; ?>"></td>
                                 </tr>
                                 <tr>
-                                    <th><label>First name</label></th>
-                                    <td><input type="text" name="first_name" class="regular-text" required value="<?php echo $cp_first; ?>"></td>
+                                    <th><label for="<?php echo esc_attr($uid); ?>_fb2_first">First name</label></th>
+                                    <td><input type="text" name="first_name" id="<?php echo esc_attr($uid); ?>_fb2_first" class="regular-text" required value="<?php echo $cp_first; ?>"></td>
                                 </tr>
                                 <tr>
-                                    <th><label>Last name</label></th>
-                                    <td><input type="text" name="last_name" class="regular-text" required value="<?php echo $cp_last; ?>"></td>
+                                    <th><label for="<?php echo esc_attr($uid); ?>_fb2_last">Last name</label></th>
+                                    <td><input type="text" name="last_name" id="<?php echo esc_attr($uid); ?>_fb2_last" class="regular-text" required value="<?php echo $cp_last; ?>"></td>
                                 </tr>
                                 <tr>
-                                    <th><label>Email</label></th>
-                                    <td><input type="email" name="email" class="regular-text" required value="<?php echo $cp_email; ?>"></td>
+                                    <th><label for="<?php echo esc_attr($uid); ?>_fb2_email">Email</label></th>
+                                    <td><input type="email" name="email" id="<?php echo esc_attr($uid); ?>_fb2_email" class="regular-text" required value="<?php echo $cp_email; ?>"></td>
                                 </tr>
                                 <tr>
-                                    <th><label>Phone</label></th>
-                                    <td><input type="text" name="phone" class="regular-text" required placeholder="(555) 123-4567" data-as-fb-phone="1" value="<?php echo $cp_phone; ?>"></td>
+                                    <th><label for="<?php echo esc_attr($uid); ?>_fb2_phone">Phone</label></th>
+                                    <td><input type="text" name="phone" id="<?php echo esc_attr($uid); ?>_fb2_phone" class="regular-text" required placeholder="(555) 123-4567" data-as-fb-phone="1" value="<?php echo $cp_phone; ?>"></td>
                                 </tr>
                             </table>
 
@@ -1463,6 +1516,7 @@ class ScheduleShortcode {
 
                         fbBackdrop.style.display = 'block';
                         fbModal.style.display = 'block';
+                        if (window.AdorationA11y) window.AdorationA11y.trap(fbModal);
 
                         setTimeout(() => ensureTurnstileRendered(fbTs), 50);
                         setTimeout(() => {
@@ -1483,6 +1537,7 @@ class ScheduleShortcode {
                     function closeFallback() {
                         if (fbModal) fbModal.style.display = 'none';
                         if (fbBackdrop) fbBackdrop.style.display = 'none';
+                        if (window.AdorationA11y) window.AdorationA11y.release(fbModal);
                     }
 
                     root.querySelectorAll('.adoration-open-signup').forEach(btn => {
@@ -1558,7 +1613,14 @@ class ScheduleShortcode {
         $toast = sanitize_text_field(wp_strip_all_tags($toast));
         if (strlen($toast) > 300) $toast = substr($toast, 0, 300);
 
-        return '<div class="' . esc_attr($uk) . ' adoration-notice ' . esc_attr($class) . '" role="status" uk-alert>'
+        // ✅ Accessibility (2026-07-18): error/warning notices use role="alert"
+        // (assertive — announced immediately, interrupting the screen reader)
+        // since they mean something needs the visitor's attention right now;
+        // success/info use role="status" (polite — announced without
+        // interrupting), matching how each type is meant to read.
+        $role = ($type === 'error' || $type === 'warning') ? 'alert' : 'status';
+
+        return '<div class="' . esc_attr($uk) . ' adoration-notice ' . esc_attr($class) . '" role="' . esc_attr($role) . '" uk-alert>'
             . '<p class="uk-margin-remove">' . esc_html($toast) . '</p>'
             . '</div>';
     }

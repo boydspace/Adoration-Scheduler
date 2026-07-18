@@ -32,6 +32,13 @@ class AccessRequestShortcode
     {
         $status = AccessGateService::current_person_status(); // null | pending | approved | rejected
 
+        // ✅ Accessibility (2026-07-18): unique instance id so the field
+        // id/for pairs added below don't collide if this shortcode is ever
+        // rendered twice on the same page (e.g. the gate auto-renders it in
+        // place of another shortcode's content, and the page also has it
+        // placed manually).
+        $uid = 'ar_' . substr(wp_hash(uniqid('', true)), 0, 10);
+
         $action_url = admin_url('admin-post.php');
         $return_url = self::current_url();
 
@@ -83,38 +90,38 @@ class AccessRequestShortcode
                     <input type="hidden" name="as_form_ts" value="<?php echo esc_attr((string) time()); ?>">
 
                     <div class="uk-margin">
-                        <label class="uk-form-label">Title</label>
+                        <label class="uk-form-label" for="<?php echo esc_attr($uid); ?>_title">Title</label>
                         <div class="uk-form-controls">
-                            <input class="uk-input" type="text" name="title" autocomplete="honorific-prefix" placeholder="Father, Deacon, Bishop, Msgr., etc.">
+                            <input class="uk-input" type="text" name="title" id="<?php echo esc_attr($uid); ?>_title" autocomplete="honorific-prefix" placeholder="Father, Deacon, Bishop, Msgr., etc.">
                         </div>
                         <p class="uk-text-meta uk-margin-remove-top">Optional. For priests, deacons, bishops, etc.</p>
                     </div>
 
                     <div class="uk-margin">
-                        <label class="uk-form-label">First Name</label>
+                        <label class="uk-form-label" for="<?php echo esc_attr($uid); ?>_first_name">First Name</label>
                         <div class="uk-form-controls">
-                            <input class="uk-input" type="text" name="first_name" required autocomplete="given-name">
+                            <input class="uk-input" type="text" name="first_name" id="<?php echo esc_attr($uid); ?>_first_name" required autocomplete="given-name">
                         </div>
                     </div>
 
                     <div class="uk-margin">
-                        <label class="uk-form-label">Last Name</label>
+                        <label class="uk-form-label" for="<?php echo esc_attr($uid); ?>_last_name">Last Name</label>
                         <div class="uk-form-controls">
-                            <input class="uk-input" type="text" name="last_name" autocomplete="family-name">
+                            <input class="uk-input" type="text" name="last_name" id="<?php echo esc_attr($uid); ?>_last_name" autocomplete="family-name">
                         </div>
                     </div>
 
                     <div class="uk-margin">
-                        <label class="uk-form-label">Email</label>
+                        <label class="uk-form-label" for="<?php echo esc_attr($uid); ?>_email">Email</label>
                         <div class="uk-form-controls">
-                            <input class="uk-input" type="email" name="email" required autocomplete="email">
+                            <input class="uk-input" type="email" name="email" id="<?php echo esc_attr($uid); ?>_email" required autocomplete="email">
                         </div>
                     </div>
 
                     <div class="uk-margin">
-                        <label class="uk-form-label">Cell Phone Number</label>
+                        <label class="uk-form-label" for="<?php echo esc_attr($uid); ?>_phone">Cell Phone Number</label>
                         <div class="uk-form-controls">
-                            <input class="uk-input" type="tel" name="phone" required autocomplete="tel" placeholder="(555) 123-4567">
+                            <input class="uk-input" type="tel" name="phone" id="<?php echo esc_attr($uid); ?>_phone" required autocomplete="tel" placeholder="(555) 123-4567">
                         </div>
                         <p class="uk-text-meta uk-margin-remove-top">Required — please use a cell phone number, not a landline. We'll use this for text reminders in the future.</p>
                     </div>

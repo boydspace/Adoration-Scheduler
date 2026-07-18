@@ -9,6 +9,7 @@ use AdorationScheduler\Admin\Pages\EmailTemplates\Tabs\MagicLinkTab;
 use AdorationScheduler\Admin\Pages\EmailTemplates\Tabs\AccessRequestAdminTab;
 use AdorationScheduler\Admin\Pages\EmailTemplates\Tabs\AccessApprovedTab;
 use AdorationScheduler\Admin\Pages\EmailTemplates\Tabs\CoverageDigestTab;
+use AdorationScheduler\Admin\Pages\EmailTemplates\Tabs\NoShowDigestTab;
 use AdorationScheduler\Admin\Pages\EmailTemplates\Tabs\ReplacementNeededTab;
 use AdorationScheduler\Admin\Pages\EmailTemplates\Tabs\AccountDeletedTab;
 use AdorationScheduler\Admin\Pages\EmailTemplates\Tabs\WaitlistJoinedTab;
@@ -43,6 +44,8 @@ class EmailTemplatesPage {
                 "Thank you for signing up for Eucharistic Adoration.\n\n".
                 "Schedule: {schedule_title}\n".
                 "When: {slot_date} {slot_start}–{slot_end}\n\n".
+                "When you arrive, you can tap this link to check in:\n".
+                "{checkin_url}\n\n".
                 "If you have any questions, please contact the parish office.\n\n".
                 "God bless,\n".
                 "{church_name}\n",
@@ -53,6 +56,8 @@ class EmailTemplatesPage {
                 "This is a friendly reminder that you are scheduled for Eucharistic Adoration.\n\n".
                 "Schedule: {schedule_title}\n".
                 "When: {slot_date} {slot_start}–{slot_end}\n\n".
+                "When you arrive, you can tap this link to check in:\n".
+                "{checkin_url}\n\n".
                 "Thank you for your generosity in prayer.\n\n".
                 "God bless,\n".
                 "{church_name}\n",
@@ -92,6 +97,14 @@ class EmailTemplatesPage {
                 "{gap_list}\n\n".
                 "View the Coverage Calendar or Signups page to assign someone, or share the schedule with parishioners so they can claim it themselves.\n\n".
                 "{signups_url}\n",
+
+            // ✅ NEW: Admin no-show digest (2026-07-18)
+            'no_show_digest_subject' => '[{church_name}] {no_show_count} possible no-show(s) in Adoration',
+            'no_show_digest_body'    =>
+                "The following {no_show_count} confirmed Adoration hour(s) started more than {grace_minutes} minutes ago and nobody has checked in:\n\n".
+                "{no_show_list}\n\n".
+                "This could mean the chapel is uncovered right now, or it could just mean someone forgot to tap the check-in link. Worth a quick call if this is a safety concern.\n\n".
+                "{attendance_url}\n",
 
             // ✅ NEW: Replacement/coverage-needed notice
             'replacement_needed_subject' => '[{church_name}] Coverage needed: {slot_label}',
@@ -166,6 +179,7 @@ class EmailTemplatesPage {
         $out['access_request_admin_subject'] = sanitize_text_field($in['access_request_admin_subject'] ?? '');
         $out['access_approved_subject']      = sanitize_text_field($in['access_approved_subject'] ?? '');
         $out['coverage_digest_subject']      = sanitize_text_field($in['coverage_digest_subject'] ?? '');
+        $out['no_show_digest_subject']       = sanitize_text_field($in['no_show_digest_subject'] ?? '');
         $out['replacement_needed_subject']   = sanitize_text_field($in['replacement_needed_subject'] ?? '');
         $out['account_deleted_subject']      = sanitize_text_field($in['account_deleted_subject'] ?? '');
         $out['waitlist_joined_subject']      = sanitize_text_field($in['waitlist_joined_subject'] ?? '');
@@ -178,6 +192,7 @@ class EmailTemplatesPage {
         $out['access_request_admin_body'] = wp_kses_post($in['access_request_admin_body'] ?? '');
         $out['access_approved_body']      = wp_kses_post($in['access_approved_body'] ?? '');
         $out['coverage_digest_body']      = wp_kses_post($in['coverage_digest_body'] ?? '');
+        $out['no_show_digest_body']       = wp_kses_post($in['no_show_digest_body'] ?? '');
         $out['replacement_needed_body']   = wp_kses_post($in['replacement_needed_body'] ?? '');
         $out['account_deleted_body']      = wp_kses_post($in['account_deleted_body'] ?? '');
         $out['waitlist_joined_body']      = wp_kses_post($in['waitlist_joined_body'] ?? '');
@@ -205,6 +220,7 @@ class EmailTemplatesPage {
             'access_request_admin_subject','access_request_admin_body',
             'access_approved_subject','access_approved_body',
             'coverage_digest_subject','coverage_digest_body',
+            'no_show_digest_subject','no_show_digest_body',
             'replacement_needed_subject','replacement_needed_body',
             'account_deleted_subject','account_deleted_body',
             'waitlist_joined_subject','waitlist_joined_body',
@@ -230,6 +246,7 @@ class EmailTemplatesPage {
             'access_request_admin' => AccessRequestAdminTab::class,
             'access_approved'      => AccessApprovedTab::class,
             'coverage_digest'      => CoverageDigestTab::class,
+            'no_show_digest'        => NoShowDigestTab::class,
             'replacement_needed'   => ReplacementNeededTab::class,
             'account_deleted'      => AccountDeletedTab::class,
             'waitlist_joined'       => WaitlistJoinedTab::class,
@@ -376,7 +393,8 @@ class EmailTemplatesPage {
         }
         echo '</h2>';
 
-        echo '<p>Available tags: <code>{first_name}</code> <code>{last_name}</code> <code>{schedule_title}</code> <code>{slot_date}</code> <code>{slot_start}</code> <code>{slot_end}</code> <code>{church_name}</code> <code>{manage_url}</code></p>';
+        echo '<p>Available tags: <code>{first_name}</code> <code>{last_name}</code> <code>{schedule_title}</code> <code>{slot_date}</code> <code>{slot_start}</code> <code>{slot_end}</code> <code>{church_name}</code> <code>{manage_url}</code> <code>{checkin_url}</code></p>';
+        echo '<p class="description">This tab\'s own tags (e.g. <code>{gap_count}</code>, <code>{no_show_count}</code>) are listed above the editor below.</p>';
 
         // Render the active tab content
         $tab->render($tab_key);

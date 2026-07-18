@@ -227,6 +227,19 @@ class ReminderScheduler {
             error_log('[AdorationScheduler] ReminderScheduler send_reminder signup_id=' . $signup_id . ' to=' . $to . ' date=' . $date . ' start=' . $start);
         }
 
+        // ✅ Check-in (2026-07-18): best-effort, mirrors EmailService's
+        // build_args_from_signup_id() — the reminder email is exactly where
+        // a no-login "I'm here" link matters most, since it lands shortly
+        // before the actual hour.
+        $checkin_url = '';
+        try {
+            if (class_exists(\AdorationScheduler\Services\CheckInService::class)) {
+                $checkin_url = (string) (\AdorationScheduler\Services\CheckInService::build_checkin_url($signup_id, 'in') ?? '');
+            }
+        } catch (\Throwable $e) {
+            $checkin_url = '';
+        }
+
         NotificationService::send_reminder_24h([
             'to_email'       => $to,
             'first_name'     => $first,
@@ -238,6 +251,7 @@ class ReminderScheduler {
             'slot_start'     => $start,
             'slot_end'       => $end,
             'slot_label'     => $slot_label,
+            'checkin_url'    => $checkin_url,
             'context'        => 'system',
             'send'           => true,
             'signup_id'      => $signup_id, // deterministic dedupe

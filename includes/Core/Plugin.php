@@ -77,6 +77,16 @@ class Plugin {
             $monthlyClass::activate();
         }
 
+        // ✅ No-show alerts (2026-07-18): frequent unchecked-in-past-grace digest job
+        self::require_first_existing($includes_dir, [
+            'Services/NoShowAlertService.php',
+            'services/NoShowAlertService.php',
+        ]);
+        $noShowAlertClass = 'AdorationScheduler\\Services\\NoShowAlertService';
+        if (class_exists($noShowAlertClass) && method_exists($noShowAlertClass, 'activate')) {
+            $noShowAlertClass::activate();
+        }
+
         // ✅ Onboarding wizard (2026-07-18): show the first-run setup wizard
         // once, via a redirect consumed on the next admin page load (see the
         // admin_init hook below). Only on a genuinely first-time activation —
@@ -139,6 +149,16 @@ class Plugin {
         $monthlyClass = 'AdorationScheduler\\Services\\MonthlyScheduleGeneratorService';
         if (class_exists($monthlyClass) && method_exists($monthlyClass, 'deactivate')) {
             $monthlyClass::deactivate();
+        }
+
+        // ✅ No-show alerts: unschedule digest job
+        self::require_first_existing($includes_dir, [
+            'Services/NoShowAlertService.php',
+            'services/NoShowAlertService.php',
+        ]);
+        $noShowAlertClass = 'AdorationScheduler\\Services\\NoShowAlertService';
+        if (class_exists($noShowAlertClass) && method_exists($noShowAlertClass, 'deactivate')) {
+            $noShowAlertClass::deactivate();
         }
     }
 
@@ -270,6 +290,40 @@ class Plugin {
             $monthlyClass::register();
         } else {
             error_log('[AdorationScheduler] MonthlyScheduleGeneratorService missing or no register() method: ' . $monthlyClass);
+        }
+
+        /**
+         * NO-SHOW ALERTS: frequent admin digest of unchecked-in confirmed hours
+         */
+        self::require_first_existing($includes_dir, [
+            'Services/NoShowAlertService.php',
+            'services/NoShowAlertService.php',
+        ]);
+
+        $noShowAlertClass = 'AdorationScheduler\\Services\\NoShowAlertService';
+        if (class_exists($noShowAlertClass) && method_exists($noShowAlertClass, 'register')) {
+            $noShowAlertClass::register();
+        } else {
+            error_log('[AdorationScheduler] NoShowAlertService missing or no register() method: ' . $noShowAlertClass);
+        }
+
+        /**
+         * ✅ CHECK-IN / ATTENDANCE (2026-07-18): no-login self-report links
+         * (email/portal) + chapel kiosk admin-post endpoints. Registers the
+         * adoration_checkin / adoration_kiosk / adoration_kiosk_checkin
+         * admin-post actions — without this, every check-in link and kiosk
+         * page 404s.
+         */
+        self::require_first_existing($includes_dir, [
+            'Services/CheckInService.php',
+            'services/CheckInService.php',
+        ]);
+
+        $checkInClass = 'AdorationScheduler\\Services\\CheckInService';
+        if (class_exists($checkInClass) && method_exists($checkInClass, 'register')) {
+            $checkInClass::register();
+        } else {
+            error_log('[AdorationScheduler] CheckInService missing or no register() method: ' . $checkInClass);
         }
 
         /**
@@ -612,6 +666,19 @@ class Plugin {
                     if (class_exists('\\AdorationScheduler\\Admin\\Pages\\CoverageAlertsSettingsPage')
                         && method_exists('\\AdorationScheduler\\Admin\\Pages\\CoverageAlertsSettingsPage', 'register')) {
                         \AdorationScheduler\Admin\Pages\CoverageAlertsSettingsPage::register();
+                    }
+                }
+            });
+
+            // ✅ No-show Alerts settings page (unchecked-in-past-grace admin digest)
+            add_action('admin_init', function () use ($includes_dir) {
+                $path = $includes_dir . '/Admin/Pages/NoShowAlertsSettingsPage.php';
+                if (is_file($path)) {
+                    require_once $path;
+
+                    if (class_exists('\\AdorationScheduler\\Admin\\Pages\\NoShowAlertsSettingsPage')
+                        && method_exists('\\AdorationScheduler\\Admin\\Pages\\NoShowAlertsSettingsPage', 'register')) {
+                        \AdorationScheduler\Admin\Pages\NoShowAlertsSettingsPage::register();
                     }
                 }
             });

@@ -232,6 +232,35 @@ class Menu {
             [__CLASS__, 'render_coverage_report_page']
         );
 
+        // ✅ Attendance (2026-07-18): review who checked in for confirmed
+        // hours + manually mark present/absent. Same Settings-family
+        // grouping and capability as Coverage Report (signups-adjacent
+        // reporting, not a toggle-style setting).
+        $attendance_hook = add_submenu_page(
+            'adoration_scheduler_dashboard',
+            __('Attendance', 'adoration-scheduler'),
+            __('Attendance', 'adoration-scheduler'),
+            self::CAP_MANAGE_SETTINGS,
+            'adoration_scheduler_attendance',
+            [__CLASS__, 'render_attendance_page']
+        );
+
+        if ($attendance_hook) {
+            add_action('load-' . $attendance_hook, [__CLASS__, 'load_attendance_page']);
+        }
+
+        // ✅ No-Show Alerts (2026-07-18): admin digest for confirmed hours
+        // nobody checked into. Same Settings-API page pattern as Coverage
+        // Alerts (register_settings() + options.php), no load-hook needed.
+        add_submenu_page(
+            'adoration_scheduler_dashboard',
+            __('No-Show Alerts', 'adoration-scheduler'),
+            __('No-Show Alerts', 'adoration-scheduler'),
+            self::CAP_MANAGE_SETTINGS,
+            'adoration_scheduler_no_show_alerts',
+            [__CLASS__, 'render_no_show_alerts_page']
+        );
+
         // ✅ Setup Wizard (2026-07-18): first-run onboarding, reached only via
         // the one-time activation redirect (see Plugin.php) or a direct link
         // from the Dashboard checklist card — never shown in the sidebar and
@@ -307,6 +336,8 @@ class Menu {
             'adoration_scheduler_access',
             'adoration_scheduler_coverage_alerts',
             'adoration_scheduler_coverage_report',
+            'adoration_scheduler_attendance',
+            'adoration_scheduler_no_show_alerts',
             'adoration_scheduler_announcements',
             'adoration_scheduler_setup_wizard',
         ];
@@ -335,6 +366,8 @@ class Menu {
             'adoration_scheduler_access'            => __('Access & Privacy', 'adoration-scheduler'),
             'adoration_scheduler_coverage_alerts'   => __('Coverage Alerts', 'adoration-scheduler'),
             'adoration_scheduler_coverage_report'   => __('Coverage Report', 'adoration-scheduler'),
+            'adoration_scheduler_attendance'        => __('Attendance', 'adoration-scheduler'),
+            'adoration_scheduler_no_show_alerts'    => __('No-Show Alerts', 'adoration-scheduler'),
             'adoration_scheduler_announcements'     => __('Announcements', 'adoration-scheduler'),
             'adoration_scheduler_pages_shortcodes'  => __('Pages & Shortcodes', 'adoration-scheduler'),
         ];
@@ -436,6 +469,30 @@ class Menu {
         $page = new $class();
 
         // ✅ If the page exposes handle_request(), run it here (pre-output)
+        if (method_exists($page, 'handle_request')) {
+            $page->handle_request();
+        }
+    }
+
+    /**
+     * Runs early (load-hook) to process the Mark Present/Absent POST safely
+     * before headers/output — same pattern as load_chapels_page().
+     */
+    public static function load_attendance_page(): void {
+        if ( ! current_user_can(self::CAP_MANAGE_SETTINGS) && ! current_user_can('manage_options') ) {
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+        }
+
+        $candidates = ['Pages/AttendancePage.php'];
+        self::require_admin_page_file($candidates);
+
+        $class = '\\AdorationScheduler\\Admin\\Pages\\AttendancePage';
+        if (!class_exists($class)) {
+            self::die_missing($class, $candidates);
+        }
+
+        $page = new $class();
+
         if (method_exists($page, 'handle_request')) {
             $page->handle_request();
         }
@@ -831,6 +888,43 @@ SVG;
         $class = '\\AdorationScheduler\\Admin\\Pages\\CoverageReportPage';
         if (!class_exists($class)) {
             self::die_missing($class, $candidates);
+        }
+
+        (new $class())->render();
+    }
+
+    public static function render_attendance_page(): void {
+        if ( ! current_user_can(self::CAP_MANAGE_SETTINGS) && ! current_user_can('manage_options') ) {
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+        }
+
+        $candidates = ['Pages/AttendancePage.php'];
+        self::require_admin_page_file($candidates);
+
+        $class = '\\AdorationScheduler\\Admin\\Pages\\AttendancePage';
+        if (!class_exists($class)) {
+            self::die_missing($class, $candidates);
+        }
+
+        (new $class())->render();
+    }
+
+    public static function render_no_show_alerts_page(): void {
+        if ( ! current_user_can(self::CAP_MANAGE_SETTINGS) && ! current_user_can('manage_options') ) {
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+        }
+
+        $candidates = ['Pages/NoShowAlertsSettingsPage.php'];
+        self::require_admin_page_file($candidates);
+
+        $class = '\\AdorationScheduler\\Admin\\Pages\\NoShowAlertsSettingsPage';
+        if (!class_exists($class)) {
+            self::die_missing($class, $candidates);
+        }
+
+        if (method_exists($class, 'render')) {
+            $class::render();
+            return;
         }
 
         (new $class())->render();

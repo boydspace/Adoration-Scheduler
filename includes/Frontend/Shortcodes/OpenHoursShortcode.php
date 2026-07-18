@@ -95,10 +95,10 @@ class OpenHoursShortcode
                     <table class="uk-table uk-table-divider uk-table-small adoration-table">
                         <thead>
                             <tr>
-                                <th><?php esc_html_e('Date', 'adoration-scheduler'); ?></th>
-                                <th><?php esc_html_e('Time', 'adoration-scheduler'); ?></th>
-                                <th><?php esc_html_e('Chapel', 'adoration-scheduler'); ?></th>
-                                <th><?php esc_html_e('Status', 'adoration-scheduler'); ?></th>
+                                <th scope="col"><?php esc_html_e('Date', 'adoration-scheduler'); ?></th>
+                                <th scope="col"><?php esc_html_e('Time', 'adoration-scheduler'); ?></th>
+                                <th scope="col"><?php esc_html_e('Chapel', 'adoration-scheduler'); ?></th>
+                                <th scope="col"><?php esc_html_e('Status', 'adoration-scheduler'); ?></th>
                             </tr>
                         </thead>
                         <tbody>
@@ -122,9 +122,18 @@ class OpenHoursShortcode
                             $max     = isset($row['max_adorers']) ? $row['max_adorers'] : null;
                             $count   = (int)($row['confirmed_count'] ?? 0);
 
+                            // ✅ Accessibility (2026-07-18): dark text on a light
+                            // tint + colored border, not white text on a
+                            // saturated background — white-on-#00a32a/#dba617
+                            // measured well under the WCAG AA 4.5:1 contrast
+                            // ratio for text this size (~3.3:1 and ~2.2:1
+                            // respectively). This dark-on-light pattern passes
+                            // comfortably regardless of the exact hue and
+                            // matches the .adoration-notice-* accent-border
+                            // convention already used elsewhere in this plugin.
                             if ($is_full) {
                                 $status_lbl = __('Filled', 'adoration-scheduler');
-                                $status_color = '#d63638';
+                                $status_bg = '#fbe6e6'; $status_fg = '#8a1f1f'; $status_border = '#d63638';
                             } elseif ($max !== null) {
                                 $status_lbl = sprintf(
                                     /* translators: 1: confirmed count, 2: max spots */
@@ -132,12 +141,16 @@ class OpenHoursShortcode
                                     $count,
                                     (int)$max
                                 );
-                                $status_color = ($count > 0) ? '#dba617' : '#00a32a';
+                                if ($count > 0) {
+                                    $status_bg = '#fdf0d5'; $status_fg = '#6b4e00'; $status_border = '#dba617';
+                                } else {
+                                    $status_bg = '#e4f5e9'; $status_fg = '#10521c'; $status_border = '#00a32a';
+                                }
                             } else {
                                 $status_lbl = ($count > 0)
                                     ? __('Open', 'adoration-scheduler')
                                     : __('Open — nobody signed up yet', 'adoration-scheduler');
-                                $status_color = '#00a32a';
+                                $status_bg = '#e4f5e9'; $status_fg = '#10521c'; $status_border = '#00a32a';
                             }
                             ?>
                             <tr>
@@ -145,7 +158,7 @@ class OpenHoursShortcode
                                 <td><?php echo esc_html($time_lbl); ?></td>
                                 <td><?php echo esc_html($chapel_name); ?></td>
                                 <td>
-                                    <span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;color:#fff;background:<?php echo esc_attr($status_color); ?>;">
+                                    <span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600;color:<?php echo esc_attr($status_fg); ?>;background:<?php echo esc_attr($status_bg); ?>;border:1px solid <?php echo esc_attr($status_border); ?>;">
                                         <?php echo esc_html($status_lbl); ?>
                                     </span>
                                 </td>

@@ -45,6 +45,12 @@ Adoration Scheduler turns WordPress into a complete Eucharistic Adoration schedu
 - Printable rosters — a clean, chapel-binder-friendly page per schedule and date range, grouped by date/time with names and phone numbers, ready to print or save as a PDF from the browser.
 - Coverage Report — hours served per person and month-by-month fill rate over any date range, each with CSV export, for stewardship recognition and year-end reports.
 - First-run Setup Wizard shown once right after activation, plus a persistent "Finish setting up" checklist on the Dashboard for anyone who skips it — walks a new install through creating a schedule, adding hours, activating it, and deciding on the approval gate.
+- Accessibility pass on the public-facing signup pages and the "My Adoration" portal: properly labeled form fields, keyboard-trapped and focus-returning modals, screen-reader-friendly table headers and button names, and status indicators that don't rely on color alone.
+
+### Attendance and check-in
+- Three no-login ways to record who actually showed up: a self-report "I'm here" / "I'm leaving" link in the confirmation and reminder emails and on the My Adoration portal, a per-chapel kiosk page (printable as a QR code for the chapel entrance) showing who's on the clock right now, and an admin Attendance page for marking present/absent by hand.
+- Attendance admin page — review check-in status for any date range and schedule, with one-click "Mark Present" / "Mark Absent" for hours nobody self-reported.
+- Optional No-Show Alerts digest, off by default, that emails staff when a confirmed hour started a while ago with nobody checked in — a safety net for an unstaffed chapel, separate from the Coverage Alerts digest that warns about hours nobody signed up for at all.
 
 ## Requirements
 
@@ -89,9 +95,6 @@ suite on every push via `.github/workflows/tests.yml`.
 ## Roadmap
 
 - SMS reminders (pending a provider decision)
-- Expanded accessibility and mobile usability review
-- WordPress-install setup/onboarding wizard for new sites
-- Attendance/check-in tracking (pending a decision on whether this fits the ministry's approach to self-service prayer hours)
 - wp-phpunit integration test suite (see `tests/Integration/README.md`)
 
 ## Development status

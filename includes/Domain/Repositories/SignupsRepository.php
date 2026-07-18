@@ -1473,4 +1473,334 @@ class SignupsRepository {
     public function delete(int $signup_id): bool {
         return $this->delete_signup_and_cleanup($signup_id);
     }
+
+    // -------------------------------------------------------------------------
+    // ATTENDANCE / CHECK-IN (2026-07-18)
+    //
+    // Deliberately per-occurrence: a standing weekly commitment auto-fills a
+    // separate signup row per future date (see PerpetualSlotGenerator), and
+    // each of those rows gets its own checked_in_at/checked_out_at — so
+    // attendance history for a recurring hour can show "present 6 of the
+    // last 8 weeks" instead of one all-or-nothing flag on the commitment.
+    // -------------------------------------------------------------------------
+
+    /**
+     * Look up (or lazily create) this signup's bearer token for no-login
+     * check-in links, mirroring PersonsRepository::get_or_create_calendar_token().
+     */
+    public function get_or_create_checkin_token(int $signup_id): ?string {
+        global $wpdb;
+
+        $signup_id = (int)$signup_id;
+        if ($signup_id <= 0) return null;
+
+        $existing = $wpdb->get_var(
+            $wpdb->prepare("SELECT checkin_token FROM {$this->table} WHERE id = %d LIMIT 1", $signup_id)
+        );
+        $existing = trim((string)$existing);
+        if ($existing !== '') return $existing;
+
+        // 32 raw bytes -> 64 hex chars, matches the CHAR(64) column.
+        $token = bin2hex(random_bytes(32));
+
+        $res = $wpdb->update(
+            $this->table,
+            ['checkin_token' => $token],
+            ['id' => $signup_id],
+            ['%s'],
+            ['%d']
+        );
+
+        return ($res !== false) ? $token : null;
+    }
+
+    /**
+     * Look up a signup by its raw check-in token (as it appears in the
+     * email link's URL). Returns null on no match — callers should treat
+     * that identically to "link not found" without leaking why.
+     */
+    public function find_by_checkin_token(string $token): ?array {
+        global $wpdb;
+
+        $token = trim($token);
+        if ($token === '') return null;
+
+        $row = $wpdb->get_row(
+            $wpdb->prepare("SELECT * FROM {$this->table} WHERE checkin_token = %s LIMIT 1", $token),
+            ARRAY_A
+        );
+
+        return $row ?: null;
+    }
+
+    /**
+     * Record arrival. $method is one of 'self' (portal button or email
+     * link), 'kiosk' (chapel walk-up page), or 'admin' (marked after the
+     * fact by staff). Idempotent — calling twice doesn't overwrite an
+     * earlier check-in time with a later click.
+     */
+    public function check_in(int $signup_id, string $method = 'self'): bool {
+        global $wpdb;
+
+        $signup_id = (int)$signup_id;
+        if ($signup_id <= 0) return false;
+
+        $method = in_array($method, ['self', 'kiosk', 'admin'], true) ? $method : 'self';
+
+        $already = $wpdb->get_var(
+            $wpdb->prepare("SELECT checked_in_at FROM {$this->table} WHERE id = %d LIMIT 1", $signup_id)
+        );
+        if (!empty($already)) return true; // already checked in — not an error
+
+        $res = $wpdb->update(
+            $this->table,
+            [
+                'checked_in_at'   => current_time('mysql'),
+                'check_in_method' => $method,
+            ],
+            ['id' => $signup_id],
+            ['%s', '%s'],
+            ['%d']
+        );
+
+        if ($res !== false) {
+            $this->audit_log($signup_id, 'checked_in', ['method' => $method]);
+        }
+
+        return $res !== false;
+    }
+
+    /**
+     * Record departure. Only meaningful after check_in(); silently a no-op
+     * if never checked in (nothing to "leave" from).
+     */
+    public function check_out(int $signup_id): bool {
+        global $wpdb;
+
+        $signup_id = (int)$signup_id;
+        if ($signup_id <= 0) return false;
+
+        $row = $wpdb->get_row(
+            $wpdb->prepare("SELECT checked_in_at, checked_out_at FROM {$this->table} WHERE id = %d LIMIT 1", $signup_id),
+            ARRAY_A
+        );
+        if (!is_array($row) || empty($row['checked_in_at'])) return false;
+        if (!empty($row['checked_out_at'])) return true; // already checked out
+
+        $res = $wpdb->update(
+            $this->table,
+            ['checked_out_at' => current_time('mysql')],
+            ['id' => $signup_id],
+            ['%s'],
+            ['%d']
+        );
+
+        if ($res !== false) {
+            $this->audit_log($signup_id, 'checked_out', []);
+        }
+
+        return $res !== false;
+    }
+
+    /**
+     * Admin override: set (or clear) attendance directly, regardless of
+     * current state — used by the Attendance admin page's "mark present" /
+     * "mark absent" controls, which need to be able to correct a bad
+     * self-report as well as fill one in after the fact.
+     */
+    public function set_attendance_admin(int $signup_id, bool $present): bool {
+        global $wpdb;
+
+        $signup_id = (int)$signup_id;
+        if ($signup_id <= 0) return false;
+
+        if ($present) {
+            $data   = ['checked_in_at' => current_time('mysql'), 'check_in_method' => 'admin'];
+            $format = ['%s', '%s'];
+        } else {
+            $data   = ['checked_in_at' => null, 'checked_out_at' => null, 'check_in_method' => null];
+            $format = ['%s', '%s', '%s'];
+        }
+
+        $res = $wpdb->update($this->table, $data, ['id' => $signup_id], $format, ['%d']);
+
+        if ($res !== false) {
+            $this->audit_log($signup_id, $present ? 'checked_in' : 'attendance_cleared', ['method' => 'admin']);
+        }
+
+        return $res !== false;
+    }
+
+    /**
+     * Confirmed signups whose slot started more than $grace_minutes ago,
+     * nobody has checked in, and no no-show alert has been sent yet for
+     * this occurrence — the query behind the no-show digest cron
+     * (NoShowAlertService). Joins to slots/schedules/chapels for a
+     * human-readable digest, same shape as list_open_replacement_requests().
+     */
+    public function find_unchecked_in_past_grace(int $grace_minutes = 30, int $limit = 100): array {
+        global $wpdb;
+
+        $grace_minutes = max(0, (int)$grace_minutes);
+        $limit = max(1, min(500, (int)$limit));
+
+        $slots   = $wpdb->prefix . 'adoration_slots';
+        $sched   = $wpdb->prefix . 'adoration_schedules';
+        $chapels = $wpdb->prefix . 'adoration_chapels';
+
+        // Site-local "now minus grace period", compared against the slot's
+        // real start_at datetime column (already timezone-normalized —
+        // see SlotsRepository/Installer's start_at/end_at columns).
+        $cutoff = current_time('mysql');
+
+        $sql = "
+            SELECT
+                s.id,
+                s.date,
+                s.person_id,
+                sl.start_time,
+                sl.end_time,
+                sl.start_at,
+                sc.name AS schedule_name,
+                ch.name AS chapel_name,
+                p.first_name AS person_first_name,
+                p.last_name  AS person_last_name
+            FROM {$this->table} s
+            INNER JOIN {$slots} sl ON sl.id = s.slot_id
+            INNER JOIN {$sched} sc ON sc.id = s.schedule_id
+            INNER JOIN {$chapels} ch ON ch.id = sc.chapel_id
+            LEFT JOIN {$this->persons_table} p ON p.id = s.person_id
+            WHERE s.status = 'confirmed'
+              AND s.is_active = 1
+              AND s.checked_in_at IS NULL
+              AND s.no_show_alert_sent_at IS NULL
+              AND sl.start_at IS NOT NULL
+              AND sl.start_at <= DATE_SUB(%s, INTERVAL %d MINUTE)
+            ORDER BY sl.start_at ASC
+            LIMIT %d
+        ";
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
+        $rows = $wpdb->get_results($wpdb->prepare($sql, $cutoff, $grace_minutes, $limit), ARRAY_A);
+        return is_array($rows) ? $rows : [];
+    }
+
+    /**
+     * Dedupe stamp so find_unchecked_in_past_grace() doesn't re-flag the
+     * same gap on every cron run.
+     */
+    public function mark_no_show_alert_sent(array $signup_ids): void {
+        global $wpdb;
+
+        $ids = array_values(array_unique(array_filter(array_map('intval', $signup_ids), fn($id) => $id > 0)));
+        if (empty($ids)) return;
+
+        $placeholders = implode(',', array_fill(0, count($ids), '%d'));
+        $sql = "UPDATE {$this->table} SET no_show_alert_sent_at = %s WHERE id IN ({$placeholders})";
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
+        $wpdb->query($wpdb->prepare($sql, current_time('mysql'), ...$ids));
+    }
+
+    /**
+     * Attendance rows for the admin Attendance page: signups within a date
+     * range (inclusive), newest first, with everything the page's table
+     * needs to render without N+1 queries.
+     */
+    public function list_for_attendance(string $date_from, string $date_to, int $schedule_id = 0, int $limit = 500): array {
+        global $wpdb;
+
+        $slots   = $wpdb->prefix . 'adoration_slots';
+        $sched   = $wpdb->prefix . 'adoration_schedules';
+        $chapels = $wpdb->prefix . 'adoration_chapels';
+
+        $limit = max(1, min(2000, (int)$limit));
+
+        $schedule_sql = '';
+        $params = [$date_from, $date_to];
+        if ($schedule_id > 0) {
+            $schedule_sql = " AND s.schedule_id = %d";
+            $params[] = $schedule_id;
+        }
+        $params[] = $limit;
+
+        $sql = "
+            SELECT
+                s.id,
+                s.date,
+                s.status,
+                s.person_id,
+                s.checked_in_at,
+                s.checked_out_at,
+                s.check_in_method,
+                sl.start_time,
+                sl.end_time,
+                sc.id   AS schedule_id,
+                sc.name AS schedule_name,
+                ch.name AS chapel_name,
+                p.first_name AS person_first_name,
+                p.last_name  AS person_last_name
+            FROM {$this->table} s
+            INNER JOIN {$slots} sl ON sl.id = s.slot_id
+            INNER JOIN {$sched} sc ON sc.id = s.schedule_id
+            INNER JOIN {$chapels} ch ON ch.id = sc.chapel_id
+            LEFT JOIN {$this->persons_table} p ON p.id = s.person_id
+            WHERE s.status = 'confirmed'
+              AND s.is_active = 1
+              AND s.date BETWEEN %s AND %s
+              {$schedule_sql}
+            ORDER BY s.date DESC, sl.start_time DESC
+            LIMIT %d
+        ";
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
+        $rows = $wpdb->get_results($wpdb->prepare($sql, ...$params), ARRAY_A);
+        return is_array($rows) ? $rows : [];
+    }
+
+    /**
+     * Everyone currently scheduled "right now" at a chapel — the query
+     * behind the kiosk check-in page. A slot counts as "now" if the
+     * current site-local time falls within [start_at, end_at], so a
+     * walk-up adorer sees their own name (and only names actually on the
+     * clock, not the whole day's roster).
+     */
+    public function list_current_for_chapel(int $chapel_id): array {
+        global $wpdb;
+
+        $chapel_id = (int)$chapel_id;
+        if ($chapel_id <= 0) return [];
+
+        $slots = $wpdb->prefix . 'adoration_slots';
+        $sched = $wpdb->prefix . 'adoration_schedules';
+        $now   = current_time('mysql');
+
+        $sql = "
+            SELECT
+                s.id,
+                s.checked_in_at,
+                s.checked_out_at,
+                sl.start_time,
+                sl.end_time,
+                sc.name AS schedule_name,
+                p.first_name AS person_first_name,
+                p.last_name  AS person_last_name
+            FROM {$this->table} s
+            INNER JOIN {$slots} sl ON sl.id = s.slot_id
+            INNER JOIN {$sched} sc ON sc.id = s.schedule_id
+            LEFT JOIN {$this->persons_table} p ON p.id = s.person_id
+            WHERE s.status = 'confirmed'
+              AND s.is_active = 1
+              AND sc.chapel_id = %d
+              AND sl.start_at IS NOT NULL
+              AND sl.end_at IS NOT NULL
+              AND sl.start_at <= %s
+              AND sl.end_at   >= %s
+            ORDER BY sl.start_at ASC
+        ";
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
+        $rows = $wpdb->get_results($wpdb->prepare($sql, $chapel_id, $now, $now), ARRAY_A);
+        return is_array($rows) ? $rows : [];
+    }
 }
