@@ -3,6 +3,7 @@ namespace AdorationScheduler\Admin\Tables;
 
 use AdorationScheduler\Domain\Repositories\PersonsRepository;
 use AdorationScheduler\Public\AccessRequestHandler;
+use AdorationScheduler\Admin\Support\RowActionForm;
 
 if ( ! defined('ABSPATH') ) exit;
 
@@ -144,24 +145,26 @@ class PersonsListTable extends \WP_List_Table {
         $id     = (int)($item['id'] ?? 0);
         $status = $this->repo->approval_status_of($item);
 
+        // ✅ FIX: these used to be their own nested <form> per button,
+        // nested inside PersonsPage::render()'s outer bulk-action <form>.
+        // Nested forms are invalid HTML and made Accept/Reject unreliable
+        // — see RowActionForm's docblock. Now a plain button that submits
+        // a single shared out-of-band form.
         $approval_form = function (string $target_status, string $label, string $confirm, string $button_class) use ($id) {
-            return sprintf(
-                '<form method="post" action="%s" style="display:inline-block;margin:0 4px 0 0;">
-                    %s
-                    <input type="hidden" name="action" value="adoration_set_person_approval" />
-                    <input type="hidden" name="page" value="%s" />
-                    <input type="hidden" name="person_id" value="%d" />
-                    <input type="hidden" name="approval_status" value="%s" />
-                    <button type="submit" class="button button-small %s"%s>%s</button>
-                </form>',
-                esc_url(admin_url('admin-post.php')),
-                wp_nonce_field('adoration_set_person_approval_' . $id, '_wpnonce', true, false),
-                esc_attr($this->page_slug),
-                $id,
-                esc_attr($target_status),
-                esc_attr($button_class),
-                $confirm !== '' ? ' onclick="return confirm(' . wp_json_encode($confirm) . ');"' : '',
-                esc_html($label)
+            $fields = [
+                'action'          => 'adoration_set_person_approval',
+                'page'            => $this->page_slug,
+                'person_id'       => $id,
+                'approval_status' => $target_status,
+                '_wpnonce'        => wp_create_nonce('adoration_set_person_approval_' . $id),
+            ];
+
+            return RowActionForm::button(
+                $label,
+                $fields,
+                'margin:0 4px 0 0;',
+                $confirm,
+                'button button-small ' . $button_class
             );
         };
 
@@ -312,21 +315,19 @@ class PersonsListTable extends \WP_List_Table {
                 esc_html__('Can’t delete (has signups)', 'adoration-scheduler')
             );
         } else {
-            $delete_form = sprintf(
-                '<form method="post" action="%s" style="display:inline;">
-                    %s
-                    <input type="hidden" name="action" value="adoration_delete_person" />
-                    <input type="hidden" name="page" value="%s" />
-                    <input type="hidden" name="person_id" value="%d" />
-                    <button type="submit" class="submitdelete" style="background:none;border:none;padding:0;margin:0;color:#b32d2e;cursor:pointer;"
-                        onclick="return confirm(%s);">%s</button>
-                </form>',
-                esc_url(admin_url('admin-post.php')),
-                wp_nonce_field('adoration_delete_person_' . $id, '_wpnonce', true, false),
-                esc_attr($this->page_slug),
-                $id,
-                wp_json_encode(__('Delete this person? This cannot be undone.', 'adoration-scheduler')),
-                esc_html__('Delete', 'adoration-scheduler')
+            // ✅ FIX: was its own nested <form>, nested inside PersonsPage's
+            // outer bulk-action <form> — same invalid-HTML bug as above.
+            $delete_form = RowActionForm::button(
+                __('Delete', 'adoration-scheduler'),
+                [
+                    'action'    => 'adoration_delete_person',
+                    'page'      => $this->page_slug,
+                    'person_id' => $id,
+                    '_wpnonce'  => wp_create_nonce('adoration_delete_person_' . $id),
+                ],
+                'background:none;border:none;padding:0;margin:0;color:#b32d2e;cursor:pointer;',
+                __('Delete this person? This cannot be undone.', 'adoration-scheduler'),
+                'submitdelete'
             );
 
             $actions['delete'] = $delete_form;

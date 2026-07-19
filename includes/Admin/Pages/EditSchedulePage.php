@@ -1144,7 +1144,59 @@ class EditSchedulePage {
                 $this->add_toast('Invalid commitment.', 'error', false);
             } else {
                 $ok = $commitmentsRepo->end($commitment_id);
-                $this->add_toast($ok ? 'Commitment ended.' : 'Failed to end commitment.', $ok ? 'success' : 'error', false);
+
+                // ✅ FIX: ending a commitment only deactivated the commitment
+                // row — it never cancelled the future dated signups that
+                // PerpetualSlotGenerator::apply_standing_commitments() had
+                // already auto-created for it. Left as-is, the person kept
+                // showing confirmed "Recurring" hours on every future date
+                // even though the commitment that generated them was gone.
+                // Cancel those too, same "cancel don't delete" pattern used
+                // everywhere else (frees the slot, promotes any waitlist,
+                // unschedules reminders — see cancel_signup_internal()).
+                $cancelled_count = 0;
+                if ($ok && class_exists('\\AdorationScheduler\\Domain\\Repositories\\SignupsRepository')) {
+                    $signupsRepo = new \AdorationScheduler\Domain\Repositories\SignupsRepository();
+                    if (method_exists($signupsRepo, 'list_ids_for_commitment')) {
+                        $future_ids = $signupsRepo->list_ids_for_commitment(
+                            $schedule_id,
+                            (int)($commitment['person_id'] ?? 0),
+                            (int)($commitment['day_of_week'] ?? -1),
+                            (string)($commitment['start_time'] ?? ''),
+                            current_time('Y-m-d')
+                        );
+
+                        if (!empty($future_ids)
+                            && class_exists('\\AdorationScheduler\\Services\\AdminSignupActionsService')
+                            && method_exists('\\AdorationScheduler\\Services\\AdminSignupActionsService', 'cancel_signup_internal')
+                        ) {
+                            foreach ($future_ids as $future_id) {
+                                if (\AdorationScheduler\Services\AdminSignupActionsService::cancel_signup_internal((int)$future_id)) {
+                                    $cancelled_count++;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if ($ok && $cancelled_count > 0) {
+                    $this->add_toast(
+                        sprintf(
+                            /* translators: %d: number of future signups cancelled */
+                            _n(
+                                'Commitment ended and %d future signup was cancelled.',
+                                'Commitment ended and %d future signups were cancelled.',
+                                $cancelled_count,
+                                'adoration-scheduler'
+                            ),
+                            $cancelled_count
+                        ),
+                        'success',
+                        false
+                    );
+                } else {
+                    $this->add_toast($ok ? 'Commitment ended.' : 'Failed to end commitment.', $ok ? 'success' : 'error', false);
+                }
             }
             $tab = 'commitments';
         }

@@ -41,8 +41,11 @@ class ScheduleShortcode {
 
         // ✅ Optional site-wide approval gate (off by default). See
         // MyAdorationShortcode for the same check on the dashboard side.
+        // Uses gated_html() (not do_shortcode() directly) so a page with
+        // this shortcode AND other gated plugin shortcodes on it only
+        // shows ONE Request Access form, not one per shortcode.
         if (!AccessGateService::visitor_is_allowed()) {
-            return do_shortcode('[adoration_request_access]');
+            return AccessGateService::gated_html();
         }
 
         // Unique instance id (prevents DOM id collisions if shortcode appears multiple times on a page)

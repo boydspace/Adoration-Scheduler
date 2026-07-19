@@ -41,7 +41,7 @@ For documentation, updates, and support, visit the plugin's website: https://fat
 * A modular "My Adoration" portal built from composable shortcodes (standing hours & upcoming signups, profile card, replacement requests, announcements, and more) so parishes can lay out their own page
 * Replacement requests: an adorer can flag an hour as needing coverage without cancelling outright, either asking the whole community of opted-in substitutes or asking one specific person directly
 * Daily coverage-gap alert emails, warning parish staff about unfilled hours coming up soon
-* Parish announcements shortcode for the portal
+* Parish announcements shortcode for the portal, with an optional public front-page feed and an image-carousel slider when several are live
 * Email confirmations, reminders, and cancellations, plus an admin email log and resend tools
 * Signup audit trail for accountability
 * Privacy controls for public listings and a consolidated, simplified admin menu
@@ -70,7 +70,10 @@ For documentation, updates, and support, visit the plugin's website: https://fat
   A quick "your next commitment" widget.
 
 * `[adoration_announcements]`
-  Parish announcements posted from the admin dashboard.
+  Parish announcements posted from the admin dashboard, shown to signed-in members in the admin-controlled order (Up/Down buttons on the Announcements page). Renders as a UIkit slider, one at a time, when more than one is live.
+
+* `[adoration_public_announcements]`
+  The public counterpart — announcements an admin has marked "Show on public front page," visible to everyone, no sign-in required. Safe to place on the homepage or any public page.
 
 * `[adoration_magic_link]`
   The sign-in form (magic link email and/or password).

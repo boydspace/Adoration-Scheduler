@@ -11,7 +11,7 @@ class Installer {
      * Bump this whenever you change DB schema.
      * Keep it monotonic.
      */
-    public const DB_VERSION = '2026-07-17-03';
+    public const DB_VERSION = '2026-07-19-02';
 
     /**
      * Plugin capabilities (v1.0 guard rails).
@@ -539,6 +539,13 @@ class Installer {
         if (!self::table_exists($announcements_table)) return false;
         if (!self::column_exists($announcements_table, 'is_active')) return false;
 
+        // ✅ Announcement visibility + optional image (2026-07-19)
+        if (!self::column_exists($announcements_table, 'show_public'))  return false;
+        if (!self::column_exists($announcements_table, 'show_private')) return false;
+        if (!self::column_exists($announcements_table, 'image_id'))     return false;
+        // ✅ Manual admin ordering (2026-07-19)
+        if (!self::column_exists($announcements_table, 'sort_order'))   return false;
+
         // ✅ Coverage-gap alerting (2026-07-16): dedupe/last-sent stamp for the
         // "open hour within X" admin digest (CoverageAlertService).
         if (!self::column_exists($slots_table, 'coverage_alert_sent_at')) return false;
@@ -912,17 +919,32 @@ class Installer {
         ) {$charset_collate};";
 
         // ✅ Admin broadcast announcements (front-end "news" feed)
+        //
+        // ✅ 2026-07-19: show_public / show_private let an announcement be
+        // shown on the public front page, to signed-in approved members, or
+        // both — a checkbox pair on the admin form, independent of is_active
+        // (the master on/off switch). image_id is an optional WP attachment
+        // ID for the new UIkit-slider card layout shared by
+        // [adoration_announcements] (private) and
+        // [adoration_public_announcements] (public).
         $sql_announcements = "CREATE TABLE {$announcements_table} (
             id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
             title VARCHAR(255) NOT NULL,
             body TEXT NOT NULL,
             is_active TINYINT(1) NOT NULL DEFAULT 1,
+            show_public TINYINT(1) NOT NULL DEFAULT 0,
+            show_private TINYINT(1) NOT NULL DEFAULT 1,
+            image_id BIGINT(20) UNSIGNED NULL,
+            sort_order INT NOT NULL DEFAULT 0,
             created_by BIGINT(20) UNSIGNED NULL,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
             KEY `idx_is_active` (`is_active`),
-            KEY `idx_created_at` (`created_at`)
+            KEY `idx_show_public` (`show_public`),
+            KEY `idx_show_private` (`show_private`),
+            KEY `idx_created_at` (`created_at`),
+            KEY `idx_sort_order` (`sort_order`)
         ) {$charset_collate};";
 
         // ✅ Waitlists (2026-07-17)
@@ -970,6 +992,7 @@ class Installer {
         self::ensure_signups_columns($signups_table);
         self::ensure_slots_columns($slots_table);
         self::ensure_schedules_columns($schedules_table);
+        self::ensure_announcements_columns($announcements_table);
 
         // ✅ ensure audit schema for upgrades
         self::ensure_signup_audit_schema($signup_audit_table);
@@ -1704,6 +1727,71 @@ class Installer {
 
         self::maybe_add_index($table, 'idx_chapel_id', 'chapel_id');
         self::ensure_index($table, 'idx_schedule_start_at', ['schedule_id','start_at']);
+    }
+
+    /**
+     * ✅ 2026-07-19: announcement visibility (public/private) + optional
+     * image, for existing installs whose table predates these columns.
+     * New installs already get them from $sql_announcements above; this is
+     * the same belt-and-suspenders ALTER pattern as every other
+     * ensure_*_columns() method in this file.
+     */
+    private static function ensure_announcements_columns(string $table): void {
+        global $wpdb;
+
+        $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
+        if ($exists !== $table) return;
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        $cols = (array) $wpdb->get_results("SHOW COLUMNS FROM {$table}", ARRAY_A);
+        $have = [];
+        foreach ($cols as $c) {
+            $have[strtolower($c['Field'] ?? '')] = true;
+        }
+
+        $alters = [];
+
+        // Existing rows default to show_private=1 (matches the previous
+        // behavior, where every active announcement was only ever shown
+        // via the gated [adoration_announcements] shortcode) and
+        // show_public=0 (an admin has to opt in per-announcement to put
+        // something on the public front page).
+        if (!isset($have['show_public']))  $alters[] = "ADD COLUMN show_public TINYINT(1) NOT NULL DEFAULT 0";
+        if (!isset($have['show_private'])) $alters[] = "ADD COLUMN show_private TINYINT(1) NOT NULL DEFAULT 1";
+        if (!isset($have['image_id']))     $alters[] = "ADD COLUMN image_id BIGINT(20) UNSIGNED NULL";
+
+        // ✅ Manual admin ordering (2026-07-19): every row starts at 0 until
+        // backfilled below — this is what Andy asked for after the slider
+        // shipped ("we need to adjust the announcement ordering... from the
+        // backend"). Admins reorder with Up/Down buttons on the
+        // Announcements page; the front end (both shortcodes) sorts by this
+        // instead of always newest-first.
+        $needed_sort_order_backfill = !isset($have['sort_order']);
+        if ($needed_sort_order_backfill) $alters[] = "ADD COLUMN sort_order INT NOT NULL DEFAULT 0";
+
+        if (!empty($alters)) {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            $wpdb->query("ALTER TABLE {$table} " . implode(', ', $alters));
+        }
+
+        self::maybe_add_index($table, 'idx_show_public', 'show_public');
+        self::maybe_add_index($table, 'idx_show_private', 'show_private');
+        self::maybe_add_index($table, 'idx_sort_order', 'sort_order');
+
+        // One-time backfill so existing installs keep their current
+        // newest-first order as the starting point (rather than every row
+        // suddenly tying at sort_order = 0) — admins can then reorder from
+        // there. Only runs the moment the column is first added.
+        if ($needed_sort_order_backfill) {
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            $ids = (array) $wpdb->get_col("SELECT id FROM {$table} ORDER BY created_at DESC, id DESC");
+            $order = 0;
+            foreach ($ids as $row_id) {
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+                $wpdb->update($table, ['sort_order' => $order], ['id' => (int) $row_id], ['%d'], ['%d']);
+                $order += 10;
+            }
+        }
     }
 
     private static function ensure_persons_email_unique(string $persons_table, string $signups_table): void {

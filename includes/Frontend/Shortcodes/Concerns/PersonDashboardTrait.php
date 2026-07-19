@@ -38,9 +38,15 @@ trait PersonDashboardTrait
     protected static function guard_and_get_person(string $redirect_path = '/my-adoration/'): array
     {
         if (!AccessGateService::visitor_is_allowed()) {
+            // ✅ FIX: was do_shortcode('[adoration_request_access]') directly
+            // — on a page built from several modular shortcodes (My
+            // Adoration is commonly 5-7 of them, all using this trait), an
+            // unapproved visitor saw the same form rendered once per
+            // shortcode. gated_html() renders it once per page load, no
+            // matter how many gated shortcodes call this method.
             return [
                 'person'                  => null,
-                'html'                    => do_shortcode('[adoration_request_access]'),
+                'html'                    => AccessGateService::gated_html(),
                 'viewing_as_admin_match'  => false,
                 'admin_email_for_notice' => '',
             ];

@@ -154,6 +154,15 @@ class DashboardPage {
                     '#646970'
                 ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 
+                <?php echo $this->stat_card(
+                    __('Pages & Shortcodes', 'adoration-scheduler'),
+                    '',
+                    __('every shortcode & what it\'s for', 'adoration-scheduler'),
+                    admin_url('admin.php?page=adoration_scheduler_pages_shortcodes'),
+                    __('View shortcodes', 'adoration-scheduler'),
+                    '#646970'
+                ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+
             </div>
 
             <?php if ( ! $gate_enabled && $pending_count === 0 ): ?>

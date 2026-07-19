@@ -1,6 +1,8 @@
 <?php
 namespace AdorationScheduler\Admin\Tables;
 
+use AdorationScheduler\Admin\Support\RowActionForm;
+
 if ( ! defined('ABSPATH') ) exit;
 
 if ( ! class_exists('\WP_List_Table') ) {
@@ -116,8 +118,15 @@ class SignupsListTable extends \WP_List_Table {
     }
 
     /**
-     * Render a "link" that actually submits a POST form to admin-post.php.
+     * Render a "link" that actually submits a POST to admin-post.php.
      * This matches AdminSignupActionsService which only accepts POST.
+     *
+     * ✅ FIX: this used to render its own <form>...</form> per row, nested
+     * inside SignupsPage::render()'s outer bulk-action <form>. Nested
+     * forms are invalid HTML and silently broke Cancel/Delete — see
+     * \AdorationScheduler\Admin\Support\RowActionForm for the full
+     * explanation. Now renders a plain button that submits a single
+     * shared out-of-band form instead.
      */
     private function admin_post_action_form_link(
         string $action,
@@ -135,25 +144,16 @@ class SignupsListTable extends \WP_List_Table {
             admin_url('admin.php')
         );
 
-        $confirm_attr = '';
-        if ($confirm) {
-            $confirm_attr = ' onclick="return confirm(\'' . esc_js(__('Delete this signup?', 'adoration-scheduler')) . '\')"';
-        }
+        $fields = [
+            'action'    => $action,
+            'signup_id' => $signup_id,
+            'return'    => $return,
+            '_wpnonce'  => wp_create_nonce($nonce_action),
+        ];
 
-        $style_attr = $style ? ' style="' . esc_attr($style) . '"' : '';
+        $confirm_msg = $confirm ? __('Delete this signup?', 'adoration-scheduler') : '';
 
-        // Use a tiny inline form so it behaves like a row-action link.
-        $html  = '<form method="post" action="' . esc_url(admin_url('admin-post.php')) . '" style="display:inline;">';
-        $html .= '<input type="hidden" name="action" value="' . esc_attr($action) . '"/>';
-        $html .= '<input type="hidden" name="signup_id" value="' . esc_attr((string)$signup_id) . '"/>';
-        $html .= '<input type="hidden" name="return" value="' . esc_url($return) . '"/>';
-        $html .= wp_nonce_field($nonce_action, '_wpnonce', true, false);
-        $html .= '<button type="submit" class="button-link"' . $style_attr . $confirm_attr . '>'
-              . esc_html($label)
-              . '</button>';
-        $html .= '</form>';
-
-        return $html;
+        return RowActionForm::button($label, $fields, $style, $confirm_msg);
     }
 
     public function column_default($item, $column_name) {

@@ -3,6 +3,7 @@ namespace AdorationScheduler\Admin\Pages;
 
 use AdorationScheduler\Domain\Repositories\PersonsRepository;
 use AdorationScheduler\Admin\Tables\PersonsListTable;
+use AdorationScheduler\Admin\Support\RowActionForm;
 
 if ( ! defined('ABSPATH') ) exit;
 
@@ -538,6 +539,13 @@ class PersonsPage {
                     $table->display();
                 ?>
             </form>
+
+            <?php
+                // ✅ Shared out-of-band form for row-action buttons
+                // (Accept/Reject/Delete). Must be printed OUTSIDE the
+                // bulk-action <form> above — see RowActionForm's docblock.
+                RowActionForm::render_once();
+            ?>
         </div>
         <?php
     }

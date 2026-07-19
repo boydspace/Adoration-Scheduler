@@ -22,6 +22,7 @@ Adoration Scheduler turns WordPress into a complete Eucharistic Adoration schedu
 
 ### Accounts and access
 - Secure "magic link" email sign-in, with an optional password as a second sign-in method.
+- A compact `[adoration_mini_login]` sign-in widget (email field, submit button, optional password toggle, no explanatory copy) for dropping into a front page or sidebar, alongside the full `[adoration_magic_link]` form for a dedicated sign-in page.
 - Optional approval-gated access, so a parish can require a short request before adorers can use the portal.
 - A modular "My Adoration" portal built from composable shortcodes — standing hours, upcoming signups, profile card, replacement requests, announcements — so a parish can lay out its own page.
 - Self-service profile editing, including clergy titles and parish affiliation.
@@ -33,7 +34,7 @@ Adoration Scheduler turns WordPress into a complete Eucharistic Adoration schedu
 - Parish announcements shortcode for the portal.
 - Admin email log with resend tools.
 - Personal iCal subscribe feed so an adorer's own confirmed hours stay synced to their phone or computer calendar automatically.
-- Public "open hours" board and calendar feed per schedule, showing fill status with no adorer names — safe to advertise on a public page.
+- Public "open hours" board per schedule, showing fill status with no adorer names, no signup controls, and no calendar-subscribe link — just the hours, safe to advertise on a public page. Either a per-date list, or (for a weekly perpetual schedule) a compact weekly grid — one row per time, one column per day.
 
 ### Administration
 - Consolidated, simplified admin menu.

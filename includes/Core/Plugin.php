@@ -506,6 +506,21 @@ class Plugin {
                 $mergePreviewAjaxClass::register();
             }
 
+            // ADMIN AJAX: drag-to-reorder announcements
+            self::require_first_existing($includes_dir, [
+                'Admin/Ajax/AnnouncementsReorderAjax.php',
+                'admin/Ajax/AnnouncementsReorderAjax.php',
+                'Admin/ajax/AnnouncementsReorderAjax.php',
+                'admin/ajax/AnnouncementsReorderAjax.php',
+            ]);
+
+            $announcementsReorderAjaxClass = '\\AdorationScheduler\\Admin\\Ajax\\AnnouncementsReorderAjax';
+            if (class_exists($announcementsReorderAjaxClass) && method_exists($announcementsReorderAjaxClass, 'register')) {
+                $announcementsReorderAjaxClass::register();
+            } else {
+                error_log('[AdorationScheduler] AnnouncementsReorderAjax missing or no register() method: ' . $announcementsReorderAjaxClass);
+            }
+
             /**
              * EARLY BULK ACTIONS HANDLER: SCHEDULES
              * (Uses granular cap + fallback instead of manage_options)
@@ -578,6 +593,54 @@ class Plugin {
                 if (class_exists('\\AdorationScheduler\\Admin\\Tables\\PersonsListTable')) {
                     $search = sanitize_text_field($_REQUEST['s'] ?? '');
                     $table  = new \AdorationScheduler\Admin\Tables\PersonsListTable('adoration_scheduler_people', $search);
+                    $table->process_bulk_action();
+                }
+
+            }, 0);
+
+            /**
+             * EARLY BULK ACTIONS HANDLER: SIGNUPS
+             *
+             * ✅ FIX (2026-07-18): SignupsListTable::process_bulk_action()
+             * (bulk Cancel/Delete from the Signups list) calls
+             * wp_safe_redirect()+exit. Left to run only from inside
+             * SignupsPage::render() -> $table->prepare_items(), that call
+             * happens AFTER WP admin has already printed the header/menu
+             * chrome for the page, so the redirect silently fails
+             * ("headers already sent") and the request just exit()s with
+             * nothing rendered — a blank content area under an otherwise
+             * normal-looking admin page. Same root cause, same fix, as the
+             * SCHEDULES and PEOPLE handlers directly above: process the
+             * bulk action here, on admin_init, before any output starts.
+             */
+            add_action('admin_init', function () use ($includes_dir) {
+
+                if ( ! Plugin::current_user_can_with_fallback(Plugin::CAP_MANAGE_SIGNUPS) ) return;
+
+                $page = sanitize_key($_REQUEST['page'] ?? '');
+                if ($page !== 'adoration_scheduler_signups') return;
+
+                if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') return;
+
+                if (empty($_POST['signup_ids']) || !is_array($_POST['signup_ids'])) return;
+
+                $action  = sanitize_key($_POST['action'] ?? '');
+                $action2 = sanitize_key($_POST['action2'] ?? '');
+
+                $bulk_action = '';
+                if ($action !== '' && $action !== '-1') {
+                    $bulk_action = $action;
+                } elseif ($action2 !== '' && $action2 !== '-1') {
+                    $bulk_action = $action2;
+                }
+
+                if (!in_array($bulk_action, ['bulk-cancel', 'bulk-delete'], true)) return;
+
+                $table_path = $includes_dir . '/Admin/Tables/SignupsListTable.php';
+                if (is_file($table_path)) require_once $table_path;
+
+                if (class_exists('\\AdorationScheduler\\Admin\\Tables\\SignupsListTable')) {
+                    $table = new \AdorationScheduler\Admin\Tables\SignupsListTable();
                     $table->process_bulk_action();
                 }
 
@@ -1062,8 +1125,10 @@ class Plugin {
             'MyReplacementRequestsShortcode',
             'NextAdorationHourShortcode',
             'AnnouncementsShortcode',
+            'PublicAnnouncementsShortcode',
             'OpenHoursShortcode',
             'CalendarSubscribeShortcode',
+            'MiniLoginShortcode',
         ] as $shortcode_class_name) {
             self::require_first_existing($includes_dir, [
                 "Frontend/Shortcodes/{$shortcode_class_name}.php",
@@ -1087,6 +1152,21 @@ class Plugin {
         $accessRequestShortcode = 'AdorationScheduler\\Frontend\\Shortcodes\\AccessRequestShortcode';
         if (class_exists($accessRequestShortcode) && method_exists($accessRequestShortcode, 'register')) {
             $accessRequestShortcode::register();
+        }
+
+        // ✅ Approval gate: early template_redirect hook that sends a
+        // blocked visitor to the Request Access page BEFORE any gated
+        // shortcode renders, instead of leaving them on their original
+        // page with just that shortcode swapped out. See
+        // AccessGateService::maybe_redirect_gated_page().
+        self::require_first_existing($includes_dir, [
+            'Services/AccessGateService.php',
+            'services/AccessGateService.php',
+        ]);
+
+        $accessGateService = 'AdorationScheduler\\Services\\AccessGateService';
+        if (class_exists($accessGateService) && method_exists($accessGateService, 'register')) {
+            $accessGateService::register();
         }
 
         /**

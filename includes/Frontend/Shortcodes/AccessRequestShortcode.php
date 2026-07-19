@@ -40,7 +40,14 @@ class AccessRequestShortcode
         $uid = 'ar_' . substr(wp_hash(uniqid('', true)), 0, 10);
 
         $action_url = admin_url('admin-post.php');
-        $return_url = self::current_url();
+
+        // ✅ When AccessGateService::maybe_redirect_gated_page() sends a
+        // blocked visitor here, it appends the page they originally asked
+        // for as ?return=... — prefer that over this page's own URL so
+        // the sign-in flow (and a future "your request was approved"
+        // visit) lands them back where they meant to go, not on this
+        // Request Access page itself.
+        $return_url = self::resolve_return_url();
 
         $antispam_opts = get_option(self::OPT_ANTISPAM_OPTIONS, []);
         $antispam_opts = is_array($antispam_opts) ? $antispam_opts : [];
@@ -49,7 +56,7 @@ class AccessRequestShortcode
 
         ob_start();
         ?>
-        <div class="adoration-request-access uk-card uk-card-default uk-card-body uk-width-1-1" style="max-width:520px;">
+        <div class="adoration-request-access uk-width-1-1">
 
             <?php if ($status === PersonsRepository::STATUS_APPROVED): ?>
                 <!-- Shouldn't normally be reached (the gate already lets approved visitors through), but handle it gracefully. -->
@@ -123,7 +130,7 @@ class AccessRequestShortcode
                         <div class="uk-form-controls">
                             <input class="uk-input" type="tel" name="phone" id="<?php echo esc_attr($uid); ?>_phone" required autocomplete="tel" placeholder="(555) 123-4567">
                         </div>
-                        <p class="uk-text-meta uk-margin-remove-top">Required — please use a cell phone number, not a landline. We'll use this for text reminders in the future.</p>
+                        <p class="uk-text-meta uk-margin-remove-top">Required — please use a cell phone number, not a landline.</p>
                     </div>
 
                     <?php if ($turnstile_enabled && $turnstile_site_key !== ''): ?>
@@ -164,5 +171,29 @@ class AccessRequestShortcode
         $url = remove_query_arg(['as_toast', 'as_toast_type', 'as_toast_sticky'], $url);
 
         return (string) $url;
+    }
+
+    /**
+     * Prefer an incoming ?return=... (set by
+     * AccessGateService::maybe_redirect_gated_page() when it redirects a
+     * blocked visitor here) over this page's own URL — validated as a
+     * same-site address before use, same pattern as SignupsPage's own
+     * resolve_return_url().
+     */
+    private static function resolve_return_url(): string
+    {
+        $raw = isset($_GET['return']) ? (string) wp_unslash($_GET['return']) : '';
+        $raw = trim($raw);
+
+        if ($raw !== '') {
+            $candidate = esc_url_raw($raw);
+            $safe = wp_validate_redirect($candidate, '');
+
+            if ($safe !== '' && strpos($safe, home_url()) === 0) {
+                return $safe;
+            }
+        }
+
+        return self::current_url();
     }
 }

@@ -35,15 +35,17 @@ class PagesShortcodesPage
         $tracked_shortcodes = [
             'adoration_schedule'                 => 'Perpetual / event schedule grid',
             'adoration_magic_link'                => 'Magic-link request/verify form',
+            'adoration_mini_login'                 => 'Compact sign-in widget (email + optional password) for a front page or sidebar',
             'adoration_request_access'            => 'Approval-gate registration form',
             'adoration_account_status'            => 'My Adoration portal: account/approval status banner',
             'adoration_profile_card'              => 'My Adoration portal: profile card + edit contact info',
             'adoration_next_adoration_hour'       => 'My Adoration portal: next upcoming hour summary',
-            'adoration_announcements'             => 'My Adoration portal: announcements feed',
+            'adoration_announcements'             => 'My Adoration portal: announcements feed (signed-in members)',
+            'adoration_public_announcements'      => 'Public front-page announcements feed (no sign-in required)',
             'adoration_my_schedule'                => 'My Adoration portal: upcoming signups list',
             'adoration_my_replacement_requests'   => 'My Adoration portal: my replacement requests',
             'adoration_needed_replacements'       => 'My Adoration portal: open replacement requests to claim',
-            'adoration_open_hours'                 => 'Public open-hours board (no names) + calendar subscribe link',
+            'adoration_open_hours'                 => 'Public open-hours board (no names, no signup, no subscribe link) — list or weekly-grid layout',
             'adoration_calendar_subscribe'          => 'My Adoration portal: personal calendar subscribe link',
         ];
 

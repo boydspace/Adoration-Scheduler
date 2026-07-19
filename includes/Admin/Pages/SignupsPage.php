@@ -5,6 +5,7 @@ if ( ! defined('ABSPATH') ) exit;
 
 use AdorationScheduler\Domain\Repositories\SignupAuditRepository;
 use AdorationScheduler\Core\Plugin;
+use AdorationScheduler\Admin\Support\RowActionForm;
 
 class SignupsPage {
 
@@ -164,6 +165,11 @@ class SignupsPage {
         $table->search_box(__('Search', 'adoration-scheduler'), 'adoration-signups-search');
         $table->display();
         echo '</form>';
+
+        // ✅ Shared out-of-band form for row-action buttons (Cancel/Delete).
+        // Must be printed OUTSIDE the bulk-action <form> above — see
+        // RowActionForm's docblock for why nesting broke these.
+        RowActionForm::render_once();
 
         /**
          * ✅ Hidden Thickbox inline modal container

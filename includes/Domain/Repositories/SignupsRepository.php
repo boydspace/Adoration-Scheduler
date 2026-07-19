@@ -349,6 +349,81 @@ class SignupsRepository {
     }
 
     /**
+     * Find signup IDs tied to a specific standing commitment (same
+     * schedule, person, weekday, and start time) that are still active
+     * (not already cancelled) on or after $from_date.
+     *
+     * WHY THIS EXISTS: PerpetualSlotGenerator::apply_standing_commitments()
+     * auto-creates a dated signup for every future occurrence of an active
+     * commitment. StandingCommitmentsRepository::end() only deactivates the
+     * commitment row itself — it never touches those already-materialized
+     * signups, so ending a commitment used to leave every future dated
+     * signup it had generated confirmed and active forever. This method
+     * finds them so the caller (EditSchedulePage's end-commitment handler)
+     * can cancel them too.
+     *
+     * Matches by JOINing to the slots table for start_time (signups don't
+     * store start_time directly — see exists_confirmed_for_schedule_datetime()
+     * for the same join pattern), then filters by weekday in PHP using
+     * DateTime::format('w') to match the 0=Sunday..6=Saturday convention
+     * PerpetualSlotGenerator itself uses when it created these rows.
+     *
+     * @return int[] signup IDs
+     */
+    public function list_ids_for_commitment(
+        int $schedule_id,
+        int $person_id,
+        int $day_of_week,
+        string $start_time,
+        string $from_date
+    ): array {
+        global $wpdb;
+
+        $schedule_id = (int)$schedule_id;
+        $person_id   = (int)$person_id;
+        $day_of_week = (int)$day_of_week;
+        $start_time  = substr(sanitize_text_field($start_time), 0, 8);
+        $from_date   = sanitize_text_field($from_date);
+
+        if ($schedule_id <= 0 || $person_id <= 0 || $day_of_week < 0 || $day_of_week > 6 || $start_time === '' || $from_date === '') {
+            return [];
+        }
+
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
+        $rows = $wpdb->get_results($wpdb->prepare(
+            "SELECT s.id, s.date
+             FROM {$this->table} s
+             JOIN {$this->slots_table} sl ON sl.id = s.slot_id
+             WHERE s.schedule_id = %d AND s.person_id = %d AND s.date >= %s
+               AND s.status <> 'cancelled' AND sl.start_time = %s",
+            $schedule_id,
+            $person_id,
+            $from_date,
+            $start_time
+        ), ARRAY_A);
+
+        if (empty($rows)) return [];
+
+        $ids = [];
+        foreach ($rows as $row) {
+            $date = (string)($row['date'] ?? '');
+            if ($date === '') continue;
+
+            try {
+                $dow = (int)(new \DateTime($date))->format('w');
+            } catch (\Exception $e) {
+                continue;
+            }
+
+            if ($dow === $day_of_week) {
+                $ids[] = (int)$row['id'];
+            }
+        }
+
+        return $ids;
+    }
+
+    /**
      * Self-service account deletion: any OTHER person's signup that has an
      * exclusive direct-to-person swap request aimed at this person
      * (replacement_target_person_id) would otherwise dangle once this

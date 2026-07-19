@@ -55,7 +55,7 @@ class MyAdorationShortcode
         // instead of anything else on this page — no sign-in wall, no
         // dashboard. WP staff always bypass this (see AccessGateService).
         if (!AccessGateService::visitor_is_allowed()) {
-            return do_shortcode('[adoration_request_access]');
+            return AccessGateService::gated_html();
         }
 
         $person = MagicLinkService::current_person();

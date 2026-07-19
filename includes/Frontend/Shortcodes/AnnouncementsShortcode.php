@@ -3,6 +3,8 @@ namespace AdorationScheduler\Frontend\Shortcodes;
 
 use AdorationScheduler\Frontend\Shortcodes\Concerns\PersonDashboardTrait;
 use AdorationScheduler\Frontend\SharedStyles;
+use AdorationScheduler\Frontend\UikitLoader;
+use AdorationScheduler\Frontend\AnnouncementsRenderer;
 use AdorationScheduler\Domain\Repositories\AnnouncementsRepository;
 
 if ( ! defined('ABSPATH') ) {
@@ -17,6 +19,12 @@ if ( ! defined('ABSPATH') ) {
  * gate as the rest of the dashboard family, since that mirrors the
  * original FB-group model this plugin is meant to replace: approved
  * members get news, nobody else does.
+ *
+ * Private counterpart to the ungated [adoration_public_announcements] —
+ * pulls only rows marked "Show to signed-in members" (show_private = 1),
+ * which may differ from the public set. Renders via the shared
+ * AnnouncementsRenderer (UIkit slider when there's more than one live
+ * announcement) instead of a stacked list.
  */
 class AnnouncementsShortcode
 {
@@ -45,7 +53,7 @@ class AnnouncementsShortcode
         $rows = [];
         try {
             $repo = new AnnouncementsRepository();
-            $rows = $repo->list_active($limit);
+            $rows = $repo->list_active_private($limit);
         } catch (\Throwable $e) {
             error_log('[AdorationScheduler] AnnouncementsShortcode failed: ' . $e->getMessage());
         }
@@ -53,30 +61,12 @@ class AnnouncementsShortcode
         ob_start();
         ?>
         <div class="adoration-widget adoration-announcements uk-width-1-1" id="<?php echo esc_attr($uid); ?>">
+            <?php echo UikitLoader::print_once(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
             <?php echo SharedStyles::print_once(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 
             <div class="<?php echo esc_attr(self::card_class($card)); ?>">
                 <h3 class="uk-margin-remove-top">Announcements</h3>
-
-                <?php if (empty($rows)): ?>
-                    <p class="uk-margin-remove">No announcements right now.</p>
-                <?php else: ?>
-                    <?php foreach ($rows as $row): ?>
-                        <?php
-                        $title = (string)($row['title'] ?? '');
-                        $body  = (string)($row['body'] ?? '');
-                        $created = (string)($row['created_at'] ?? '');
-                        $created_lbl = $created ? date_i18n(get_option('date_format'), strtotime($created)) : '';
-                        ?>
-                        <div class="uk-margin-medium-bottom">
-                            <h4 class="uk-margin-remove-bottom"><?php echo esc_html($title); ?></h4>
-                            <p class="uk-text-meta as-muted uk-margin-remove-top"><?php echo esc_html($created_lbl); ?></p>
-                            <div class="uk-margin-remove-top">
-                                <?php echo wp_kses_post(wpautop($body)); ?>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                <?php endif; ?>
+                <?php echo AnnouncementsRenderer::render_slider($rows, $uid); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
             </div>
         </div>
         <?php
