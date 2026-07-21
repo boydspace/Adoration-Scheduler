@@ -2,6 +2,7 @@
 namespace AdorationScheduler\Domain\Services;
 
 use AdorationScheduler\Domain\Repositories\PersonsRepository;
+use AdorationScheduler\Utils\ClergyTitles;
 
 if ( ! defined('ABSPATH') ) exit;
 
@@ -22,7 +23,7 @@ class PersonCreationService {
         $last  = sanitize_text_field( (string) wp_unslash($_POST['last_name'] ?? '') );
         $email = sanitize_email( (string) wp_unslash($_POST['email'] ?? '') );
         $phone = sanitize_text_field( (string) wp_unslash($_POST['phone'] ?? '') );
-        $title  = sanitize_text_field( (string) wp_unslash($_POST['title'] ?? '') );
+        $title  = ClergyTitles::resolve_from_post('title');
         $parish = sanitize_text_field( (string) wp_unslash($_POST['parish'] ?? '') );
 
         $preserve = self::preserved_args_from_post();

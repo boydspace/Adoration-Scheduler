@@ -17,11 +17,22 @@ class MagicLinkService
     private const RL_EMAIL_WINDOW_SECONDS = 600;  // 10 minute window
     private const RL_EMAIL_MAX_PER_WINDOW = 3;    // max 3 per 10 minutes per email
 
+    // AJAX conversion (2026-07-20): set by ajax_request() before calling the
+    // SAME handle_request() the full-page "email me a sign-in link" form
+    // uses. finish_redirect() (which every wp_safe_redirect()+exit in
+    // handle_request() now goes through) branches on this flag to return
+    // JSON instead of redirecting - same rate-limiting, same
+    // never-leak-whether-the-email-exists messaging either way.
+    private static bool $is_ajax = false;
+
     public static function register(): void
     {
         // Request link
         add_action('admin_post_nopriv_adoration_magic_request', [__CLASS__, 'handle_request']);
         add_action('admin_post_adoration_magic_request',        [__CLASS__, 'handle_request']);
+
+        add_action('wp_ajax_adoration_magic_request',        [__CLASS__, 'ajax_request']);
+        add_action('wp_ajax_nopriv_adoration_magic_request', [__CLASS__, 'ajax_request']);
 
         // Consume link
         add_action('admin_post_nopriv_adoration_magic_consume', [__CLASS__, 'handle_consume']);
@@ -30,6 +41,12 @@ class MagicLinkService
         // Logout
         add_action('admin_post_nopriv_adoration_magic_logout',  [__CLASS__, 'handle_logout']);
         add_action('admin_post_adoration_magic_logout',         [__CLASS__, 'handle_logout']);
+    }
+
+    public static function ajax_request(): void
+    {
+        self::$is_ajax = true;
+        self::handle_request();
     }
 
     /**
@@ -178,8 +195,7 @@ class MagicLinkService
         $email = isset($_POST['email']) ? strtolower(trim((string) wp_unslash($_POST['email']))) : '';
         if ($email === '' || !is_email($email)) {
             $err = self::add_toast($return, 'error', 'Please enter a valid email address.');
-            wp_safe_redirect($err);
-            exit;
+            self::finish_redirect($err);
         }
 
         /**
@@ -217,8 +233,7 @@ class MagicLinkService
         if ($blocked) {
             error_log('[AdorationScheduler] MagicLink rate-limited ip=' . $ip . ' email=' . $email);
             // still return success toast (no leakage)
-            wp_safe_redirect($success);
-            exit;
+            self::finish_redirect($success);
         }
 
         global $wpdb;
@@ -233,8 +248,7 @@ class MagicLinkService
 
         if (!is_array($person) || empty($person['id'])) {
             // Don't leak whether the email exists
-            wp_safe_redirect($success);
-            exit;
+            self::finish_redirect($success);
         }
 
         $person_id = (int)$person['id'];
@@ -299,8 +313,7 @@ class MagicLinkService
             error_log('[AdorationScheduler] MagicLink insert FAILED last_error=' . $wpdb->last_error);
             error_log('[AdorationScheduler] MagicLink insert last_query=' . $wpdb->last_query);
             // still return success toast (no leakage)
-            wp_safe_redirect($success);
-            exit;
+            self::finish_redirect($success);
         }
 
         // Redirect destination after login
@@ -321,11 +334,15 @@ class MagicLinkService
         $person_name = '';
         $first = isset($person['first_name']) ? trim((string)$person['first_name']) : '';
         $last  = isset($person['last_name']) ? trim((string)$person['last_name']) : '';
+        $title = isset($person['title']) ? trim((string)$person['title']) : '';
         $person_name = trim($first . ' ' . $last);
         if ($person_name === '' && isset($person['name'])) $person_name = trim((string)$person['name']);
 
         $sent = NotificationService::send_magic_link([
             'to_email'      => $email,
+            'title'         => $title,
+            'first_name'    => $first,
+            'last_name'     => $last,
             'person_name'   => $person_name,
             'schedule_name' => 'Adoration',
 
@@ -341,7 +358,32 @@ class MagicLinkService
         error_log('[AdorationScheduler] MagicLink send_magic_link sent=' . ($sent ? 'YES' : 'NO') . ' to=' . $email . ' person_id=' . $person_id);
 
         // Always redirect with success toast, regardless of $sent (avoid leakage)
-        wp_safe_redirect($success);
+        self::finish_redirect($success);
+    }
+
+    /**
+     * Terminates handle_request(): redirects with a toast (normal form
+     * submit) or sends a JSON response (AJAX submit) built from the same
+     * message already encoded into $url by add_toast() - so the two
+     * transports never drift out of sync with each other.
+     */
+    private static function finish_redirect(string $url): void
+    {
+        if (self::$is_ajax) {
+            $parts = wp_parse_url($url);
+            $query = [];
+            if (!empty($parts['query'])) parse_str($parts['query'], $query);
+
+            $message = isset($query['as_toast']) ? rawurldecode((string) $query['as_toast']) : 'Done.';
+            $type    = isset($query['as_toast_type']) ? (string) $query['as_toast_type'] : 'info';
+
+            if ($type === 'error') {
+                wp_send_json_error(['message' => $message, 'type' => $type]);
+            }
+            wp_send_json_success(['message' => $message, 'type' => $type]);
+        }
+
+        wp_safe_redirect($url);
         exit;
     }
 

@@ -2,6 +2,7 @@
 namespace AdorationScheduler\Public;
 
 use AdorationScheduler\Domain\Repositories\PersonsRepository;
+use AdorationScheduler\Utils\ClergyTitles;
 
 if ( ! defined('ABSPATH') ) exit;
 
@@ -56,7 +57,7 @@ class AccessRequestHandler
         $first = sanitize_text_field((string) wp_unslash($_POST['first_name'] ?? ''));
         $last  = sanitize_text_field((string) wp_unslash($_POST['last_name'] ?? ''));
         $email = sanitize_email((string) wp_unslash($_POST['email'] ?? ''));
-        $title = sanitize_text_field((string) wp_unslash($_POST['title'] ?? ''));
+        $title = ClergyTitles::resolve_from_post('title');
 
         if ($first === '' || $email === '' || ! is_email($email)) {
             SignupHandler::redirect_back('err', 'Please enter your name and a valid email address.');
@@ -209,6 +210,7 @@ class AccessRequestHandler
         try {
             \AdorationScheduler\Services\NotificationService::send_access_approved([
                 'to_email'     => $email,
+                'title'        => $title,
                 'first_name'   => $greeting_name !== '' ? $greeting_name : $first_name,
                 'last_name'    => $last_name,
                 'person_name'  => $greeting_name,

@@ -29,11 +29,25 @@ class WaitlistService
 
     private const CAP_MANAGE_SIGNUPS = 'adoration_manage_signups';
 
+    // AJAX conversion (2026-07-20): see ReplacementRequestService for the
+    // same pattern - ajax_leave() sets this flag then calls the SAME
+    // handle_leave() the full-page form uses.
+    private static bool $is_ajax = false;
+
     public static function register(): void
     {
         add_action('admin_post_nopriv_' . self::ACTION_LEAVE, [__CLASS__, 'handle_leave']);
         add_action('admin_post_' . self::ACTION_LEAVE,        [__CLASS__, 'handle_leave']);
         add_action('admin_post_' . self::ACTION_ADMIN_REMOVE, [__CLASS__, 'handle_admin_remove']);
+
+        add_action('wp_ajax_' . self::ACTION_LEAVE,        [__CLASS__, 'ajax_leave']);
+        add_action('wp_ajax_nopriv_' . self::ACTION_LEAVE, [__CLASS__, 'ajax_leave']);
+    }
+
+    public static function ajax_leave(): void
+    {
+        self::$is_ajax = true;
+        self::handle_leave();
     }
 
     public static function handle_admin_remove(): void
@@ -69,6 +83,13 @@ class WaitlistService
 
     private static function redirect_with_toast(string $return_url, string $msg, string $type = 'success'): void
     {
+        if (self::$is_ajax) {
+            if ($type === 'error') {
+                wp_send_json_error(['message' => $msg, 'type' => $type]);
+            }
+            wp_send_json_success(['message' => $msg, 'type' => $type]);
+        }
+
         $url = add_query_arg([
             'as_toast'      => rawurlencode($msg),
             'as_toast_type' => $type,
@@ -201,9 +222,11 @@ class WaitlistService
 
             $first = trim((string)($person['first_name'] ?? ''));
             $last  = trim((string)($person['last_name'] ?? ''));
+            $title = trim((string)($person['title'] ?? ''));
 
             NotificationService::send_waitlist_promoted([
                 'to_email'       => $email,
+                'title'          => $title,
                 'first_name'     => $first,
                 'last_name'      => $last,
                 'person_name'    => trim($first . ' ' . $last),

@@ -224,6 +224,7 @@ class AdminSignupActionsService
                 su.slot_id,
                 su.schedule_id,
                 TRIM(CONCAT(TRIM(COALESCE(p.first_name,'')), ' ', TRIM(COALESCE(p.last_name,'')))) AS person_name,
+                p.title AS title,
                 p.first_name AS first_name,
                 p.last_name AS last_name,
                 p.email AS person_email,
@@ -248,6 +249,7 @@ class AdminSignupActionsService
 
         $first = trim((string)($row['first_name'] ?? ''));
         $last  = trim((string)($row['last_name'] ?? ''));
+        $title = trim((string)($row['title'] ?? ''));
         $person_name = trim((string)($row['person_name'] ?? ''));
         if ($person_name === '') $person_name = trim($first . ' ' . $last);
 
@@ -261,6 +263,7 @@ class AdminSignupActionsService
 
         return [
             'to_email'       => $to,
+            'title'          => $title,
             'first_name'     => $first,
             'last_name'      => $last,
             'person_name'    => $person_name,

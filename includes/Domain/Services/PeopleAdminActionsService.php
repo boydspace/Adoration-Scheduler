@@ -5,6 +5,7 @@ if ( ! defined('ABSPATH') ) exit;
 
 use AdorationScheduler\Domain\Repositories\PersonsRepository;
 use AdorationScheduler\Public\AccessRequestHandler;
+use AdorationScheduler\Utils\ClergyTitles;
 
 class PeopleAdminActionsService {
 
@@ -226,7 +227,7 @@ class PeopleAdminActionsService {
         $email     = sanitize_email($email_raw);
 
         $phone_raw = sanitize_text_field((string) wp_unslash($_POST['phone'] ?? ''));
-        $title  = sanitize_text_field((string) wp_unslash($_POST['title'] ?? ''));
+        $title  = ClergyTitles::resolve_from_post('title');
         $parish = sanitize_text_field((string) wp_unslash($_POST['parish'] ?? ''));
 
         $edit_redirect = admin_url('admin.php?page=' . $page_slug . '&action=edit&person_id=' . (int)$person_id);

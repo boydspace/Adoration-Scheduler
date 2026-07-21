@@ -5,6 +5,7 @@ use AdorationScheduler\Domain\Repositories\SchedulesRepository;
 use AdorationScheduler\Domain\Repositories\SignupsRepository;
 use AdorationScheduler\Domain\Repositories\SlotsRepository;
 use AdorationScheduler\Domain\Services\CoverageReportService;
+use AdorationScheduler\Utils\ClergyTitles;
 
 if ( ! defined('ABSPATH') ) exit;
 
@@ -106,6 +107,8 @@ class CoverageReportPage {
                         <?php foreach ($hours_rows as $r): ?>
                             <?php
                             $name = trim((string)($r['first_name'] ?? '') . ' ' . (string)($r['last_name'] ?? ''));
+                            $title = ClergyTitles::abbreviate((string)($r['title'] ?? ''));
+                            if ($title !== '' && $name !== '') $name = $title . ' ' . $name;
                             $hours = round(((int)($r['total_minutes'] ?? 0)) / 60, 1);
                             ?>
                             <tr>

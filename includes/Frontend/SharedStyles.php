@@ -140,6 +140,70 @@ class SharedStyles
             justify-content: flex-end;
             margin-top: 14px;
         }
+
+        /* (2026-07-20) "Need a Replacement" presents as a centered modal
+           with a backdrop, but open/close is the native details/summary
+           toggle — pure CSS, no JavaScript. Replaced a JS-toggled uk-modal
+           that depended on an inline script tag surviving page-builder
+           content sanitization (a YOOtheme element type was stripping it
+           — see DashboardActionsAssets). The single summary element is
+           repositioned into a floating close button while [open]; its two
+           inner spans swap visibility for the "Need a Replacement" vs
+           close-icon label. */
+        .as-replacement-details { display: inline-block; text-align: left; }
+        .as-replacement-summary {
+            cursor: pointer;
+            list-style: none;
+        }
+        .as-replacement-summary::-webkit-details-marker { display: none; }
+        .as-replacement-summary-close { display: none; font-size: 20px; line-height: 1; }
+
+        .as-replacement-details[open] {
+            position: relative;
+            z-index: 9999;
+        }
+        .as-replacement-details[open]::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,.45);
+            z-index: 9998;
+        }
+        .as-replacement-details[open] > .as-replacement-summary {
+            position: fixed;
+            top: 18px;
+            right: 18px;
+            z-index: 10000;
+            min-width: 40px;
+            min-height: 40px;
+            padding: 0;
+            border-radius: 50%;
+            background: #fff;
+        }
+        .as-replacement-details[open] > .as-replacement-summary .as-replacement-summary-open { display: none; }
+        .as-replacement-details[open] > .as-replacement-summary .as-replacement-summary-close { display: inline; }
+
+        .as-replacement-overlay { display: none; }
+        .as-replacement-details[open] .as-replacement-overlay {
+            display: flex;
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+        .as-replacement-panel {
+            text-align: left;
+            width: min(420px, 100%);
+            max-height: calc(100vh - 32px);
+            overflow-y: auto;
+            padding: 20px;
+            border-radius: 10px;
+            background: #fff;
+            box-shadow: 0 10px 30px rgba(0,0,0,.25);
+        }
+        .as-replacement-panel-title { margin: 0 0 4px; font-size: 18px; }
         </style>
         <?php
         return (string) ob_get_clean();

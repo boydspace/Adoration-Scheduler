@@ -17,14 +17,34 @@ class PasswordSetHandler
 
     private const MIN_LENGTH = 8;
 
+    // AJAX conversion (2026-07-20): see ReplacementRequestService for the
+    // same pattern.
+    private static bool $is_ajax = false;
+
     public static function register(): void
     {
         add_action('admin_post_nopriv_' . self::ACTION, [__CLASS__, 'handle']);
         add_action('admin_post_' . self::ACTION,        [__CLASS__, 'handle']);
+
+        add_action('wp_ajax_' . self::ACTION,        [__CLASS__, 'ajax_handle']);
+        add_action('wp_ajax_nopriv_' . self::ACTION, [__CLASS__, 'ajax_handle']);
+    }
+
+    public static function ajax_handle(): void
+    {
+        self::$is_ajax = true;
+        self::handle();
     }
 
     private static function redirect_with_toast(string $url, string $msg, string $type = 'success'): void
     {
+        if (self::$is_ajax) {
+            if ($type === 'error') {
+                wp_send_json_error(['message' => $msg, 'type' => $type]);
+            }
+            wp_send_json_success(['message' => $msg, 'type' => $type]);
+        }
+
         $url = remove_query_arg(['as_toast', 'as_toast_type', 'as_toast_sticky'], $url);
         $url = add_query_arg([
             'as_toast'      => rawurlencode($msg),

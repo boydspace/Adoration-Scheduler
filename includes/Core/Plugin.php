@@ -1101,6 +1101,23 @@ class Plugin {
             error_log('[AdorationScheduler] PersonTargetSearchAjax missing or no register() method: ' . $personTargetSearchAjax);
         }
 
+        // ✅ AJAX conversion (2026-07-20): re-renders one of the My
+        // Adoration dashboard widgets after a row action succeeds via
+        // AJAX, so the page can swap in fresh HTML instead of reloading.
+        // See DashboardActionsAssets for the fetch()-based form
+        // interceptor that calls this.
+        self::require_first_existing($includes_dir, [
+            'Frontend/Ajax/WidgetRerenderAjax.php',
+            'Frontend/ajax/WidgetRerenderAjax.php',
+        ]);
+
+        $widgetRerenderAjax = 'AdorationScheduler\\Frontend\\Ajax\\WidgetRerenderAjax';
+        if (class_exists($widgetRerenderAjax) && method_exists($widgetRerenderAjax, 'register')) {
+            $widgetRerenderAjax::register();
+        } else {
+            error_log('[AdorationScheduler] WidgetRerenderAjax missing or no register() method: ' . $widgetRerenderAjax);
+        }
+
         self::require_first_existing($includes_dir, [
             'Frontend/Shortcodes/MagicLinkShortcode.php',
             'Frontend/shortcodes/MagicLinkShortcode.php',

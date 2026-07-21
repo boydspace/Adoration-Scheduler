@@ -4,6 +4,7 @@ namespace AdorationScheduler\Frontend\Shortcodes;
 use AdorationScheduler\Services\AccessGateService;
 use AdorationScheduler\Public\AccessRequestHandler;
 use AdorationScheduler\Domain\Repositories\PersonsRepository;
+use AdorationScheduler\Utils\ClergyTitles;
 
 if ( ! defined('ABSPATH') ) exit;
 
@@ -99,9 +100,8 @@ class AccessRequestShortcode
                     <div class="uk-margin">
                         <label class="uk-form-label" for="<?php echo esc_attr($uid); ?>_title">Title</label>
                         <div class="uk-form-controls">
-                            <input class="uk-input" type="text" name="title" id="<?php echo esc_attr($uid); ?>_title" autocomplete="honorific-prefix" placeholder="Father, Deacon, Bishop, Msgr., etc.">
+                            <?php ClergyTitles::render_field_html('title', $uid . '_title', '', 'uk-select'); ?>
                         </div>
-                        <p class="uk-text-meta uk-margin-remove-top">Optional. For priests, deacons, bishops, etc.</p>
                     </div>
 
                     <div class="uk-margin">

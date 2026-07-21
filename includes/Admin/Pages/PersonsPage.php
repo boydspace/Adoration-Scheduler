@@ -4,6 +4,7 @@ namespace AdorationScheduler\Admin\Pages;
 use AdorationScheduler\Domain\Repositories\PersonsRepository;
 use AdorationScheduler\Admin\Tables\PersonsListTable;
 use AdorationScheduler\Admin\Support\RowActionForm;
+use AdorationScheduler\Utils\ClergyTitles;
 
 if ( ! defined('ABSPATH') ) exit;
 
@@ -432,8 +433,7 @@ class PersonsPage {
                                 <label for="title"><?php echo esc_html__('Title', 'adoration-scheduler'); ?></label>
                             </th>
                             <td>
-                                <input type="text" id="title" name="title" class="regular-text" value="<?php echo esc_attr((string)($person['title'] ?? '')); ?>" placeholder="Father, Deacon, Bishop, Msgr., etc." />
-                                <p class="description"><?php echo esc_html__('Optional. For priests, deacons, bishops, etc.', 'adoration-scheduler'); ?></p>
+                                <?php ClergyTitles::render_field_html('title', 'title', (string)($person['title'] ?? '')); ?>
                             </td>
                         </tr>
 

@@ -4,6 +4,7 @@ namespace AdorationScheduler\Admin\Tables;
 use AdorationScheduler\Domain\Repositories\PersonsRepository;
 use AdorationScheduler\Public\AccessRequestHandler;
 use AdorationScheduler\Admin\Support\RowActionForm;
+use AdorationScheduler\Utils\ClergyTitles;
 
 if ( ! defined('ABSPATH') ) exit;
 
@@ -250,6 +251,14 @@ class PersonsListTable extends \WP_List_Table {
         $last  = trim((string)($item['last_name'] ?? ''));
         $name  = trim($first . ' ' . $last);
         if ($name === '') $name = '—';
+
+        // ✅ Clergy/religious title (2026-07-20): $item already carries
+        // `title` — list_all_people_with_stats() selects the full person
+        // row — just wasn't being read here.
+        $title = ClergyTitles::abbreviate((string)($item['title'] ?? ''));
+        if ($title !== '' && $name !== '—') {
+            $name = $title . ' ' . $name;
+        }
 
         $signup_count = (int)($item['signup_count'] ?? 0);
 

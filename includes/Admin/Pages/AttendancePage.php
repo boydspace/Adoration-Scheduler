@@ -3,6 +3,7 @@ namespace AdorationScheduler\Admin\Pages;
 
 use AdorationScheduler\Domain\Repositories\SchedulesRepository;
 use AdorationScheduler\Domain\Repositories\SignupsRepository;
+use AdorationScheduler\Utils\ClergyTitles;
 
 if ( ! defined('ABSPATH') ) exit;
 
@@ -146,6 +147,8 @@ class AttendancePage {
                             $where_label   = trim($schedule_name . ($chapel_name !== '' ? ' (' . $chapel_name . ')' : ''));
 
                             $name = trim((string)($r['person_first_name'] ?? '') . ' ' . (string)($r['person_last_name'] ?? ''));
+                            $person_title = ClergyTitles::abbreviate((string)($r['person_title'] ?? ''));
+                            if ($person_title !== '' && $name !== '') $name = $person_title . ' ' . $name;
 
                             $checked_in_at  = (string)($r['checked_in_at'] ?? '');
                             $checked_out_at = (string)($r['checked_out_at'] ?? '');

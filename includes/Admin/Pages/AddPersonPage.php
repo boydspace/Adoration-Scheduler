@@ -1,6 +1,8 @@
 <?php
 namespace AdorationScheduler\Admin\Pages;
 
+use AdorationScheduler\Utils\ClergyTitles;
+
 if ( ! defined('ABSPATH') ) exit;
 
 class AddPersonPage {
@@ -90,8 +92,7 @@ class AddPersonPage {
                             <label for="title"><?php echo esc_html__('Title', 'adoration-scheduler'); ?></label>
                         </th>
                         <td>
-                            <input type="text" id="title" name="title" class="regular-text" value="" placeholder="Father, Deacon, Bishop, Msgr., etc." />
-                            <p class="description"><?php echo esc_html__('Optional. For priests, deacons, bishops, etc.', 'adoration-scheduler'); ?></p>
+                            <?php ClergyTitles::render_field_html('title', 'title', ''); ?>
                         </td>
                     </tr>
 

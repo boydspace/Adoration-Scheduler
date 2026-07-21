@@ -207,6 +207,7 @@ class ReminderScheduler {
 
         $first = trim((string)($person['first_name'] ?? $person['first'] ?? ''));
         $last  = trim((string)($person['last_name'] ?? $person['last'] ?? ''));
+        $title = trim((string)($person['title'] ?? ''));
 
         $person_name = trim((string)($person['name'] ?? ''));
         if ($person_name === '') {
@@ -242,6 +243,7 @@ class ReminderScheduler {
 
         NotificationService::send_reminder_24h([
             'to_email'       => $to,
+            'title'          => $title,
             'first_name'     => $first,
             'last_name'      => $last,
             'person_name'    => $person_name,

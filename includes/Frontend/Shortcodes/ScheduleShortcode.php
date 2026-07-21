@@ -9,6 +9,8 @@ use AdorationScheduler\Domain\Repositories\SegmentsRepository;
 use AdorationScheduler\Domain\Repositories\StandingCommitmentsRepository;
 use AdorationScheduler\Domain\Services\PerpetualSlotGenerator;
 use AdorationScheduler\Utils\NameFormatter;
+use AdorationScheduler\Utils\ClergyTitles;
+use AdorationScheduler\Utils\CapacityBadge;
 use AdorationScheduler\Frontend\UikitLoader;
 use AdorationScheduler\Services\AccessGateService;
 use AdorationScheduler\Services\MagicLinkService;
@@ -127,7 +129,9 @@ class ScheduleShortcode {
         // prefilled from whatever person record matches their WP account
         // email, if any (see MagicLinkService::current_person_or_admin_match()).
         $current_person = MagicLinkService::current_person_or_admin_match();
-        $cp_title = esc_attr((string)($current_person['title'] ?? ''));
+        // Title field switched to ClergyTitles::render_field_html() (dropdown
+        // + "Other" fallback) — it reads $current_person['title'] directly,
+        // so no pre-escaped $cp_title variable is needed anymore.
         $cp_first = esc_attr((string)($current_person['first_name'] ?? ''));
         $cp_last  = esc_attr((string)($current_person['last_name'] ?? ''));
         $cp_email = esc_attr((string)($current_person['email'] ?? ''));
@@ -190,11 +194,14 @@ class ScheduleShortcode {
                 $commit_counts[$key] = ($commit_counts[$key] ?? 0) + 1;
 
                 if ($privacy_mode !== 'counts_only') {
-                    $commit_names[$key][] = NameFormatter::format(
+                    $commit_name = NameFormatter::format(
                         $privacy_mode,
                         (string)($row['first_name'] ?? ''),
                         (string)($row['last_name'] ?? '')
                     );
+                    $commit_title = ClergyTitles::abbreviate((string)($row['title'] ?? ''));
+                    if ($commit_title !== '') $commit_name = $commit_title . ' ' . $commit_name;
+                    $commit_names[$key][] = $commit_name;
                 }
             }
 
@@ -356,6 +363,7 @@ class ScheduleShortcode {
                     display: flex;
                     flex-wrap: wrap;
                     gap: 6px 10px;
+                    margin-top: 6px;
                 }
                 .adoration-signup-pill {
                     background: #f0f0f1;
@@ -459,6 +467,9 @@ class ScheduleShortcode {
                     font-size: 13px;
                     line-height: 1.35;
                     margin-bottom: 4px;
+                }
+                .adoration-weekly-cell-status .adoration-signups {
+                    justify-content: center;
                 }
                 .adoration-weekly-cell-actions {
                     display: flex;
@@ -614,29 +625,28 @@ class ScheduleShortcode {
                                             $has_open_dates = !empty($upcoming_by_key[$key]);
 
                                             $cell_label = $day_of_week_full[$dow] . ', ' . $opt['label'];
+
+                                            // ✅ Coverage-at-a-glance (2026-07-20): the badge (and the
+                                            // cell's background tint below) now render regardless of
+                                            // privacy_mode — a wall of identical blue "Take" buttons was
+                                            // unreadable at a glance; the red/amber/green from
+                                            // CapacityBadge (see [adoration_open_hours]) lets you scan
+                                            // the whole grid for open hours without reading every cell.
+                                            [$cov_label, $cov_bg, $cov_fg, $cov_border] = CapacityBadge::parts($count, $default_max, $is_full);
                                             ?>
-                                            <td>
+                                            <td style="background:<?php echo esc_attr($cov_bg); ?>; border-left:3px solid <?php echo esc_attr($cov_border); ?>;">
                                                 <div class="adoration-weekly-cell-status">
-                                                    <?php
-                                                    if ($privacy_mode === 'counts_only') {
-                                                        if ($default_max !== null) {
-                                                            echo esc_html($count . ' / ' . $default_max);
-                                                        } else {
-                                                            echo esc_html($count > 0 ? ($count . ' committed') : 'Open');
-                                                        }
-                                                    } else {
+                                                    <?php echo CapacityBadge::html_parts($cov_label, $cov_bg, $cov_fg, $cov_border); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                                    <?php if ($privacy_mode !== 'counts_only'):
                                                         $names = $commit_names[$key] ?? [];
-                                                        if (!empty($names)) {
-                                                            echo '<div class="adoration-signups">';
-                                                            foreach ($names as $nm) {
-                                                                echo '<span class="adoration-signup-pill">' . esc_html($nm) . '</span>';
-                                                            }
-                                                            echo '</div>';
-                                                        } else {
-                                                            echo '<em>' . esc_html__('Open', 'adoration-scheduler') . '</em>';
-                                                        }
-                                                    }
-                                                    ?>
+                                                        if (!empty($names)): ?>
+                                                            <div class="adoration-signups">
+                                                                <?php foreach ($names as $nm): ?>
+                                                                    <span class="adoration-signup-pill"><?php echo esc_html($nm); ?></span>
+                                                                <?php endforeach; ?>
+                                                            </div>
+                                                        <?php endif;
+                                                    endif; ?>
                                                 </div>
                                                 <div class="adoration-weekly-cell-actions">
                                                     <?php if ($is_full): ?>
@@ -742,7 +752,7 @@ class ScheduleShortcode {
                                 <div class="uk-width-1-1">
                                     <label class="uk-form-label" for="<?php echo esc_attr($person_title_id); ?>">Title <span class="uk-text-meta">(optional)</span></label>
                                     <div class="uk-form-controls">
-                                        <input class="uk-input" type="text" name="title" id="<?php echo esc_attr($person_title_id); ?>" autocomplete="honorific-prefix" placeholder="Father, Deacon, Bishop, Msgr., etc." value="<?php echo $cp_title; ?>">
+                                        <?php ClergyTitles::render_field_html('title', $person_title_id, (string)($current_person['title'] ?? ''), 'uk-select'); ?>
                                     </div>
                                 </div>
                                 <div class="uk-width-1-2@s">
@@ -839,7 +849,7 @@ class ScheduleShortcode {
                             <table class="form-table" role="presentation">
                                 <tr>
                                     <th><label for="<?php echo esc_attr($uid); ?>_fb_title">Title <span class="description">(optional)</span></label></th>
-                                    <td><input type="text" name="title" id="<?php echo esc_attr($uid); ?>_fb_title" class="regular-text" autocomplete="honorific-prefix" placeholder="Father, Deacon, Bishop, Msgr., etc." value="<?php echo $cp_title; ?>"></td>
+                                    <td><?php ClergyTitles::render_field_html('title', $uid . '_fb_title', (string)($current_person['title'] ?? '')); ?></td>
                                 </tr>
                                 <tr>
                                     <th><label for="<?php echo esc_attr($uid); ?>_fb_first">First name</label></th>
@@ -1157,42 +1167,43 @@ class ScheduleShortcode {
                             if ($privacy_mode !== 'counts_only' && !$hide_signup_display) {
                                 $rows = $signupsRepo->list_for_slot($slot_id_val, true);
                                 foreach ((array)$rows as $r) {
-                                    $signup_names[] = NameFormatter::format(
+                                    $signup_name = NameFormatter::format(
                                         $privacy_mode,
                                         (string)($r['first_name'] ?? ''),
                                         (string)($r['last_name'] ?? '')
                                     );
+                                    $signup_title = ClergyTitles::abbreviate((string)($r['title'] ?? ''));
+                                    if ($signup_title !== '') $signup_name = $signup_title . ' ' . $signup_name;
+                                    $signup_names[] = $signup_name;
                                 }
                             }
 
-                            $avail_label = ($max === null) ? "{$confirmed} signed up" : "{$confirmed} / {$max}";
-
                             // ✅ Use day heading date (already strict-checked) for slot label too
                             $slot_label = $day_heading . ' ' . ($time_label !== '' ? $time_label : '—');
+
+                            // ✅ Coverage-at-a-glance (2026-07-20): badge renders
+                            // regardless of privacy_mode — see the weekly grid's
+                            // matching change above for the full rationale.
+                            [$cov_label, $cov_bg, $cov_fg, $cov_border] = CapacityBadge::parts($confirmed, $max, $is_full);
                             ?>
                             <tr style="<?php echo !$signups_enabled ? 'opacity:.9;' : ''; ?>">
                                 <th scope="row" class="adoration-time">
                                     <strong><?php echo esc_html($time_label !== '' ? $time_label : '—'); ?></strong>
                                 </th>
 
-                                <td>
+                                <td<?php echo !$hide_signup_display ? ' style="background:' . esc_attr($cov_bg) . '; border-left:3px solid ' . esc_attr($cov_border) . ';"' : ''; ?>>
                                     <?php
                                     if ($hide_signup_display) {
                                         $note = ($public_note !== '') ? $public_note : 'Signups disabled';
                                         echo '<em>' . esc_html($note) . '</em>';
                                     } else {
-                                        if ($privacy_mode === 'counts_only') {
-                                            echo esc_html($avail_label);
-                                        } else {
-                                            if (!empty($signup_names)) {
-                                                echo '<div class="adoration-signups">';
-                                                foreach ($signup_names as $nm) {
-                                                    echo '<span class="adoration-signup-pill">' . esc_html($nm) . '</span>';
-                                                }
-                                                echo '</div>';
-                                            } else {
-                                                echo '<em>—</em>';
+                                        echo CapacityBadge::html_parts($cov_label, $cov_bg, $cov_fg, $cov_border); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+                                        if ($privacy_mode !== 'counts_only' && !empty($signup_names)) {
+                                            echo '<div class="adoration-signups">';
+                                            foreach ($signup_names as $nm) {
+                                                echo '<span class="adoration-signup-pill">' . esc_html($nm) . '</span>';
                                             }
+                                            echo '</div>';
                                         }
                                     }
                                     ?>
@@ -1286,7 +1297,7 @@ class ScheduleShortcode {
                                 <div class="uk-width-1-1">
                                     <label class="uk-form-label" for="<?php echo esc_attr($person_title_id); ?>">Title <span class="uk-text-meta">(optional)</span></label>
                                     <div class="uk-form-controls">
-                                        <input class="uk-input" type="text" name="title" id="<?php echo esc_attr($person_title_id); ?>" autocomplete="honorific-prefix" placeholder="Father, Deacon, Bishop, Msgr., etc." value="<?php echo $cp_title; ?>">
+                                        <?php ClergyTitles::render_field_html('title', $person_title_id, (string)($current_person['title'] ?? ''), 'uk-select'); ?>
                                     </div>
                                 </div>
                                 <div class="uk-width-1-2@s">
@@ -1371,7 +1382,7 @@ class ScheduleShortcode {
                             <table class="form-table" role="presentation">
                                 <tr>
                                     <th><label for="<?php echo esc_attr($uid); ?>_fb2_title">Title <span class="description">(optional)</span></label></th>
-                                    <td><input type="text" name="title" id="<?php echo esc_attr($uid); ?>_fb2_title" class="regular-text" autocomplete="honorific-prefix" placeholder="Father, Deacon, Bishop, Msgr., etc." value="<?php echo $cp_title; ?>"></td>
+                                    <td><?php ClergyTitles::render_field_html('title', $uid . '_fb2_title', (string)($current_person['title'] ?? '')); ?></td>
                                 </tr>
                                 <tr>
                                     <th><label for="<?php echo esc_attr($uid); ?>_fb2_first">First name</label></th>

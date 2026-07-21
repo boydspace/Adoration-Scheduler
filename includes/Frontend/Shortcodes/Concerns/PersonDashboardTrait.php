@@ -366,4 +366,26 @@ trait PersonDashboardTrait
     {
         return $card ? 'uk-card uk-card-default uk-card-body uk-width-1-1' : 'adoration-content';
     }
+
+    /**
+     * ✅ AJAX conversion (2026-07-20): marks a widget's outer wrapper div so
+     * DashboardActionsAssets' generic `.as-ajax-form` interceptor knows
+     * which shortcode + atts to ask WidgetRerenderAjax to re-render after a
+     * row action succeeds. Echo the return value directly inside the
+     * wrapper div's opening tag, e.g.:
+     *   <div class="..." id="..." <?php echo self::ajax_wrapper_attrs('adoration_my_schedule', $atts); ?>>
+     */
+    protected static function ajax_wrapper_attrs(string $shortcode_tag, array $atts): string
+    {
+        $payload = [
+            'redirect' => (string)($atts['redirect'] ?? ''),
+            'card'     => (string)($atts['card'] ?? ''),
+        ];
+
+        return sprintf(
+            'data-as-shortcode="%s" data-as-atts="%s"',
+            esc_attr($shortcode_tag),
+            esc_attr((string) wp_json_encode($payload))
+        );
+    }
 }

@@ -14,6 +14,7 @@ if ( ! defined('ABSPATH') ) exit;
 
 use AdorationScheduler\Services\WaitlistService;
 use AdorationScheduler\Domain\Services\RosterPrintService;
+use AdorationScheduler\Utils\ClergyTitles;
 
 // Stable return URL (so admin-post actions can redirect cleanly)
 $page_slug   = sanitize_key($_GET['page'] ?? 'adoration_scheduler_schedules');
@@ -292,6 +293,8 @@ $roster_nonce   = wp_create_nonce(RosterPrintService::ACTION . '_' . $schedule_i
                                         <?php
                                         $signup_id = (int)($su['id'] ?? 0);
                                         $name  = trim((string)($su['first_name'] ?? '') . ' ' . (string)($su['last_name'] ?? ''));
+                                        $su_title = ClergyTitles::abbreviate((string)($su['title'] ?? ''));
+                                        if ($su_title !== '' && $name !== '') $name = $su_title . ' ' . $name;
                                         $email = (string)($su['email'] ?? '');
                                         $phone = (string)($su['phone'] ?? '');
                                         ?>
@@ -372,6 +375,8 @@ $roster_nonce   = wp_create_nonce(RosterPrintService::ACTION . '_' . $schedule_i
                                         <?php
                                         $wl_id    = (int)($wl['id'] ?? 0);
                                         $wl_name  = trim((string)($wl['first_name'] ?? '') . ' ' . (string)($wl['last_name'] ?? ''));
+                                        $wl_title = ClergyTitles::abbreviate((string)($wl['title'] ?? ''));
+                                        if ($wl_title !== '' && $wl_name !== '') $wl_name = $wl_title . ' ' . $wl_name;
                                         $wl_email = (string)($wl['email'] ?? '');
                                         $wl_phone = (string)($wl['phone'] ?? '');
                                         ?>

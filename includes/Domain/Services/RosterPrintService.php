@@ -6,6 +6,7 @@ if ( ! defined('ABSPATH') ) exit;
 use AdorationScheduler\Domain\Repositories\SchedulesRepository;
 use AdorationScheduler\Domain\Repositories\SlotsRepository;
 use AdorationScheduler\Domain\Repositories\SignupsRepository;
+use AdorationScheduler\Utils\ClergyTitles;
 
 /**
  * RosterPrintService
@@ -204,6 +205,8 @@ class RosterPrintService
                             <?php foreach ($people as $p): ?>
                                 <?php
                                 $name  = trim((string)($p['first_name'] ?? '') . ' ' . (string)($p['last_name'] ?? ''));
+                                $p_title = ClergyTitles::abbreviate((string)($p['title'] ?? ''));
+                                if ($p_title !== '' && $name !== '') $name = $p_title . ' ' . $name;
                                 $phone = trim((string)($p['phone'] ?? ''));
                                 ?>
                                 <div><?php echo esc_html($name !== '' ? $name : '—'); ?><?php if ($phone !== ''): ?> — <?php echo esc_html($phone); ?><?php endif; ?></div>

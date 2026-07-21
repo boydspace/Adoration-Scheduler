@@ -6,6 +6,7 @@ if ( ! defined('ABSPATH') ) exit;
 use AdorationScheduler\Domain\Repositories\SignupsRepository;
 use AdorationScheduler\Domain\Repositories\SlotsRepository;
 use AdorationScheduler\Domain\Repositories\SchedulesRepository;
+use AdorationScheduler\Utils\ClergyTitles;
 
 /**
  * CoverageReportService
@@ -78,6 +79,8 @@ class CoverageReportService
         fputcsv($out, ['Name', 'Email', 'Signups', 'Total Hours']);
         foreach ($rows as $r) {
             $name = trim((string)($r['first_name'] ?? '') . ' ' . (string)($r['last_name'] ?? ''));
+            $title = ClergyTitles::abbreviate((string)($r['title'] ?? ''));
+            if ($title !== '' && $name !== '') $name = $title . ' ' . $name;
             $hours = round(((int)($r['total_minutes'] ?? 0)) / 60, 1);
             fputcsv($out, [$name, (string)($r['email'] ?? ''), (int)($r['signup_count'] ?? 0), $hours]);
         }

@@ -37,6 +37,12 @@ class CalendarFeedService
 
     use PersonDashboardTrait;
 
+    // AJAX conversion (2026-07-20): see ReplacementRequestService for the
+    // same pattern. Only applies to the regenerate-token action - the two
+    // .ics feed endpoints stay untouched (they're not forms, and aren't
+    // part of this AJAX conversion's scope).
+    private static bool $is_ajax = false;
+
     public static function register(): void
     {
         add_action('admin_post_nopriv_' . self::ACTION_PERSONAL, [__CLASS__, 'handle_personal_feed']);
@@ -52,6 +58,15 @@ class CalendarFeedService
         // about, so it always looks "nopriv" to WP itself.
         add_action('admin_post_nopriv_' . self::ACTION_REGENERATE, [__CLASS__, 'handle_regenerate_token']);
         add_action('admin_post_' . self::ACTION_REGENERATE,        [__CLASS__, 'handle_regenerate_token']);
+
+        add_action('wp_ajax_' . self::ACTION_REGENERATE,        [__CLASS__, 'ajax_regenerate_token']);
+        add_action('wp_ajax_nopriv_' . self::ACTION_REGENERATE, [__CLASS__, 'ajax_regenerate_token']);
+    }
+
+    public static function ajax_regenerate_token(): void
+    {
+        self::$is_ajax = true;
+        self::handle_regenerate_token();
     }
 
     /**
@@ -252,6 +267,13 @@ class CalendarFeedService
 
     private static function redirect_with_toast(string $url, string $msg, string $type = 'success'): void
     {
+        if (self::$is_ajax) {
+            if ($type === 'error') {
+                wp_send_json_error(['message' => $msg, 'type' => $type]);
+            }
+            wp_send_json_success(['message' => $msg, 'type' => $type]);
+        }
+
         $url = remove_query_arg(['as_toast', 'as_toast_type', 'as_toast_sticky'], $url);
         $url = add_query_arg([
             'as_toast'      => rawurlencode($msg),

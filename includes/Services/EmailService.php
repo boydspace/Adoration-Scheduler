@@ -142,6 +142,7 @@ class EmailService
 
         // Email + name fields (try multiple possible column names)
         $email = (string)($person['email'] ?? '');
+        $title = (string)($person['title'] ?? '');
         $first = (string)($person['first_name'] ?? '');
         $last  = (string)($person['last_name'] ?? '');
         $name  = trim($first . ' ' . $last);
@@ -188,6 +189,7 @@ class EmailService
         $args = [
             'signup_id'      => $signup_id,
             'to_email'       => $email,
+            'title'          => $title,
             'first_name'     => $first,
             'last_name'      => $last,
             'person_name'    => $name,

@@ -9,6 +9,7 @@ use AdorationScheduler\Frontend\Handlers\PasswordSetHandler;
 use AdorationScheduler\Frontend\Handlers\DataExportHandler;
 use AdorationScheduler\Services\AccountDeletionService;
 use AdorationScheduler\Domain\Repositories\PersonsRepository;
+use AdorationScheduler\Utils\ClergyTitles;
 
 if ( ! defined('ABSPATH') ) {
     exit;
@@ -66,7 +67,7 @@ class ProfileCardShortcode
 
         ob_start();
         ?>
-        <div class="adoration-widget adoration-profile-card uk-width-1-1" id="<?php echo esc_attr($uid); ?>">
+        <div class="adoration-widget adoration-profile-card uk-width-1-1" id="<?php echo esc_attr($uid); ?>" <?php echo self::ajax_wrapper_attrs('adoration_profile_card', $atts); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
             <?php echo UikitLoader::print_once(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
             <?php echo SharedStyles::print_once(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 
@@ -126,7 +127,7 @@ class ProfileCardShortcode
                                 >
                                     Delete My Account
                                 </button>
-                                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline-block;margin:0;">
+                                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="as-ajax-form" style="display:inline-block;margin:0;">
                                     <input type="hidden" name="action" value="adoration_magic_logout" />
                                     <input type="hidden" name="_wpnonce" value="<?php echo esc_attr($logout_nonce); ?>" />
                                     <button type="submit" class="<?php echo esc_attr($btn_cancel_class); ?>">
@@ -151,7 +152,7 @@ class ProfileCardShortcode
 
                         <form method="post"
                               action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
-                              class="<?php echo esc_attr($form_class); ?> uk-margin"
+                              class="<?php echo esc_attr($form_class); ?> uk-margin as-ajax-form"
                               style="margin:0;">
                             <input type="hidden" name="action" value="<?php echo esc_attr(UpdateContactInfoHandler::ACTION); ?>" />
                             <input type="hidden" name="return" value="<?php echo esc_attr($redirect_url); ?>" />
@@ -161,9 +162,7 @@ class ProfileCardShortcode
                                 <div class="uk-width-1-2@s">
                                     <label class="uk-form-label" for="<?php echo esc_attr($uid); ?>_title">Title</label>
                                     <div class="uk-form-controls">
-                                        <input class="<?php echo esc_attr($input_class); ?>" id="<?php echo esc_attr($uid); ?>_title" type="text" name="title"
-                                            placeholder="Father, Deacon, Bishop, Msgr., etc."
-                                            value="<?php echo esc_attr((string)($person['title'] ?? '')); ?>" />
+                                        <?php ClergyTitles::render_field_html('title', $uid . '_title', (string)($person['title'] ?? ''), $input_class); ?>
                                     </div>
                                 </div>
 
@@ -248,7 +247,7 @@ class ProfileCardShortcode
 
                             <form method="post"
                                   action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
-                                  class="<?php echo esc_attr($form_class); ?>">
+                                  class="<?php echo esc_attr($form_class); ?> as-ajax-form">
                                 <input type="hidden" name="action" value="<?php echo esc_attr(UpdateContactInfoHandler::ACTION); ?>" />
                                 <input type="hidden" name="return" value="<?php echo esc_attr($redirect_url); ?>" />
                                 <input type="hidden" name="_wpnonce" value="<?php echo esc_attr($contact_nonce); ?>" />
@@ -257,9 +256,7 @@ class ProfileCardShortcode
                                     <div class="uk-width-1-2@s">
                                         <label class="uk-form-label" for="<?php echo esc_attr($uid); ?>_title_fallback">Title</label>
                                         <div class="uk-form-controls">
-                                            <input id="<?php echo esc_attr($uid); ?>_title_fallback" class="<?php echo esc_attr($input_class); ?>" type="text" name="title"
-                                                   placeholder="Father, Deacon, Bishop, Msgr., etc."
-                                                   value="<?php echo esc_attr((string)($person['title'] ?? '')); ?>">
+                                            <?php ClergyTitles::render_field_html('title', $uid . '_title_fallback', (string)($person['title'] ?? ''), $input_class); ?>
                                         </div>
                                     </div>
 
@@ -342,7 +339,7 @@ class ProfileCardShortcode
 
                 <form method="post"
                       action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
-                      class="uk-form-stacked uk-margin"
+                      class="uk-form-stacked uk-margin as-ajax-form"
                       style="margin:0;">
                     <input type="hidden" name="action" value="<?php echo esc_attr(PasswordSetHandler::ACTION); ?>" />
                     <input type="hidden" name="mode" value="set" />
@@ -373,6 +370,7 @@ class ProfileCardShortcode
                 <?php if ($has_password): ?>
                     <form method="post"
                           action="<?php echo esc_url(admin_url('admin-post.php')); ?>"
+                          class="as-ajax-form"
                           style="margin:0;"
                           onsubmit="return window.confirm('Remove your password? You will need to use the emailed sign-in link to access your account.');">
                         <input type="hidden" name="action" value="<?php echo esc_attr(PasswordSetHandler::ACTION); ?>" />

@@ -3,6 +3,7 @@ namespace AdorationScheduler\Frontend\Shortcodes;
 
 use AdorationScheduler\Services\MagicLinkService;
 use AdorationScheduler\Services\PasswordAuthService;
+use AdorationScheduler\Frontend\DashboardActionsAssets;
 
 if ( ! defined('ABSPATH') ) {
     exit;
@@ -39,6 +40,14 @@ class MagicLinkShortcode
 
         // Unique id in case shortcode appears multiple times on a page
         $uid = 'asml_' . substr(wp_hash(uniqid('', true)), 0, 10);
+
+        // ✅ AJAX conversion (2026-07-20): this shortcode doesn't use
+        // PersonDashboardTrait and may be the only dashboard-family
+        // shortcode on a standalone login page, so it enqueues the shared
+        // script itself rather than relying on another shortcode to have
+        // already done so. Registers via wp_footer (see
+        // DashboardActionsAssets docblock), not an inline <script> here.
+        DashboardActionsAssets::enqueue();
 
         ob_start();
         ?>
@@ -125,8 +134,15 @@ class MagicLinkShortcode
 
             <?php else: ?>
 
+                <div class="uk-card uk-card-default uk-card-body uk-width-1-1 as-magic-link-sent" style="display:none;">
+                    <p class="uk-margin-remove">
+                        <strong>Check your email.</strong>
+                        We've sent a sign-in link — it expires quickly and can be used once.
+                    </p>
+                </div>
+
                 <div class="uk-card uk-card-default uk-card-body uk-width-1-1">
-                    <form method="post" action="<?php echo esc_url($action_url); ?>" class="adoration-magic-form uk-form-stacked">
+                    <form method="post" action="<?php echo esc_url($action_url); ?>" class="adoration-magic-form uk-form-stacked as-ajax-form as-magic-link-form">
                         <?php wp_nonce_field('adoration_magic_request'); ?>
                         <input type="hidden" name="action" value="adoration_magic_request" />
                         <input type="hidden" name="r" value="<?php echo esc_attr($redirect_url); ?>" />

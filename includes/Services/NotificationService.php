@@ -5,6 +5,7 @@ if ( ! defined('ABSPATH') ) exit;
 
 use AdorationScheduler\Domain\Repositories\SchedulesRepository;
 use AdorationScheduler\Domain\Repositories\EmailLogRepository;
+use AdorationScheduler\Utils\ClergyTitles;
 
 class NotificationService
 {
@@ -876,12 +877,24 @@ class NotificationService
         $first_name  = (string)($args['first_name'] ?? '');
         $last_name   = (string)($args['last_name'] ?? '');
         $person_name = (string)($args['person_name'] ?? '');
+        $title       = (string)($args['title'] ?? '');
 
         if ($first_name === '' && $person_name !== '') {
             $first_name = $person_name;
         }
 
         $repl = [
+            // ✅ Clergy/religious title (2026-07-20): raw title value only
+            // ("Father", "Deacon", etc.) — kept separate from {first_name}
+            // rather than pre-combined, so templates that don't want a
+            // title (or want it formatted differently) aren't forced to.
+            '{title}'          => $title,
+            // ✅ "Father Andrew" — title + first name, correctly spaced
+            // whether or not a title is set. Used for email greetings so
+            // templates don't need their own {title} {first_name} spacing
+            // logic (which produces a stray leading/double space when
+            // title is blank).
+            '{title_first_name}' => ClergyTitles::with_first_name($title, $first_name),
             '{first_name}'     => $first_name,
             '{last_name}'      => $last_name,
             '{person_name}'    => $person_name,
@@ -1058,6 +1071,7 @@ class NotificationService
 
         return [
             'to_email'       => $to_email,
+            'title'          => 'Father',
             'first_name'     => 'Test',
             'last_name'      => 'Person',
             'person_name'    => 'Test Person',

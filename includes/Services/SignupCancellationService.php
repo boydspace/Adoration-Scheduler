@@ -21,16 +21,33 @@ if ( ! defined('ABSPATH') ) {
  */
 class SignupCancellationService
 {
+    public const ACTION = 'adoration_cancel_signup';
+
     /**
      * Basic rate-limit for cancel attempts (guard rail against abuse).
      */
     private const RL_WINDOW_SECONDS = 60; // 1 minute window
     private const RL_MAX_ATTEMPTS   = 8;  // per (person, signup, ip) per window
 
+    // AJAX conversion (2026-07-20): set by ajax_cancel() before calling the
+    // SAME handle() used by the full-page admin-post flow, so every exit
+    // point (routed through finish_redirect() below) can branch between a
+    // redirect and a JSON response without duplicating the cancel logic.
+    private static bool $is_ajax = false;
+
     public static function register(): void
     {
         add_action('admin_post_nopriv_adoration_cancel_signup', [__CLASS__, 'handle']);
         add_action('admin_post_adoration_cancel_signup',        [__CLASS__, 'handle']);
+
+        add_action('wp_ajax_' . self::ACTION,        [__CLASS__, 'ajax_cancel']);
+        add_action('wp_ajax_nopriv_' . self::ACTION, [__CLASS__, 'ajax_cancel']);
+    }
+
+    public static function ajax_cancel(): void
+    {
+        self::$is_ajax = true;
+        self::handle();
     }
 
     public static function handle(): void
@@ -52,45 +69,39 @@ class SignupCancellationService
 
         // Must be logged in via plugin session
         if (!class_exists('\\AdorationScheduler\\Services\\MagicLinkService')) {
-            wp_safe_redirect($fail);
-            exit;
+            self::finish_redirect($fail);
         }
 
         $person = \AdorationScheduler\Services\MagicLinkService::current_person_or_admin_match();
         if (!$person || empty($person['id'])) {
             $fail2 = self::add_toast($return, 'error', 'Please sign in to manage your signups.');
-            wp_safe_redirect($fail2);
-            exit;
+            self::finish_redirect($fail2);
         }
         $person_id = (int) $person['id'];
 
         // Validate input
         $signup_id = isset($_POST['signup_id']) ? (int) wp_unslash($_POST['signup_id']) : 0;
         if ($signup_id <= 0) {
-            wp_safe_redirect($fail);
-            exit;
+            self::finish_redirect($fail);
         }
 
         // Rate-limit early (per person+signup+ip)
         if (!self::rate_limit_ok($person_id, $signup_id)) {
             $throttled = self::add_toast($return, 'error', 'Too many attempts. Please wait a moment and try again.');
-            wp_safe_redirect($throttled);
-            exit;
+            self::finish_redirect($throttled);
         }
 
         // Nonce check: action is per-signup id
         $nonce = isset($_POST['_wpnonce']) ? (string) wp_unslash($_POST['_wpnonce']) : '';
         if (!$nonce || !wp_verify_nonce($nonce, 'adoration_cancel_signup_' . $signup_id)) {
-            wp_safe_redirect($fail);
-            exit;
+            self::finish_redirect($fail);
         }
 
         // Cancel in DB (only if it belongs to this person)
         $ok = self::cancel_signup($signup_id, $person_id);
 
         if (!$ok) {
-            wp_safe_redirect($fail);
-            exit;
+            self::finish_redirect($fail);
         }
 
         // IMPORTANT: unschedule any pending reminders for this signup (best-effort)
@@ -104,7 +115,31 @@ class SignupCancellationService
         }
 
         $success = self::add_toast($return, 'success', 'Signup cancelled.');
-        wp_safe_redirect($success);
+        self::finish_redirect($success);
+    }
+
+    /**
+     * Terminates the request: redirects with a toast (normal form submit)
+     * or sends a JSON response (AJAX submit), reusing the same message
+     * that was already built into $url by add_toast().
+     */
+    private static function finish_redirect(string $url): void
+    {
+        if (self::$is_ajax) {
+            $parts = wp_parse_url($url);
+            $query = [];
+            if (!empty($parts['query'])) parse_str($parts['query'], $query);
+
+            $message = isset($query['as_toast']) ? rawurldecode((string) $query['as_toast']) : 'Done.';
+            $type    = isset($query['as_toast_type']) ? (string) $query['as_toast_type'] : 'info';
+
+            if ($type === 'error') {
+                wp_send_json_error(['message' => $message, 'type' => $type]);
+            }
+            wp_send_json_success(['message' => $message, 'type' => $type]);
+        }
+
+        wp_safe_redirect($url);
         exit;
     }
 

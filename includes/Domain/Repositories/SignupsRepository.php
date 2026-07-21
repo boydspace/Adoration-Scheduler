@@ -204,7 +204,7 @@ class SignupsRepository {
         $sql = $wpdb->prepare(
             "SELECT
                 s.person_id,
-                p.first_name, p.last_name, p.email,
+                p.title, p.first_name, p.last_name, p.email,
                 COUNT(*) AS signup_count,
                 SUM({$duration_expr}) AS total_minutes
              FROM {$this->table} s
@@ -213,7 +213,7 @@ class SignupsRepository {
              WHERE s.status = 'confirmed'
                AND s.date BETWEEN %s AND %s
                {$schedule_where}
-             GROUP BY s.person_id, p.first_name, p.last_name, p.email
+             GROUP BY s.person_id, p.title, p.first_name, p.last_name, p.email
              ORDER BY total_minutes DESC",
             $params
         );
@@ -493,6 +493,7 @@ class SignupsRepository {
         $sql = $wpdb->prepare(
             "SELECT
                 s.*,
+                p.title      AS title,
                 p.first_name AS first_name,
                 p.last_name  AS last_name,
                 p.email      AS email,
@@ -558,7 +559,7 @@ class SignupsRepository {
             : ", NULL AS slot_start_time, NULL AS slot_end_time";
 
         $sql = $wpdb->prepare(
-            "SELECT s.*, p.first_name AS first_name, p.last_name AS last_name, p.email AS email, p.phone AS phone
+            "SELECT s.*, p.title AS title, p.first_name AS first_name, p.last_name AS last_name, p.email AS email, p.phone AS phone
                 {$select_slot}
              FROM {$this->table} s
              LEFT JOIN {$this->persons_table} p ON p.id = s.person_id
@@ -587,6 +588,7 @@ class SignupsRepository {
         $sql = $wpdb->prepare(
             "SELECT
                 s.*,
+                p.title      AS title,
                 p.first_name AS first_name,
                 p.last_name  AS last_name,
                 p.email      AS email,
@@ -1084,7 +1086,8 @@ class SignupsRepository {
                 sc.name AS schedule_name,
                 ch.name AS chapel_name,
                 p.first_name AS requester_first_name,
-                p.last_name  AS requester_last_name
+                p.last_name  AS requester_last_name,
+                p.title      AS requester_title
             FROM {$this->table} s
             INNER JOIN {$slots} sl ON sl.id = s.slot_id
             INNER JOIN {$sched} sc ON sc.id = s.schedule_id
@@ -1137,7 +1140,8 @@ class SignupsRepository {
                 sc.name AS schedule_name,
                 ch.name AS chapel_name,
                 p.first_name AS requester_first_name,
-                p.last_name  AS requester_last_name
+                p.last_name  AS requester_last_name,
+                p.title      AS requester_title
             FROM {$this->table} s
             INNER JOIN {$slots} sl ON sl.id = s.slot_id
             INNER JOIN {$sched} sc ON sc.id = s.schedule_id
@@ -1813,6 +1817,7 @@ class SignupsRepository {
                 sc.id   AS schedule_id,
                 sc.name AS schedule_name,
                 ch.name AS chapel_name,
+                p.title      AS person_title,
                 p.first_name AS person_first_name,
                 p.last_name  AS person_last_name
             FROM {$this->table} s

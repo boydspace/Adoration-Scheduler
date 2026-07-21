@@ -55,7 +55,7 @@ class CalendarSubscribeShortcode
 
         ob_start();
         ?>
-        <div class="adoration-widget adoration-calendar-subscribe uk-width-1-1" id="<?php echo esc_attr($uid); ?>">
+        <div class="adoration-widget adoration-calendar-subscribe uk-width-1-1" id="<?php echo esc_attr($uid); ?>" <?php echo self::ajax_wrapper_attrs('adoration_calendar_subscribe', $atts); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
             <?php echo UikitLoader::print_once(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
             <?php echo SharedStyles::print_once(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 
@@ -70,7 +70,7 @@ class CalendarSubscribeShortcode
                             <a href="<?php echo esc_url($webcal_url); ?>" class="uk-button uk-button-primary uk-button-small adoration-btn">Subscribe to Calendar</a>
                             <button type="button" class="uk-button uk-button-default uk-button-small adoration-btn-secondary as-copy-cal-link" data-copy="<?php echo esc_attr($https_url); ?>">Copy Link</button>
 
-                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline;margin-left:4px;">
+                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="as-ajax-form" style="display:inline;margin-left:4px;">
                                 <input type="hidden" name="action" value="<?php echo esc_attr(CalendarFeedService::ACTION_REGENERATE); ?>" />
                                 <input type="hidden" name="return" value="<?php echo esc_attr($redirect_url); ?>" />
                                 <input type="hidden" name="_wpnonce" value="<?php echo esc_attr($regen_nonce); ?>" />

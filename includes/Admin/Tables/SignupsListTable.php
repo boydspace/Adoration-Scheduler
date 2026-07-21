@@ -2,6 +2,7 @@
 namespace AdorationScheduler\Admin\Tables;
 
 use AdorationScheduler\Admin\Support\RowActionForm;
+use AdorationScheduler\Utils\ClergyTitles;
 
 if ( ! defined('ABSPATH') ) exit;
 
@@ -77,6 +78,16 @@ class SignupsListTable extends \WP_List_Table {
     public function column_person($item): string {
         $name = trim((string)($item['person_name'] ?? ''));
         if ($name === '') $name = __('(Unknown)', 'adoration-scheduler');
+
+        // ✅ Clergy/religious title (2026-07-20): prefixed the same way
+        // ProfileCardShortcode/PersonsRepository::full_name_with_title()
+        // does — "Father John Smith" — so staff can see who's a priest,
+        // deacon, etc. at a glance in the Signups list, not just on that
+        // person's own profile card.
+        $title = ClergyTitles::abbreviate((string)($item['person_title'] ?? ''));
+        if ($title !== '' && $name !== __('(Unknown)', 'adoration-scheduler')) {
+            $name = $title . ' ' . $name;
+        }
 
         $actions = [];
         $signup_id = (int)($item['id'] ?? 0);
@@ -286,6 +297,7 @@ class SignupsListTable extends \WP_List_Table {
                 su.status,
                 su.created_at,
                 TRIM(CONCAT(TRIM(COALESCE(p.first_name,'')), ' ', TRIM(COALESCE(p.last_name,'')))) AS person_name,
+                p.title AS person_title,
                 p.email AS email,
                 sc.name AS schedule,
                 CASE

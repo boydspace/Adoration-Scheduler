@@ -24,6 +24,12 @@ class ReplacementRequestService
     public const ACTION_CANCEL           = 'adoration_cancel_replacement';
     public const ACTION_OPEN_TO_EVERYONE = 'adoration_replacement_open_to_everyone';
 
+    // AJAX conversion (2026-07-20): set by the ajax_* wrappers below before
+    // calling the SAME handle_* method used by the full-page admin-post
+    // flow, so redirect_with_toast() can branch to a JSON response instead
+    // of a redirect without duplicating any of the 4 actions' logic.
+    private static bool $is_ajax = false;
+
     public static function register(): void
     {
         add_action('admin_post_nopriv_' . self::ACTION_REQUEST, [__CLASS__, 'handle_request']);
@@ -37,10 +43,53 @@ class ReplacementRequestService
 
         add_action('admin_post_nopriv_' . self::ACTION_OPEN_TO_EVERYONE, [__CLASS__, 'handle_open_to_everyone']);
         add_action('admin_post_' . self::ACTION_OPEN_TO_EVERYONE,        [__CLASS__, 'handle_open_to_everyone']);
+
+        add_action('wp_ajax_' . self::ACTION_REQUEST,        [__CLASS__, 'ajax_request']);
+        add_action('wp_ajax_nopriv_' . self::ACTION_REQUEST, [__CLASS__, 'ajax_request']);
+
+        add_action('wp_ajax_' . self::ACTION_CLAIM,        [__CLASS__, 'ajax_claim']);
+        add_action('wp_ajax_nopriv_' . self::ACTION_CLAIM, [__CLASS__, 'ajax_claim']);
+
+        add_action('wp_ajax_' . self::ACTION_CANCEL,        [__CLASS__, 'ajax_cancel']);
+        add_action('wp_ajax_nopriv_' . self::ACTION_CANCEL, [__CLASS__, 'ajax_cancel']);
+
+        add_action('wp_ajax_' . self::ACTION_OPEN_TO_EVERYONE,        [__CLASS__, 'ajax_open_to_everyone']);
+        add_action('wp_ajax_nopriv_' . self::ACTION_OPEN_TO_EVERYONE, [__CLASS__, 'ajax_open_to_everyone']);
+    }
+
+    public static function ajax_request(): void
+    {
+        self::$is_ajax = true;
+        self::handle_request();
+    }
+
+    public static function ajax_claim(): void
+    {
+        self::$is_ajax = true;
+        self::handle_claim();
+    }
+
+    public static function ajax_cancel(): void
+    {
+        self::$is_ajax = true;
+        self::handle_cancel();
+    }
+
+    public static function ajax_open_to_everyone(): void
+    {
+        self::$is_ajax = true;
+        self::handle_open_to_everyone();
     }
 
     private static function redirect_with_toast(string $url, string $msg, string $type = 'success'): void
     {
+        if (self::$is_ajax) {
+            if ($type === 'error') {
+                wp_send_json_error(['message' => $msg, 'type' => $type]);
+            }
+            wp_send_json_success(['message' => $msg, 'type' => $type]);
+        }
+
         $url = remove_query_arg(['as_toast', 'as_toast_type', 'as_toast_sticky'], $url);
         $url = add_query_arg([
             'as_toast'      => rawurlencode($msg),

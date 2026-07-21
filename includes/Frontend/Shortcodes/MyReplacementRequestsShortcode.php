@@ -46,7 +46,7 @@ class MyReplacementRequestsShortcode
 
         ob_start();
         ?>
-        <div class="adoration-widget adoration-my-replacement-requests uk-width-1-1" id="<?php echo esc_attr($uid); ?>">
+        <div class="adoration-widget adoration-my-replacement-requests uk-width-1-1" id="<?php echo esc_attr($uid); ?>" <?php echo self::ajax_wrapper_attrs('adoration_my_replacement_requests', $atts); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
             <?php echo UikitLoader::print_once(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
             <?php echo SharedStyles::print_once(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 
@@ -100,7 +100,7 @@ class MyReplacementRequestsShortcode
                                     <td class="uk-text-right">
                                         <?php if ($signup_id > 0): ?>
                                             <?php if ($target_id > 0): ?>
-                                                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline;margin:0 0 0 4px;">
+                                                <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="as-ajax-form" style="display:inline;margin:0 0 0 4px;">
                                                     <input type="hidden" name="action" value="<?php echo esc_attr(ReplacementRequestService::ACTION_OPEN_TO_EVERYONE); ?>" />
                                                     <input type="hidden" name="signup_id" value="<?php echo esc_attr((string)$signup_id); ?>" />
                                                     <input type="hidden" name="return" value="<?php echo esc_attr($redirect_url); ?>" />
@@ -114,7 +114,7 @@ class MyReplacementRequestsShortcode
                                                     </button>
                                                 </form>
                                             <?php endif; ?>
-                                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline;margin:0 0 0 4px;">
+                                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="as-ajax-form" style="display:inline;margin:0 0 0 4px;">
                                                 <input type="hidden" name="action" value="<?php echo esc_attr(ReplacementRequestService::ACTION_CANCEL); ?>" />
                                                 <input type="hidden" name="signup_id" value="<?php echo esc_attr((string)$signup_id); ?>" />
                                                 <input type="hidden" name="return" value="<?php echo esc_attr($redirect_url); ?>" />

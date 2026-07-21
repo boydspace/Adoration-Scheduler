@@ -10,6 +10,7 @@ use AdorationScheduler\Domain\Repositories\SignupsRepository;
 use AdorationScheduler\Domain\Services\PerpetualSlotGenerator;
 use AdorationScheduler\Frontend\UikitLoader;
 use AdorationScheduler\Frontend\SharedStyles;
+use AdorationScheduler\Utils\CapacityBadge;
 
 if ( ! defined('ABSPATH') ) exit;
 
@@ -157,13 +158,12 @@ class OpenHoursShortcode
                             ? !empty($row['is_full'])
                             : null;
 
-                        [$status_lbl, $status_bg, $status_fg, $status_border] = self::status_badge_parts($count, $max, $is_full);
                         ?>
                         <tr>
                             <td><?php echo esc_html($date_lbl); ?></td>
                             <td><?php echo esc_html($time_lbl); ?></td>
                             <td><?php echo esc_html($chapel_name); ?></td>
-                            <td><?php echo self::status_badge_html($status_lbl, $status_bg, $status_fg, $status_border); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></td>
+                            <td><?php echo CapacityBadge::html($count, $max, $is_full); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></td>
                         </tr>
                     <?php endforeach; ?>
                     </tbody>
@@ -266,9 +266,8 @@ class OpenHoursShortcode
                                     <?php
                                     $key   = $dow . '|' . $st;
                                     $count = (int)($commit_counts[$key] ?? 0);
-                                    [$status_lbl, $status_bg, $status_fg, $status_border] = self::status_badge_parts($count, $default_max, null);
                                     ?>
-                                    <td><?php echo self::status_badge_html($status_lbl, $status_bg, $status_fg, $status_border); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></td>
+                                    <td><?php echo CapacityBadge::html($count, $default_max); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?></td>
                                 <?php endif; ?>
                             <?php endfor; ?>
                         </tr>
@@ -280,55 +279,8 @@ class OpenHoursShortcode
         return (string) ob_get_clean();
     }
 
-    /**
-     * Shared status computation for both layouts.
-     *
-     * ✅ Accessibility (2026-07-18): dark text on a light tint + colored
-     * border, not white text on a saturated background — white-on-#00a32a/
-     * #dba617 measured well under the WCAG AA 4.5:1 contrast ratio for text
-     * this size (~3.3:1 and ~2.2:1 respectively). This dark-on-light pattern
-     * passes comfortably regardless of the exact hue and matches the
-     * .adoration-notice-* accent-border convention already used elsewhere.
-     *
-     * @param bool|null $is_full Pass a known is_full flag (e.g. from
-     *   SlotsRepository::list_upcoming_with_status(), which can factor in
-     *   things this method can't); pass null to derive it from $count/$max.
-     * @return array{0:string,1:string,2:string,3:string} [label, bg, fg, border]
-     */
-    private static function status_badge_parts(int $count, $max, ?bool $is_full): array
-    {
-        $max = ($max === null || $max === '') ? null : (int)$max;
-        if ($is_full === null) {
-            $is_full = ($max !== null && $count >= $max);
-        }
-
-        if ($is_full) {
-            return [__('Filled', 'adoration-scheduler'), '#fbe6e6', '#8a1f1f', '#d63638'];
-        }
-
-        if ($max !== null) {
-            $label = sprintf(
-                /* translators: 1: confirmed count, 2: max spots */
-                __('%1$d of %2$d filled', 'adoration-scheduler'),
-                $count,
-                $max
-            );
-            if ($count > 0) {
-                return [$label, '#fdf0d5', '#6b4e00', '#dba617'];
-            }
-            return [$label, '#e4f5e9', '#10521c', '#00a32a'];
-        }
-
-        $label = ($count > 0)
-            ? __('Open', 'adoration-scheduler')
-            : __('Open — nobody signed up yet', 'adoration-scheduler');
-        return [$label, '#e4f5e9', '#10521c', '#00a32a'];
-    }
-
-    private static function status_badge_html(string $label, string $bg, string $fg, string $border): string
-    {
-        return '<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:12px;font-weight:600;color:'
-            . esc_attr($fg) . ';background:' . esc_attr($bg) . ';border:1px solid ' . esc_attr($border) . ';">'
-            . esc_html($label) . '</span>';
-    }
+    // Status badge computation/rendering moved to
+    // AdorationScheduler\Utils\CapacityBadge (2026-07-20) so ScheduleShortcode
+    // can share the exact same coverage-status color scheme instead of
+    // drifting into its own.
 }

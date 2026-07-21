@@ -162,7 +162,7 @@ class StandingCommitmentsRepository {
         $active_sql = $active_only ? " AND c.is_active = 1 " : "";
 
         $sql = $wpdb->prepare(
-            "SELECT c.*, p.first_name AS first_name, p.last_name AS last_name, p.email AS email, p.phone AS phone
+            "SELECT c.*, p.title AS title, p.first_name AS first_name, p.last_name AS last_name, p.email AS email, p.phone AS phone
              FROM {$this->table} c
              LEFT JOIN {$this->persons_table} p ON p.id = c.person_id
              WHERE c.schedule_id = %d {$active_sql}

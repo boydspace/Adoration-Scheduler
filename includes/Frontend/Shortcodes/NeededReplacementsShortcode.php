@@ -5,6 +5,7 @@ use AdorationScheduler\Frontend\Shortcodes\Concerns\PersonDashboardTrait;
 use AdorationScheduler\Frontend\UikitLoader;
 use AdorationScheduler\Frontend\SharedStyles;
 use AdorationScheduler\Services\ReplacementRequestService;
+use AdorationScheduler\Utils\ClergyTitles;
 
 if ( ! defined('ABSPATH') ) {
     exit;
@@ -48,7 +49,7 @@ class NeededReplacementsShortcode
 
         ob_start();
         ?>
-        <div class="adoration-widget adoration-needed-replacements uk-width-1-1" id="<?php echo esc_attr($uid); ?>">
+        <div class="adoration-widget adoration-needed-replacements uk-width-1-1" id="<?php echo esc_attr($uid); ?>" <?php echo self::ajax_wrapper_attrs('adoration_needed_replacements', $atts); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>>
             <?php echo UikitLoader::print_once(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
             <?php echo SharedStyles::print_once(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
 
@@ -82,7 +83,8 @@ class NeededReplacementsShortcode
                                 $req_date    = self::fmt_date((string)($req['date'] ?? ''));
                                 $req_time    = self::fmt_time_range((string)($req['start_time'] ?? ''), (string)($req['end_time'] ?? ''));
                                 $req_chapel  = (string)($req['chapel_name'] ?? '');
-                                $requester   = trim((string)($req['requester_first_name'] ?? '') . ' ' . (string)($req['requester_last_name'] ?? ''));
+                                $requester_title = ClergyTitles::abbreviate((string)($req['requester_title'] ?? ''));
+                                $requester   = trim($requester_title . ' ' . (string)($req['requester_first_name'] ?? '') . ' ' . (string)($req['requester_last_name'] ?? ''));
                                 if ($requester === '') $requester = '(unnamed)';
                                 $claim_nonce = ($req_id > 0) ? wp_create_nonce('adoration_claim_replacement_' . $req_id) : '';
                                 ?>
@@ -93,7 +95,7 @@ class NeededReplacementsShortcode
                                     <td><?php echo esc_html($requester); ?></td>
                                     <td class="uk-text-right">
                                         <?php if ($req_id > 0): ?>
-                                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline;margin:0;">
+                                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="as-ajax-form" style="display:inline;margin:0;">
                                                 <input type="hidden" name="action" value="<?php echo esc_attr(ReplacementRequestService::ACTION_CLAIM); ?>" />
                                                 <input type="hidden" name="signup_id" value="<?php echo esc_attr((string)$req_id); ?>" />
                                                 <input type="hidden" name="return" value="<?php echo esc_attr($redirect_url); ?>" />
@@ -126,6 +128,7 @@ class NeededReplacementsShortcode
                                     <th>Time</th>
                                     <th>Chapel</th>
                                     <th>Schedule</th>
+                                    <th>Requested By</th>
                                     <th class="uk-text-right">Actions</th>
                                 </tr>
                             </thead>
@@ -137,6 +140,9 @@ class NeededReplacementsShortcode
                                 $req_time    = self::fmt_time_range((string)($req['start_time'] ?? ''), (string)($req['end_time'] ?? ''));
                                 $req_chapel  = (string)($req['chapel_name'] ?? '');
                                 $req_sched   = (string)($req['schedule_name'] ?? '');
+                                $requester_title = ClergyTitles::abbreviate((string)($req['requester_title'] ?? ''));
+                                $requester   = trim($requester_title . ' ' . (string)($req['requester_first_name'] ?? '') . ' ' . (string)($req['requester_last_name'] ?? ''));
+                                if ($requester === '') $requester = '(unnamed)';
                                 $claim_nonce = ($req_id > 0) ? wp_create_nonce('adoration_claim_replacement_' . $req_id) : '';
                                 ?>
                                 <tr>
@@ -144,9 +150,10 @@ class NeededReplacementsShortcode
                                     <td><?php echo esc_html($req_time); ?></td>
                                     <td><?php echo esc_html($req_chapel); ?></td>
                                     <td><?php echo esc_html($req_sched); ?></td>
+                                    <td><?php echo esc_html($requester); ?></td>
                                     <td class="uk-text-right">
                                         <?php if ($req_id > 0): ?>
-                                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display:inline;margin:0;">
+                                            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" class="as-ajax-form" style="display:inline;margin:0;">
                                                 <input type="hidden" name="action" value="<?php echo esc_attr(ReplacementRequestService::ACTION_CLAIM); ?>" />
                                                 <input type="hidden" name="signup_id" value="<?php echo esc_attr((string)$req_id); ?>" />
                                                 <input type="hidden" name="return" value="<?php echo esc_attr($redirect_url); ?>" />

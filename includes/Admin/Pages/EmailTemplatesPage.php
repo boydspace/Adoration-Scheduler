@@ -40,7 +40,7 @@ class EmailTemplatesPage {
 
             'signup_confirmation_subject' => 'Adoration Signup Confirmed: {slot_date} {slot_start}',
             'signup_confirmation_body'    =>
-                "Hello {first_name},\n\n".
+                "Hello {title_first_name},\n\n".
                 "Thank you for signing up for Eucharistic Adoration.\n\n".
                 "Schedule: {schedule_title}\n".
                 "When: {slot_date} {slot_start}–{slot_end}\n\n".
@@ -52,7 +52,7 @@ class EmailTemplatesPage {
 
             'reminder_24h_subject' => 'Reminder: Adoration Tomorrow ({slot_date} {slot_start})',
             'reminder_24h_body'    =>
-                "Hello {first_name},\n\n".
+                "Hello {title_first_name},\n\n".
                 "This is a friendly reminder that you are scheduled for Eucharistic Adoration.\n\n".
                 "Schedule: {schedule_title}\n".
                 "When: {slot_date} {slot_start}–{slot_end}\n\n".
@@ -65,7 +65,7 @@ class EmailTemplatesPage {
             // ✅ NEW: Magic Link defaults
             'magic_link_subject' => 'Your Adoration Magic Link',
             'magic_link_body'    =>
-                "Hello {first_name},\n\n".
+                "Hello {title_first_name},\n\n".
                 "Here is your secure link to manage your Eucharistic Adoration signup:\n\n".
                 "{manage_url}\n\n".
                 "If you did not request this link, you may ignore this email.\n\n".
@@ -84,7 +84,7 @@ class EmailTemplatesPage {
             // ✅ NEW: Person notice — access request approved
             'access_approved_subject' => '[{church_name}] Your Adoration access request was approved',
             'access_approved_body'    =>
-                "Hello {first_name},\n\n".
+                "Hello {title_first_name},\n\n".
                 "Good news — your access request has been approved. You can now sign in to view the schedule and manage your Adoration commitments.\n\n".
                 "Sign in here:\n".
                 "{sign_in_url}\n\n".
@@ -119,7 +119,7 @@ class EmailTemplatesPage {
             // ✅ NEW: Self-service account deletion confirmation
             'account_deleted_subject' => '[{church_name}] Your account has been deleted',
             'account_deleted_body'    =>
-                "Hello {first_name},\n\n".
+                "Hello {title_first_name},\n\n".
                 "As you requested, your Adoration Scheduler account and personal information have been removed from our system.\n\n".
                 "Any upcoming hours you were signed up for have been cancelled and are now open for someone else to cover. Your past participation history is kept in anonymized form so schedule and coverage records stay accurate — it's no longer linked to your name, email, or phone number.\n\n".
                 "If this wasn't you, or you'd like to sign up again in the future, please contact the parish office.\n\n".
@@ -128,7 +128,7 @@ class EmailTemplatesPage {
             // ✅ NEW: Waitlist joined (slot was full)
             'waitlist_joined_subject' => "[{church_name}] You're on the waitlist",
             'waitlist_joined_body'    =>
-                "Hello {first_name},\n\n".
+                "Hello {title_first_name},\n\n".
                 "That Adoration hour is currently full, so we've added you to the waitlist instead.\n\n".
                 "Schedule: {schedule_title}\n".
                 "When: {slot_date} {slot_start}–{slot_end}\n".
@@ -140,7 +140,7 @@ class EmailTemplatesPage {
             // ✅ NEW: Waitlist promoted (a spot opened up)
             'waitlist_promoted_subject' => "[{church_name}] A spot opened up — you're confirmed!",
             'waitlist_promoted_body'    =>
-                "Hello {first_name},\n\n".
+                "Hello {title_first_name},\n\n".
                 "Good news — a spot opened up, and you've been moved from the waitlist to a confirmed Adoration signup.\n\n".
                 "Schedule: {schedule_title}\n".
                 "When: {slot_date} {slot_start}–{slot_end}\n\n".
@@ -393,7 +393,7 @@ class EmailTemplatesPage {
         }
         echo '</h2>';
 
-        echo '<p>Available tags: <code>{first_name}</code> <code>{last_name}</code> <code>{schedule_title}</code> <code>{slot_date}</code> <code>{slot_start}</code> <code>{slot_end}</code> <code>{church_name}</code> <code>{manage_url}</code> <code>{checkin_url}</code></p>';
+        echo '<p>Available tags: <code>{title}</code> <code>{title_first_name}</code> <code>{first_name}</code> <code>{last_name}</code> <code>{schedule_title}</code> <code>{slot_date}</code> <code>{slot_start}</code> <code>{slot_end}</code> <code>{church_name}</code> <code>{manage_url}</code> <code>{checkin_url}</code></p>';
         echo '<p class="description">This tab\'s own tags (e.g. <code>{gap_count}</code>, <code>{no_show_count}</code>) are listed above the editor below.</p>';
 
         // Render the active tab content

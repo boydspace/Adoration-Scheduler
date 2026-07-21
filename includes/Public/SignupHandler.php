@@ -8,6 +8,7 @@ use AdorationScheduler\Domain\Repositories\SignupsRepository;
 use AdorationScheduler\Domain\Repositories\WaitlistRepository;
 use AdorationScheduler\Services\NotificationService;
 use AdorationScheduler\Services\ReminderScheduler;
+use AdorationScheduler\Utils\ClergyTitles;
 
 if (!defined('ABSPATH')) exit;
 
@@ -330,7 +331,7 @@ class SignupHandler {
             self::redirect_back('err', 'Missing schedule or slot.');
         }
 
-        $title = sanitize_text_field(wp_unslash($_POST['title'] ?? ''));
+        $title = ClergyTitles::resolve_from_post('title');
         $first = sanitize_text_field(wp_unslash($_POST['first_name'] ?? ''));
         $last  = sanitize_text_field(wp_unslash($_POST['last_name'] ?? ''));
         $email = sanitize_email(wp_unslash($_POST['email'] ?? ''));
@@ -491,6 +492,7 @@ class SignupHandler {
                 try {
                     NotificationService::send_waitlist_joined([
                         'to_email'       => $email_norm,
+                        'title'          => $title,
                         'first_name'     => $first,
                         'last_name'      => $last,
                         'person_name'    => trim($first . ' ' . $last),
@@ -636,6 +638,7 @@ class SignupHandler {
         try {
             $sent = NotificationService::send_signup_confirmation([
                 'to_email'       => $email_norm,
+                'title'          => $title,
                 'first_name'     => $first,
                 'last_name'      => $last,
                 'person_name'    => $person_name,

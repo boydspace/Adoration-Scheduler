@@ -1108,8 +1108,16 @@ class EditSchedulePage {
                             $time_label = $ts !== false ? date_i18n('g:i A', $ts) : $start_time;
                             if ($ets !== false) $time_label .= ' – ' . date_i18n('g:i A', $ets);
 
+                            // Title isn't collected on this admin form, but
+                            // upsert_by_email() preserves any title already on
+                            // file — re-fetch so an existing "Father"/"Deacon"
+                            // still shows up in the confirmation email.
+                            $commitment_person = $personsRepo->find($person_id);
+                            $commitment_title  = trim((string)($commitment_person['title'] ?? ''));
+
                             NotificationService::send_signup_confirmation([
                                 'to_email'       => $email_norm,
+                                'title'          => $commitment_title,
                                 'first_name'     => $first,
                                 'last_name'      => $last,
                                 'person_name'    => trim($first . ' ' . $last),
