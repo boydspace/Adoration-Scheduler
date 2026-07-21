@@ -77,26 +77,33 @@ Adoration Scheduler turns WordPress into a complete Eucharistic Adoration schedu
 
 ## Testing
 
-A PHPUnit + Brain Monkey unit test suite covers the plugin's highest-risk
-pure logic (overnight slot-generation math, signup dedupe rules, the
-standing-commitment duplicate-email regression) without needing a real
-WordPress install or MySQL database:
+Two PHPUnit suites, each with its own config and bootstrap:
+
+- **Unit** (`composer test`) — Brain Monkey fakes WordPress functions and
+  `tests/Support/FakeWpdb.php` fakes `$wpdb`, so this runs anywhere with
+  just PHP + Composer, no WordPress install or MySQL needed. Covers the
+  plugin's highest-risk pure logic (overnight slot-generation math, signup
+  dedupe rules, the standing-commitment duplicate-email regression).
+- **Integration** (`composer test:integration`) — boots a real WordPress
+  install against a real MySQL database via the `wp-phpunit` Composer
+  package, and loads the actual plugin file. Covers what the unit suite
+  can't: real `dbDelta()` schema output, and real SQL/JOIN/GROUP BY
+  results. See `tests/Integration/README.md` for the one-time local setup
+  (a dedicated test database) and required environment variables.
 
 ```
 composer install
-composer test
+composer test               # unit — fast, no setup needed
+composer test:integration   # integration — needs a local test DB, see below
 ```
 
-See `tests/Support/AdorationTestCase.php` and `tests/Support/FakeWpdb.php`
-for how WordPress functions and `$wpdb` are faked, and
-`tests/Integration/README.md` for the (not yet built) plan to add a second
-suite that runs against a real WordPress + MySQL install. CI runs the unit
-suite on every push via `.github/workflows/tests.yml`.
+CI runs both on every push via `.github/workflows/tests.yml`: the unit
+suite across PHP 8.0–8.3, and the integration suite once against a MySQL
+service container.
 
 ## Roadmap
 
 - SMS reminders (pending a provider decision)
-- wp-phpunit integration test suite (see `tests/Integration/README.md`)
 
 ## Development status
 

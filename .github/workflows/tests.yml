@@ -1,4 +1,4 @@
-name: Unit tests
+name: Tests
 
 on:
   push:
@@ -32,9 +32,51 @@ jobs:
       - name: Run unit test suite
         run: vendor/bin/phpunit --testsuite unit
 
-  # Deferred — see tests/Integration/README.md. Once that suite exists this
-  # job should install a real WordPress + MySQL instance (e.g. via
-  # wp-env or the classic wp-phpunit install script) and run
-  # `vendor/bin/phpunit --testsuite integration` against it.
-  # integration:
-  #   ...
+  # Runs against a real WordPress + MySQL install via the wp-phpunit
+  # Composer package — see tests/Integration/README.md. Deliberately a
+  # single PHP version (not the full matrix above): its job is to exercise
+  # real MySQL/dbDelta/JOIN behavior, which the unit matrix already covers
+  # for PHP-version compatibility.
+  integration:
+    name: Integration tests
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: adoration_scheduler_tests
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+
+      - name: Install Composer dependencies
+        uses: ramsey/composer-install@v3
+        with:
+          composer-options: "--prefer-dist"
+
+      - name: Download WordPress core
+        run: curl -sSL https://wordpress.org/latest.tar.gz | tar -xz -C /tmp
+
+      - name: Run integration test suite
+        env:
+          WP_CORE_DIR: /tmp/wordpress
+          WP_TESTS_DB_HOST: 127.0.0.1
+          WP_TESTS_DB_NAME: adoration_scheduler_tests
+          WP_TESTS_DB_USER: root
+          WP_TESTS_DB_PASSWORD: root
+        run: composer test:integration

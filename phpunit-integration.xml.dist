@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/9.3/phpunit.xsd"
+         bootstrap="tests/bootstrap-integration.php"
+         colors="true"
+         cacheResultFile=".phpunit.cache/integration.result.cache"
+         beStrictAboutOutputDuringTests="true">
+
+    <!--
+        Slower suite that boots a real WordPress + MySQL install (via the
+        wp-phpunit scaffold) instead of tests/bootstrap.php's Brain Monkey +
+        FakeWpdb doubles — see tests/Integration/README.md for the one-time
+        local setup (a dedicated test database) and required env vars.
+
+        Run with `composer test:integration`, NOT phpunit's "testsuite
+        integration" option against phpunit.xml.dist — that file's bootstrap
+        never loads WordPress, so tests/Integration would fail immediately
+        there.
+    -->
+    <testsuites>
+        <testsuite name="integration">
+            <directory>tests/Integration</directory>
+        </testsuite>
+    </testsuites>
+
+    <coverage>
+        <include>
+            <directory suffix=".php">includes</directory>
+        </include>
+    </coverage>
+</phpunit>
