@@ -12,6 +12,18 @@ class PersonsRepository {
         $this->table = $wpdb->prefix . 'adoration_persons';
     }
 
+    /**
+     * ✅ No-account adorers (2026-07-21): true for the synthetic,
+     * non-deliverable placeholder addresses upsert_by_email() generates
+     * for a person with no real email (`no-email-{hash}@adoration.invalid`).
+     * Used by PeopleAdminActionsService to detect "an admin just gave this
+     * person a real email for the first time" and fire a welcome/sign-in
+     * notice — see NotificationService::send_account_ready().
+     */
+    public function has_placeholder_email(string $email): bool {
+        return (bool) preg_match('/@adoration\.invalid$/i', trim($email));
+    }
+
     public function find(int $person_id): ?array {
         global $wpdb;
 

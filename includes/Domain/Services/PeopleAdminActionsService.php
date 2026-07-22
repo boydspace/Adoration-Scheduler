@@ -257,6 +257,13 @@ class PeopleAdminActionsService {
 
         $repo = new PersonsRepository();
 
+        // ✅ No-account adorers (2026-07-21): captured BEFORE update_person()
+        // overwrites it, so we can tell afterward whether this save just
+        // gave a previously no-account person a real email for the first
+        // time — see the send_account_ready() call below.
+        $old_person = $repo->find($person_id);
+        $old_email  = trim((string)($old_person['email'] ?? ''));
+
         if ($email !== '' && method_exists($repo, 'exists_email_except_id') && $repo->exists_email_except_id($email, $person_id)) {
             $u = add_query_arg(['person_save_error' => 'email_in_use'], $edit_redirect);
             $u = self::with_toast($u, self::toast_msg_save_error('email_in_use'), 'error', true);
@@ -293,6 +300,30 @@ class PeopleAdminActionsService {
         ]);
 
         if ($ok) {
+            // ✅ No-account adorers (2026-07-21): this person just went from
+            // no real email (a placeholder like `no-email-...@adoration.invalid`
+            // — see PersonsRepository::upsert_by_email()) to a real one, so
+            // an online account effectively exists for them for the first
+            // time. Best-effort — never let a notification hiccup affect
+            // the save that already succeeded.
+            if ($email !== '' && is_email($email) && $repo->has_placeholder_email($old_email) && strtolower($old_email) !== strtolower($email)) {
+                try {
+                    NotificationService::send_account_ready([
+                        'to_email'    => $email,
+                        'title'       => $title,
+                        'first_name'  => $first,
+                        'last_name'   => $last,
+                        'person_name' => trim($first . ' ' . $last),
+                        'sign_in_url' => home_url('/my-adoration/'),
+                        'context'     => 'admin',
+                        'send'        => true,
+                        'person_id'   => $person_id,
+                    ]);
+                } catch (\Throwable $e) {
+                    error_log('[AdorationScheduler] send_account_ready failed for person_id=' . $person_id . ': ' . $e->getMessage());
+                }
+            }
+
             // ✅ success toast; DO NOT also set person_updated=1 (avoids double notices)
             $u = self::with_toast($list_redirect, __('Person updated.', 'adoration-scheduler'), 'success', false);
             wp_safe_redirect($u);

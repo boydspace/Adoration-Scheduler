@@ -8,6 +8,7 @@ use AdorationScheduler\Admin\Pages\EmailTemplates\Tabs\Reminder24hTab;
 use AdorationScheduler\Admin\Pages\EmailTemplates\Tabs\MagicLinkTab;
 use AdorationScheduler\Admin\Pages\EmailTemplates\Tabs\AccessRequestAdminTab;
 use AdorationScheduler\Admin\Pages\EmailTemplates\Tabs\AccessApprovedTab;
+use AdorationScheduler\Admin\Pages\EmailTemplates\Tabs\AccountReadyTab;
 use AdorationScheduler\Admin\Pages\EmailTemplates\Tabs\CoverageDigestTab;
 use AdorationScheduler\Admin\Pages\EmailTemplates\Tabs\NoShowDigestTab;
 use AdorationScheduler\Admin\Pages\EmailTemplates\Tabs\ReplacementNeededTab;
@@ -86,6 +87,15 @@ class EmailTemplatesPage {
             'access_approved_body'    =>
                 "Hello {title_first_name},\n\n".
                 "Good news — your access request has been approved. You can now sign in to view the schedule and manage your Adoration commitments.\n\n".
+                "Sign in here:\n".
+                "{sign_in_url}\n\n".
+                "You'll get a one-time sign-in link by email each time (no password required, unless you set one from your profile once signed in).\n",
+
+            // ✅ NEW: No-account adorer given a real email for the first time
+            'account_ready_subject' => '[{church_name}] You can now sign in online',
+            'account_ready_body'    =>
+                "Hello {title_first_name},\n\n".
+                "You're all set — an online account now exists for you at {church_name}'s Adoration Scheduler using this email address.\n\n".
                 "Sign in here:\n".
                 "{sign_in_url}\n\n".
                 "You'll get a one-time sign-in link by email each time (no password required, unless you set one from your profile once signed in).\n",
@@ -178,6 +188,7 @@ class EmailTemplatesPage {
         $out['magic_link_subject']          = sanitize_text_field($in['magic_link_subject'] ?? '');
         $out['access_request_admin_subject'] = sanitize_text_field($in['access_request_admin_subject'] ?? '');
         $out['access_approved_subject']      = sanitize_text_field($in['access_approved_subject'] ?? '');
+        $out['account_ready_subject']        = sanitize_text_field($in['account_ready_subject'] ?? '');
         $out['coverage_digest_subject']      = sanitize_text_field($in['coverage_digest_subject'] ?? '');
         $out['no_show_digest_subject']       = sanitize_text_field($in['no_show_digest_subject'] ?? '');
         $out['replacement_needed_subject']   = sanitize_text_field($in['replacement_needed_subject'] ?? '');
@@ -191,6 +202,7 @@ class EmailTemplatesPage {
         $out['magic_link_body']          = wp_kses_post($in['magic_link_body'] ?? '');
         $out['access_request_admin_body'] = wp_kses_post($in['access_request_admin_body'] ?? '');
         $out['access_approved_body']      = wp_kses_post($in['access_approved_body'] ?? '');
+        $out['account_ready_body']        = wp_kses_post($in['account_ready_body'] ?? '');
         $out['coverage_digest_body']      = wp_kses_post($in['coverage_digest_body'] ?? '');
         $out['no_show_digest_body']       = wp_kses_post($in['no_show_digest_body'] ?? '');
         $out['replacement_needed_body']   = wp_kses_post($in['replacement_needed_body'] ?? '');
@@ -219,6 +231,7 @@ class EmailTemplatesPage {
             'magic_link_subject','magic_link_body',
             'access_request_admin_subject','access_request_admin_body',
             'access_approved_subject','access_approved_body',
+            'account_ready_subject','account_ready_body',
             'coverage_digest_subject','coverage_digest_body',
             'no_show_digest_subject','no_show_digest_body',
             'replacement_needed_subject','replacement_needed_body',
@@ -245,6 +258,7 @@ class EmailTemplatesPage {
             'magic_link'          => MagicLinkTab::class,
             'access_request_admin' => AccessRequestAdminTab::class,
             'access_approved'      => AccessApprovedTab::class,
+            'account_ready'         => AccountReadyTab::class,
             'coverage_digest'      => CoverageDigestTab::class,
             'no_show_digest'        => NoShowDigestTab::class,
             'replacement_needed'   => ReplacementNeededTab::class,

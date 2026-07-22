@@ -208,6 +208,39 @@ class NotificationService
     }
 
     /**
+     * ✅ No-account adorers (2026-07-21): sent when an admin gives a
+     * previously no-account person (one created with no email — see
+     * PersonsRepository::upsert_by_email()'s placeholder-email path) a
+     * real email address for the first time, so they know an online
+     * account now exists and how to sign in. Fired from
+     * PeopleAdminActionsService::handle_save_person() — see
+     * PersonsRepository::has_placeholder_email().
+     */
+    public static function send_account_ready(array $args): bool
+    {
+        $args = self::normalize_args($args);
+
+        $to = trim((string)($args['to_email'] ?? ''));
+        if ($to === '' || ! is_email($to)) return false;
+
+        if (!self::should_send($args)) return true;
+
+        $type    = 'account_ready';
+        $context = (string)($args['context'] ?? 'admin');
+
+        $subject = self::render_subject($type, $args);
+        $body    = self::render_body($type, $args);
+
+        $dedupe_key = self::build_dedupe_key($type, $args);
+        if ($dedupe_key === '') {
+            $dedupe_key = self::fallback_dedupe_key($type, $to, $args);
+        }
+        $dedupe_ttl = self::dedupe_ttl($args);
+
+        return self::send_mail($to, $subject, $body, $context, $type, $args, $dedupe_key, $dedupe_ttl);
+    }
+
+    /**
      * ✅ Self-service "Delete My Account" confirmation — sent to the
      * person's original email address right before AccountDeletionService
      * replaces it with an anonymized placeholder, so they have a written
@@ -510,6 +543,9 @@ class NotificationService
             case 'access_approved':
                 return sprintf('[%s] Your Adoration access request was approved', get_bloginfo('name'));
 
+            case 'account_ready':
+                return sprintf('[%s] You can now sign in online', get_bloginfo('name'));
+
             case 'account_deleted':
                 return sprintf('[%s] Your account has been deleted', get_bloginfo('name'));
 
@@ -656,6 +692,23 @@ class NotificationService
                 $lines[] = $hello;
                 $lines[] = '';
                 $lines[] = "Good news — your access request has been approved. You can now sign in to view the schedule and manage your Adoration commitments.";
+                $lines[] = '';
+                if ($sign_in_url !== '') {
+                    $lines[] = "Sign in here:";
+                    $lines[] = $sign_in_url;
+                    $lines[] = '';
+                }
+                $lines[] = "You'll get a one-time sign-in link by email each time (no password required, unless you set one from your profile once signed in).";
+
+                return implode("\n", $lines);
+
+            case 'account_ready':
+                $sign_in_url = trim((string)($args['sign_in_url'] ?? $manage_url));
+
+                $lines = [];
+                $lines[] = $hello;
+                $lines[] = '';
+                $lines[] = "You're all set — an online account now exists for you using this email address.";
                 $lines[] = '';
                 if ($sign_in_url !== '') {
                     $lines[] = "Sign in here:";
