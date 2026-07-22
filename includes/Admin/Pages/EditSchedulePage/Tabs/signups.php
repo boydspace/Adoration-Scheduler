@@ -15,6 +15,7 @@ if ( ! defined('ABSPATH') ) exit;
 use AdorationScheduler\Services\WaitlistService;
 use AdorationScheduler\Domain\Services\RosterPrintService;
 use AdorationScheduler\Utils\ClergyTitles;
+use AdorationScheduler\Admin\Ajax\AdminPersonSearchAjax;
 
 // Stable return URL (so admin-post actions can redirect cleanly)
 $page_slug   = sanitize_key($_GET['page'] ?? 'adoration_scheduler_schedules');
@@ -34,6 +35,12 @@ $GLOBALS['as_return_url'] = $return_url;
  * Must match: check_ajax_referer('as_signup_resend')
  */
 $nonce_resend = wp_create_nonce('as_signup_resend');
+
+/**
+ * ✅ No-account adorers (2026-07-21): nonce for the "Existing person"
+ * search picker in the Add Signup modal below (AdminPersonSearchAjax).
+ */
+$nonce_person_search = wp_create_nonce(AdminPersonSearchAjax::ACTION);
 
 /**
  * Overnight flag (informational only).
@@ -434,8 +441,30 @@ $roster_nonce   = wp_create_nonce(RosterPrintService::ACTION . '_' . $schedule_i
             <?php wp_nonce_field('adoration_admin_add_signup'); ?>
             <input type="hidden" name="adoration_admin_add_signup" value="1">
             <input type="hidden" name="slot_id" id="adoration_signup_slot_id" value="">
+            <input type="hidden" name="person_id" id="adoration_signup_person_id" value="">
 
-            <table class="form-table" role="presentation">
+            <p style="margin:0 0 10px;">
+                <label style="margin-right:14px;">
+                    <input type="radio" name="adoration_signup_mode" value="new" id="adoration_signup_mode_new" checked>
+                    <?php esc_html_e('New person', 'adoration-scheduler'); ?>
+                </label>
+                <label>
+                    <input type="radio" name="adoration_signup_mode" value="existing" id="adoration_signup_mode_existing">
+                    <?php esc_html_e('Existing person', 'adoration-scheduler'); ?>
+                </label>
+            </p>
+
+            <div id="adoration_signup_existing_wrap" style="display:none; margin-bottom:10px; position:relative;">
+                <input type="text" id="adoration_signup_person_search" class="regular-text" autocomplete="off"
+                       placeholder="<?php echo esc_attr__('Start typing a name…', 'adoration-scheduler'); ?>">
+                <ul id="adoration_signup_person_results" class="uk-nav" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:20; background:#fff; border:1px solid #c3c4c7; box-shadow:0 2px 6px rgba(0,0,0,.15); max-height:200px; overflow-y:auto; margin:2px 0 0; padding:4px 0; list-style:none;"></ul>
+                <p class="description" id="adoration_signup_person_chosen" style="display:none;">
+                    <?php esc_html_e('Selected:', 'adoration-scheduler'); ?> <strong></strong>
+                    <button type="button" class="button-link" id="adoration_signup_person_clear"><?php esc_html_e('change', 'adoration-scheduler'); ?></button>
+                </p>
+            </div>
+
+            <table class="form-table" role="presentation" id="adoration_signup_new_fields">
                 <tr>
                     <th><label for="adoration_signup_first"><?php esc_html_e('First name', 'adoration-scheduler'); ?></label></th>
                     <td><input type="text" name="first_name" id="adoration_signup_first" class="regular-text" required></td>
@@ -446,17 +475,22 @@ $roster_nonce   = wp_create_nonce(RosterPrintService::ACTION . '_' . $schedule_i
                 </tr>
                 <tr>
                     <th><label for="adoration_signup_email"><?php esc_html_e('Email', 'adoration-scheduler'); ?></label></th>
-                    <td><input type="email" name="email" id="adoration_signup_email" class="regular-text" required></td>
+                    <td><input type="email" name="email" id="adoration_signup_email" class="regular-text">
+                        <p class="description"><?php esc_html_e('Optional — leave blank if they don\'t have one. No email, no online account.', 'adoration-scheduler'); ?></p>
+                    </td>
                 </tr>
                 <tr>
                     <th><label for="adoration_signup_phone"><?php esc_html_e('Phone', 'adoration-scheduler'); ?></label></th>
                     <td>
-                        <input type="text" name="phone" id="adoration_signup_phone" class="regular-text" required
+                        <input type="text" name="phone" id="adoration_signup_phone" class="regular-text"
                                placeholder="(555) 123-4567">
-                        <p class="description"><?php esc_html_e('US numbers only; will be normalized to (###) ###-####.', 'adoration-scheduler'); ?></p>
+                        <p class="description"><?php esc_html_e('Optional. US numbers only; will be normalized to (###) ###-####.', 'adoration-scheduler'); ?></p>
                     </td>
                 </tr>
             </table>
+            <p class="description" style="margin:-6px 0 10px;">
+                <?php esc_html_e('Adding the same person again? Use "Existing person" above instead of re-adding them, or you\'ll get a duplicate record.', 'adoration-scheduler'); ?>
+            </p>
 
             <p style="margin-top:10px;">
                 <button type="submit" class="button button-primary"><?php esc_html_e('Add Confirmed Signup', 'adoration-scheduler'); ?></button>
@@ -477,6 +511,7 @@ $roster_nonce   = wp_create_nonce(RosterPrintService::ACTION . '_' . $schedule_i
     const slotLabelEl = document.getElementById('adoration-signup-slot-label');
 
     const firstEl = document.getElementById('adoration_signup_first');
+    const lastEl = document.getElementById('adoration_signup_last');
     const phoneEl = document.getElementById('adoration_signup_phone');
 
     function normalizePhoneToDigits(raw) {
@@ -490,12 +525,112 @@ $roster_nonce   = wp_create_nonce(RosterPrintService::ACTION . '_' . $schedule_i
         return '(' + d.slice(0,3) + ') ' + d.slice(3,6) + '-' + d.slice(6);
     }
 
+    // ✅ No-account adorers (2026-07-21): "New person" / "Existing person"
+    // toggle, backed by AdminPersonSearchAjax. Picking an existing person
+    // (most importantly one with no email) avoids creating a duplicate
+    // record every time they're added to another slot.
+    const modeNewEl = document.getElementById('adoration_signup_mode_new');
+    const modeExistingEl = document.getElementById('adoration_signup_mode_existing');
+    const existingWrap = document.getElementById('adoration_signup_existing_wrap');
+    const newFieldsTable = document.getElementById('adoration_signup_new_fields');
+    const personIdEl = document.getElementById('adoration_signup_person_id');
+    const personSearchEl = document.getElementById('adoration_signup_person_search');
+    const personResultsEl = document.getElementById('adoration_signup_person_results');
+    const personChosenEl = document.getElementById('adoration_signup_person_chosen');
+    const personClearEl = document.getElementById('adoration_signup_person_clear');
+
+    function setMode(mode) {
+        const existing = (mode === 'existing');
+        existingWrap.style.display = existing ? '' : 'none';
+        newFieldsTable.style.display = existing ? 'none' : '';
+        if (firstEl) firstEl.required = !existing;
+        if (lastEl) lastEl.required = !existing;
+        if (!existing) {
+            personIdEl.value = '';
+            personChosenEl.style.display = 'none';
+            personSearchEl.value = '';
+            personSearchEl.style.display = '';
+            personResultsEl.style.display = 'none';
+            personResultsEl.innerHTML = '';
+        }
+    }
+
+    if (modeNewEl) modeNewEl.addEventListener('change', function(){ if (this.checked) setMode('new'); });
+    if (modeExistingEl) modeExistingEl.addEventListener('change', function(){ if (this.checked) setMode('existing'); });
+
+    let personSearchTimer = null;
+    let personSearchController = null;
+
+    if (personSearchEl) {
+        personSearchEl.addEventListener('input', function() {
+            const q = personSearchEl.value.trim();
+            if (personSearchTimer) clearTimeout(personSearchTimer);
+
+            if (q.length < 2) {
+                personResultsEl.style.display = 'none';
+                personResultsEl.innerHTML = '';
+                return;
+            }
+
+            personSearchTimer = setTimeout(function() {
+                const url = ajaxurl + '?action=<?php echo esc_js(AdminPersonSearchAjax::ACTION); ?>'
+                    + '&_wpnonce=<?php echo esc_js($nonce_person_search); ?>'
+                    + '&q=' + encodeURIComponent(q);
+
+                if (personSearchController && personSearchController.abort) personSearchController.abort();
+                const controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+                personSearchController = controller;
+
+                fetch(url, { credentials: 'same-origin', signal: controller ? controller.signal : undefined })
+                    .then(r => r.json())
+                    .then(json => {
+                        const list = (json && json.success && json.data && json.data.results) ? json.data.results : [];
+                        personResultsEl.innerHTML = '';
+                        if (!list.length) { personResultsEl.style.display = 'none'; return; }
+
+                        list.forEach(function(p) {
+                            const li = document.createElement('li');
+                            const a = document.createElement('a');
+                            a.href = '#';
+                            a.textContent = p.label;
+                            a.addEventListener('click', function(ev) {
+                                ev.preventDefault();
+                                personIdEl.value = p.id;
+                                personChosenEl.querySelector('strong').textContent = p.label;
+                                personChosenEl.style.display = '';
+                                personSearchEl.value = '';
+                                personSearchEl.style.display = 'none';
+                                personResultsEl.style.display = 'none';
+                                personResultsEl.innerHTML = '';
+                            });
+                            li.appendChild(a);
+                            personResultsEl.appendChild(li);
+                        });
+                        personResultsEl.style.display = '';
+                    })
+                    .catch(function() { personResultsEl.style.display = 'none'; });
+            }, 250);
+        });
+    }
+
+    if (personClearEl) {
+        personClearEl.addEventListener('click', function(e) {
+            e.preventDefault();
+            personIdEl.value = '';
+            personChosenEl.style.display = 'none';
+            personSearchEl.style.display = '';
+            personSearchEl.value = '';
+            personSearchEl.focus();
+        });
+    }
+
     function openModal(slotId, label) {
         slotIdEl.value = slotId || '';
         slotLabelEl.textContent = label || '—';
 
         document.getElementById('adoration-signup-form').reset();
         slotIdEl.value = slotId || '';
+        setMode('new');
 
         backdrop.style.display = 'block';
         modal.style.display = 'block';

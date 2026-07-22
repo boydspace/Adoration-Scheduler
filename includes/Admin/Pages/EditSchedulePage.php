@@ -666,39 +666,68 @@ class EditSchedulePage {
                     $this->add_toast('Invalid slot selected.', 'error', false);
                     $tab = $add_signup_return_tab;
                 } else {
-                    $first = sanitize_text_field(wp_unslash($_POST['first_name'] ?? ''));
-                    $last  = sanitize_text_field(wp_unslash($_POST['last_name'] ?? ''));
-                    $email = sanitize_email(wp_unslash($_POST['email'] ?? ''));
-                    $phone_raw = sanitize_text_field(wp_unslash($_POST['phone'] ?? ''));
-                    $phone = $this->normalize_phone_us($phone_raw);
+                    // ✅ No-account adorers (2026-07-21): "Existing person" mode
+                    // (see signups.php's search picker, backed by
+                    // AdminPersonSearchAjax) submits a person_id directly —
+                    // skips name/email/phone entirely, most importantly for
+                    // reusing an already-created no-email person instead of
+                    // creating a duplicate.
+                    $existing_person_id = (int) ($_POST['person_id'] ?? 0);
+                    $person_id = 0;
 
-                    if ($first === '' || $last === '' || $email === '' || $phone_raw === '') {
-                        $this->add_toast('All fields are required (first name, last name, email, phone).', 'error', false);
-                        $tab = $add_signup_return_tab;
-                    } elseif (!is_email($email)) {
-                        $this->add_toast('Please enter a valid email address.', 'error', false);
-                        $tab = $add_signup_return_tab;
-                    } elseif ($phone === null) {
-                        $this->add_toast('Please enter a valid US phone number (10 digits).', 'error', false);
-                        $tab = $add_signup_return_tab;
+                    if ($existing_person_id > 0) {
+                        $picked = $personsRepo->find($existing_person_id);
+                        if (!$picked) {
+                            $this->add_toast('That person could not be found. Please search again.', 'error', false);
+                            $tab = $add_signup_return_tab;
+                            goto adoration_admin_add_signup_done;
+                        }
+                        $person_id = $existing_person_id;
                     } else {
-                        $email_norm = strtolower(trim($email));
+                        $first = sanitize_text_field(wp_unslash($_POST['first_name'] ?? ''));
+                        $last  = sanitize_text_field(wp_unslash($_POST['last_name'] ?? ''));
+                        $email = sanitize_email(wp_unslash($_POST['email'] ?? ''));
+                        $phone_raw = sanitize_text_field(wp_unslash($_POST['phone'] ?? ''));
+                        $phone = ($phone_raw !== '') ? $this->normalize_phone_us($phone_raw) : '';
 
-                        $existing_person = $personsRepo->find_by_email($email_norm);
-                        if ($existing_person) {
-                            $ex_first = trim((string)($existing_person['first_name'] ?? ''));
-                            $ex_last  = trim((string)($existing_person['last_name'] ?? ''));
+                        // Email and phone are optional (no-account adorers) —
+                        // only first/last name are required. Either one, if
+                        // provided at all, must still be valid.
+                        if ($first === '' || $last === '') {
+                            $this->add_toast('First and last name are required.', 'error', false);
+                            $tab = $add_signup_return_tab;
+                            goto adoration_admin_add_signup_done;
+                        }
+                        if ($email !== '' && !is_email($email)) {
+                            $this->add_toast('Please enter a valid email address, or leave it blank.', 'error', false);
+                            $tab = $add_signup_return_tab;
+                            goto adoration_admin_add_signup_done;
+                        }
+                        if ($phone_raw !== '' && $phone === null) {
+                            $this->add_toast('Please enter a valid US phone number (10 digits), or leave it blank.', 'error', false);
+                            $tab = $add_signup_return_tab;
+                            goto adoration_admin_add_signup_done;
+                        }
 
-                            $first_conflict = ($ex_first !== '' && $first !== '' && strcasecmp($ex_first, $first) !== 0);
-                            $last_conflict  = ($ex_last  !== '' && $last  !== '' && strcasecmp($ex_last,  $last)  !== 0);
+                        $email_norm = ($email !== '') ? strtolower(trim($email)) : '';
 
-                            if ($first_conflict || $last_conflict) {
-                                $display = trim($ex_first . ($ex_last !== '' ? ' ' . $ex_last : ''));
-                                if ($display === '') $display = 'an existing adorer';
+                        if ($email_norm !== '') {
+                            $existing_person = $personsRepo->find_by_email($email_norm);
+                            if ($existing_person) {
+                                $ex_first = trim((string)($existing_person['first_name'] ?? ''));
+                                $ex_last  = trim((string)($existing_person['last_name'] ?? ''));
 
-                                $this->add_toast('That email address is already used by ' . $display . '.', 'error', false);
-                                $tab = $add_signup_return_tab;
-                                goto adoration_admin_add_signup_done;
+                                $first_conflict = ($ex_first !== '' && $first !== '' && strcasecmp($ex_first, $first) !== 0);
+                                $last_conflict  = ($ex_last  !== '' && $last  !== '' && strcasecmp($ex_last,  $last)  !== 0);
+
+                                if ($first_conflict || $last_conflict) {
+                                    $display = trim($ex_first . ($ex_last !== '' ? ' ' . $ex_last : ''));
+                                    if ($display === '') $display = 'an existing adorer';
+
+                                    $this->add_toast('That email address is already used by ' . $display . '.', 'error', false);
+                                    $tab = $add_signup_return_tab;
+                                    goto adoration_admin_add_signup_done;
+                                }
                             }
                         }
 
@@ -706,37 +735,37 @@ class EditSchedulePage {
                             'first_name' => $first,
                             'last_name'  => $last,
                             'email'      => $email_norm,
-                            'phone'      => $phone,
+                            'phone'      => ($phone !== null ? $phone : ''),
+                        ]);
+                    }
+
+                    if ($person_id <= 0) {
+                        $this->add_toast('Failed to save person record.', 'error', false);
+                        $tab = $add_signup_return_tab;
+                    } else {
+                        $signup_date = $this->slot_true_ymd($slot);
+
+                        $insert_id = $signupsRepo->create([
+                            'person_id'   => $person_id,
+                            'schedule_id' => $schedule_id,
+                            'slot_id'     => $slot_id,
+                            'date'        => $signup_date,
+                            'status'      => 'confirmed',
+                            'type'        => 'one_time',
+                            'created_via' => 'admin',
                         ]);
 
-                        if ($person_id <= 0) {
-                            $this->add_toast('Failed to save person record.', 'error', false);
-                            $tab = $add_signup_return_tab;
+                        global $wpdb;
+                        if ($insert_id) {
+                            $this->add_toast('Signup added.', 'success', false);
                         } else {
-                            $signup_date = $this->slot_true_ymd($slot);
-
-                            $insert_id = $signupsRepo->create([
-                                'person_id'   => $person_id,
-                                'schedule_id' => $schedule_id,
-                                'slot_id'     => $slot_id,
-                                'date'        => $signup_date,
-                                'status'      => 'confirmed',
-                                'type'        => 'one_time',
-                                'created_via' => 'admin',
-                            ]);
-
-                            global $wpdb;
-                            if ($insert_id) {
-                                $this->add_toast('Signup added.', 'success', false);
-                            } else {
-                                $this->add_toast('Failed to add signup (duplicate or DB error).', 'error', false);
-                                if (!empty($wpdb->last_error)) {
-                                    error_log('[AdorationScheduler] Admin add signup failed: ' . $wpdb->last_error);
-                                }
+                            $this->add_toast('Failed to add signup (duplicate or DB error).', 'error', false);
+                            if (!empty($wpdb->last_error)) {
+                                error_log('[AdorationScheduler] Admin add signup failed: ' . $wpdb->last_error);
                             }
-
-                            $tab = $add_signup_return_tab;
                         }
+
+                        $tab = $add_signup_return_tab;
                     }
                 }
             }
@@ -1026,33 +1055,55 @@ class EditSchedulePage {
             $start_time  = sanitize_text_field(wp_unslash($_POST['start_time'] ?? ''));
             $end_time    = sanitize_text_field(wp_unslash($_POST['end_time'] ?? ''));
 
+            // ✅ No-account adorers (2026-07-21): same "Existing person"
+            // search vs. free-text new-person shape as the Add Signup
+            // handler above — see that block's comment for the rationale.
+            $existing_person_id = (int) ($_POST['person_id'] ?? 0);
+
             $first = sanitize_text_field(wp_unslash($_POST['first_name'] ?? ''));
             $last  = sanitize_text_field(wp_unslash($_POST['last_name'] ?? ''));
             $email = sanitize_email(wp_unslash($_POST['email'] ?? ''));
             $phone_raw = sanitize_text_field(wp_unslash($_POST['phone'] ?? ''));
-            $phone = $this->normalize_phone_us($phone_raw);
+            $phone = ($phone_raw !== '') ? $this->normalize_phone_us($phone_raw) : '';
+            $email_norm = '';
 
             if ($day_of_week < 0 || $day_of_week > 6 || $start_time === '' || $end_time === '') {
                 $this->add_toast('Please choose a day and hour before assigning an adorer.', 'error', false);
                 $tab = 'commitments';
-            } elseif ($first === '' || $last === '' || $email === '' || $phone_raw === '') {
-                $this->add_toast('All fields are required (first name, last name, email, phone).', 'error', false);
+            } elseif ($existing_person_id <= 0 && ($first === '' || $last === '')) {
+                $this->add_toast('First and last name are required.', 'error', false);
                 $tab = 'commitments';
-            } elseif (!is_email($email)) {
-                $this->add_toast('Please enter a valid email address.', 'error', false);
+            } elseif ($existing_person_id <= 0 && $email !== '' && !is_email($email)) {
+                $this->add_toast('Please enter a valid email address, or leave it blank.', 'error', false);
                 $tab = 'commitments';
-            } elseif ($phone === null) {
-                $this->add_toast('Please enter a valid US phone number (10 digits).', 'error', false);
+            } elseif ($existing_person_id <= 0 && $phone_raw !== '' && $phone === null) {
+                $this->add_toast('Please enter a valid US phone number (10 digits), or leave it blank.', 'error', false);
                 $tab = 'commitments';
             } else {
-                $email_norm = strtolower(trim($email));
+                if ($existing_person_id > 0) {
+                    $picked = $personsRepo->find($existing_person_id);
+                    $person_id = $picked ? $existing_person_id : 0;
+                    if ($picked) {
+                        // Used below for the confirmation email / display —
+                        // reflect the picked person's actual name on file
+                        // rather than whatever (blank) name fields rode along.
+                        $first = trim((string)($picked['first_name'] ?? ''));
+                        $last  = trim((string)($picked['last_name'] ?? ''));
+                        $picked_email = trim((string)($picked['email'] ?? ''));
+                        if ($picked_email !== '' && is_email($picked_email) && strpos($picked_email, '@adoration.invalid') === false) {
+                            $email_norm = strtolower($picked_email);
+                        }
+                    }
+                } else {
+                    $email_norm = ($email !== '') ? strtolower(trim($email)) : '';
 
-                $person_id = $personsRepo->upsert_by_email([
-                    'first_name' => $first,
-                    'last_name'  => $last,
-                    'email'      => $email_norm,
-                    'phone'      => $phone,
-                ]);
+                    $person_id = $personsRepo->upsert_by_email([
+                        'first_name' => $first,
+                        'last_name'  => $last,
+                        'email'      => $email_norm,
+                        'phone'      => ($phone !== null ? $phone : ''),
+                    ]);
+                }
 
                 if ($person_id <= 0) {
                     $this->add_toast('Failed to save person record.', 'error', false);
@@ -1099,42 +1150,47 @@ class EditSchedulePage {
                         // silently auto-fills every matching future date (see the created_via
                         // === 'standing_commitment' guard in SignupsRepository::create()), so
                         // without this the adorer an admin assigns here would get no email at all.
-                        try {
-                            $day_labels = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-                            $day_label = $day_labels[$day_of_week] ?? '';
-                            $schedule_title = trim((string)($schedule['name'] ?? 'Adoration'));
-                            $ts = strtotime('1970-01-01 ' . $start_time);
-                            $ets = strtotime('1970-01-01 ' . $end_time);
-                            $time_label = $ts !== false ? date_i18n('g:i A', $ts) : $start_time;
-                            if ($ets !== false) $time_label .= ' – ' . date_i18n('g:i A', $ets);
+                        // ✅ No-account adorers (2026-07-21): skip entirely when there's no
+                        // real email — NotificationService would no-op on it anyway
+                        // (is_email() guard), this just avoids the pointless attempt.
+                        if ($email_norm !== '') {
+                            try {
+                                $day_labels = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+                                $day_label = $day_labels[$day_of_week] ?? '';
+                                $schedule_title = trim((string)($schedule['name'] ?? 'Adoration'));
+                                $ts = strtotime('1970-01-01 ' . $start_time);
+                                $ets = strtotime('1970-01-01 ' . $end_time);
+                                $time_label = $ts !== false ? date_i18n('g:i A', $ts) : $start_time;
+                                if ($ets !== false) $time_label .= ' – ' . date_i18n('g:i A', $ets);
 
-                            // Title isn't collected on this admin form, but
-                            // upsert_by_email() preserves any title already on
-                            // file — re-fetch so an existing "Father"/"Deacon"
-                            // still shows up in the confirmation email.
-                            $commitment_person = $personsRepo->find($person_id);
-                            $commitment_title  = trim((string)($commitment_person['title'] ?? ''));
+                                // Title isn't collected on this admin form, but
+                                // upsert_by_email() preserves any title already on
+                                // file — re-fetch so an existing "Father"/"Deacon"
+                                // still shows up in the confirmation email.
+                                $commitment_person = $personsRepo->find($person_id);
+                                $commitment_title  = trim((string)($commitment_person['title'] ?? ''));
 
-                            NotificationService::send_signup_confirmation([
-                                'to_email'       => $email_norm,
-                                'title'          => $commitment_title,
-                                'first_name'     => $first,
-                                'last_name'      => $last,
-                                'person_name'    => trim($first . ' ' . $last),
-                                'schedule_title' => $schedule_title,
-                                'schedule_name'  => $schedule_title,
-                                'slot_date'      => '',
-                                'slot_start'     => $start_time,
-                                'slot_end'       => $end_time,
-                                'slot_label'     => 'Every ' . $day_label . ', ' . $time_label,
-                                'manage_url'     => home_url('/my-adoration/'),
-                                'context'        => 'admin_standing',
-                                'send'           => true,
-                                'signup_id'      => 0,
-                                'person_id'      => (int)$person_id,
-                            ]);
-                        } catch (\Throwable $e) {
-                            error_log('[AdorationScheduler] Admin add-commitment confirmation email failed: ' . $e->getMessage());
+                                NotificationService::send_signup_confirmation([
+                                    'to_email'       => $email_norm,
+                                    'title'          => $commitment_title,
+                                    'first_name'     => $first,
+                                    'last_name'      => $last,
+                                    'person_name'    => trim($first . ' ' . $last),
+                                    'schedule_title' => $schedule_title,
+                                    'schedule_name'  => $schedule_title,
+                                    'slot_date'      => '',
+                                    'slot_start'     => $start_time,
+                                    'slot_end'       => $end_time,
+                                    'slot_label'     => 'Every ' . $day_label . ', ' . $time_label,
+                                    'manage_url'     => home_url('/my-adoration/'),
+                                    'context'        => 'admin_standing',
+                                    'send'           => true,
+                                    'signup_id'      => 0,
+                                    'person_id'      => (int)$person_id,
+                                ]);
+                            } catch (\Throwable $e) {
+                                error_log('[AdorationScheduler] Admin add-commitment confirmation email failed: ' . $e->getMessage());
+                            }
                         }
                     }
                 }

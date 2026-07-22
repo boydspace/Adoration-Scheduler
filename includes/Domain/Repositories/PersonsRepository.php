@@ -67,8 +67,37 @@ class PersonsRepository {
         $title  = sanitize_text_field($data['title'] ?? '');
         $parish = sanitize_text_field($data['parish'] ?? '');
 
-        if ($first === '' || $last === '' || $email === '') {
+        if ($first === '' || $last === '') {
             return 0;
+        }
+
+        // ✅ No-account adorers (2026-07-21): email is NOT NULL + UNIQUE in
+        // the schema, but not everyone wants (or has) one — an admin
+        // adding someone to the schedule who'll never sign in shouldn't be
+        // blocked on it. With no email there's nothing to look an existing
+        // person up by, so this always creates a NEW person (same
+        // real-column/fake-address pattern as anonymize_person()'s
+        // `removed-{id}-{hash}@removed.invalid`). Reusing an existing
+        // no-email person for a second signup is what the "Existing
+        // person" search picker in the admin Add Signup/Add Commitment
+        // modals is for — see AdminPersonSearchAjax.
+        if ($email === '') {
+            $placeholder = 'no-email-' . substr(md5(uniqid((string)$first, true)), 0, 12) . '@adoration.invalid';
+
+            $ok = $wpdb->insert(
+                $this->table,
+                [
+                    'first_name' => $first,
+                    'last_name'  => $last,
+                    'email'      => $placeholder,
+                    'phone'      => ($phone !== '' ? $phone : null),
+                    'title'      => ($title !== '' ? $title : null),
+                    'parish'     => ($parish !== '' ? $parish : null),
+                ],
+                ['%s','%s','%s','%s','%s','%s']
+            );
+
+            return $ok ? (int)$wpdb->insert_id : 0;
         }
 
         $email_norm = strtolower(trim($email));

@@ -1127,6 +1127,20 @@ class Plugin {
             error_log('[AdorationScheduler] PersonTargetSearchAjax missing or no register() method: ' . $personTargetSearchAjax);
         }
 
+        // ✅ No-account adorers (2026-07-21): admin-only "Existing person"
+        // search for the Add Signup / Add Standing Commitment modals.
+        self::require_first_existing($includes_dir, [
+            'Admin/Ajax/AdminPersonSearchAjax.php',
+            'Admin/ajax/AdminPersonSearchAjax.php',
+        ]);
+
+        $adminPersonSearchAjax = 'AdorationScheduler\\Admin\\Ajax\\AdminPersonSearchAjax';
+        if (class_exists($adminPersonSearchAjax) && method_exists($adminPersonSearchAjax, 'register')) {
+            $adminPersonSearchAjax::register();
+        } else {
+            error_log('[AdorationScheduler] AdminPersonSearchAjax missing or no register() method: ' . $adminPersonSearchAjax);
+        }
+
         // ✅ AJAX conversion (2026-07-20): re-renders one of the My
         // Adoration dashboard widgets after a row action succeeds via
         // AJAX, so the page can swap in fresh HTML instead of reloading.

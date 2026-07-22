@@ -12,6 +12,14 @@
 
 if ( ! defined('ABSPATH') ) exit;
 
+use AdorationScheduler\Admin\Ajax\AdminPersonSearchAjax;
+
+/**
+ * ✅ No-account adorers (2026-07-21): nonce for the "Existing person"
+ * search picker in the assign form below (AdminPersonSearchAjax).
+ */
+$nonce_person_search = wp_create_nonce(AdminPersonSearchAjax::ACTION);
+
 $current_page_slug = sanitize_key($_GET['page'] ?? 'adoration_scheduler_schedules');
 if ($current_page_slug === '') $current_page_slug = 'adoration_scheduler_schedules';
 
@@ -181,7 +189,36 @@ foreach ($weekday_slot_starts as $opts) {
 
             <input type="hidden" name="start_time" id="cd_start_time">
             <input type="hidden" name="end_time" id="cd_end_time">
+            <input type="hidden" name="person_id" id="cd_person_id" value="">
 
+            <tr>
+                <th scope="row"><?php esc_html_e('Adorer', 'adoration-scheduler'); ?></th>
+                <td>
+                    <label style="margin-right:14px;">
+                        <input type="radio" name="cd_mode" value="new" id="cd_mode_new" checked>
+                        <?php esc_html_e('New person', 'adoration-scheduler'); ?>
+                    </label>
+                    <label>
+                        <input type="radio" name="cd_mode" value="existing" id="cd_mode_existing">
+                        <?php esc_html_e('Existing person', 'adoration-scheduler'); ?>
+                    </label>
+                </td>
+            </tr>
+            <tr id="cd_existing_row" style="display:none;">
+                <th scope="row"><label for="cd_person_search"><?php esc_html_e('Search', 'adoration-scheduler'); ?></label></th>
+                <td style="position:relative;">
+                    <input type="text" id="cd_person_search" class="regular-text" autocomplete="off"
+                           placeholder="<?php echo esc_attr__('Start typing a name…', 'adoration-scheduler'); ?>">
+                    <ul id="cd_person_results" class="uk-nav" style="display:none; position:absolute; top:100%; left:0; right:0; z-index:20; background:#fff; border:1px solid #c3c4c7; box-shadow:0 2px 6px rgba(0,0,0,.15); max-height:200px; overflow-y:auto; margin:2px 0 0; padding:4px 0; list-style:none;"></ul>
+                    <p class="description" id="cd_person_chosen" style="display:none;">
+                        <?php esc_html_e('Selected:', 'adoration-scheduler'); ?> <strong></strong>
+                        <button type="button" class="button-link" id="cd_person_clear"><?php esc_html_e('change', 'adoration-scheduler'); ?></button>
+                    </p>
+                </td>
+            </tr>
+        </table>
+
+        <table class="form-table" role="presentation" id="cd_new_fields">
             <tr>
                 <th scope="row"><label for="cd_first"><?php esc_html_e('First Name', 'adoration-scheduler'); ?></label></th>
                 <td><input type="text" name="first_name" id="cd_first" class="regular-text" required></td>
@@ -192,13 +229,20 @@ foreach ($weekday_slot_starts as $opts) {
             </tr>
             <tr>
                 <th scope="row"><label for="cd_email"><?php esc_html_e('Email', 'adoration-scheduler'); ?></label></th>
-                <td><input type="email" name="email" id="cd_email" class="regular-text" required></td>
+                <td><input type="email" name="email" id="cd_email" class="regular-text">
+                    <p class="description"><?php esc_html_e('Optional — leave blank if they don\'t have one. No email, no online account.', 'adoration-scheduler'); ?></p>
+                </td>
             </tr>
             <tr>
                 <th scope="row"><label for="cd_phone"><?php esc_html_e('Phone', 'adoration-scheduler'); ?></label></th>
-                <td><input type="text" name="phone" id="cd_phone" class="regular-text" required placeholder="(555) 555-5555"></td>
+                <td><input type="text" name="phone" id="cd_phone" class="regular-text" placeholder="(555) 555-5555">
+                    <p class="description"><?php esc_html_e('Optional.', 'adoration-scheduler'); ?></p>
+                </td>
             </tr>
         </table>
+        <p class="description" style="margin-top:-6px;">
+            <?php esc_html_e('Assigning the same person to another hour? Use "Existing person" above instead of re-adding them, or you\'ll get a duplicate record.', 'adoration-scheduler'); ?>
+        </p>
 
         <p>
             <button type="submit" name="adoration_add_commitment" class="button button-primary">
@@ -234,6 +278,106 @@ foreach ($weekday_slot_starts as $opts) {
                 endInput.value = parts[1] || '';
             }
         });
+
+        // ✅ No-account adorers (2026-07-21): "New person" / "Existing
+        // person" toggle, backed by AdminPersonSearchAjax — same pattern
+        // as the Signups tab's Add Signup modal.
+        var modeNewEl = document.getElementById('cd_mode_new');
+        var modeExistingEl = document.getElementById('cd_mode_existing');
+        var existingRow = document.getElementById('cd_existing_row');
+        var newFieldsTable = document.getElementById('cd_new_fields');
+        var personIdEl = document.getElementById('cd_person_id');
+        var personSearchEl = document.getElementById('cd_person_search');
+        var personResultsEl = document.getElementById('cd_person_results');
+        var personChosenEl = document.getElementById('cd_person_chosen');
+        var personClearEl = document.getElementById('cd_person_clear');
+        var firstEl = document.getElementById('cd_first');
+        var lastEl = document.getElementById('cd_last');
+
+        function setMode(mode) {
+            var existing = (mode === 'existing');
+            existingRow.style.display = existing ? '' : 'none';
+            newFieldsTable.style.display = existing ? 'none' : '';
+            if (firstEl) firstEl.required = !existing;
+            if (lastEl) lastEl.required = !existing;
+            if (!existing) {
+                personIdEl.value = '';
+                personChosenEl.style.display = 'none';
+                personSearchEl.value = '';
+                personSearchEl.style.display = '';
+                personResultsEl.style.display = 'none';
+                personResultsEl.innerHTML = '';
+            }
+        }
+
+        if (modeNewEl) modeNewEl.addEventListener('change', function(){ if (this.checked) setMode('new'); });
+        if (modeExistingEl) modeExistingEl.addEventListener('change', function(){ if (this.checked) setMode('existing'); });
+
+        var personSearchTimer = null;
+        var personSearchController = null;
+
+        if (personSearchEl) {
+            personSearchEl.addEventListener('input', function() {
+                var q = personSearchEl.value.trim();
+                if (personSearchTimer) clearTimeout(personSearchTimer);
+
+                if (q.length < 2) {
+                    personResultsEl.style.display = 'none';
+                    personResultsEl.innerHTML = '';
+                    return;
+                }
+
+                personSearchTimer = setTimeout(function() {
+                    var url = ajaxurl + '?action=<?php echo esc_js(AdminPersonSearchAjax::ACTION); ?>'
+                        + '&_wpnonce=<?php echo esc_js($nonce_person_search); ?>'
+                        + '&q=' + encodeURIComponent(q);
+
+                    if (personSearchController && personSearchController.abort) personSearchController.abort();
+                    var controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+                    personSearchController = controller;
+
+                    fetch(url, { credentials: 'same-origin', signal: controller ? controller.signal : undefined })
+                        .then(function(r){ return r.json(); })
+                        .then(function(json) {
+                            var list = (json && json.success && json.data && json.data.results) ? json.data.results : [];
+                            personResultsEl.innerHTML = '';
+                            if (!list.length) { personResultsEl.style.display = 'none'; return; }
+
+                            list.forEach(function(p) {
+                                var li = document.createElement('li');
+                                var a = document.createElement('a');
+                                a.href = '#';
+                                a.textContent = p.label;
+                                a.addEventListener('click', function(ev) {
+                                    ev.preventDefault();
+                                    personIdEl.value = p.id;
+                                    personChosenEl.querySelector('strong').textContent = p.label;
+                                    personChosenEl.style.display = '';
+                                    personSearchEl.value = '';
+                                    personSearchEl.style.display = 'none';
+                                    personResultsEl.style.display = 'none';
+                                    personResultsEl.innerHTML = '';
+                                });
+                                li.appendChild(a);
+                                personResultsEl.appendChild(li);
+                            });
+                            personResultsEl.style.display = '';
+                        })
+                        .catch(function() { personResultsEl.style.display = 'none'; });
+                }, 250);
+            });
+        }
+
+        if (personClearEl) {
+            personClearEl.addEventListener('click', function(e) {
+                e.preventDefault();
+                personIdEl.value = '';
+                personChosenEl.style.display = 'none';
+                personSearchEl.style.display = '';
+                personSearchEl.value = '';
+                personSearchEl.focus();
+            });
+        }
     })();
     </script>
 <?php endif; ?>

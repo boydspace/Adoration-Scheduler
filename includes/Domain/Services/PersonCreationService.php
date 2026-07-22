@@ -110,8 +110,13 @@ class PersonCreationService {
     private static function try_repo_upsert_by_email(object $repo, array $data): int {
         if (!method_exists($repo, 'upsert_by_email')) return 0;
 
-        $email = (string)($data['email'] ?? '');
-        if ($email === '') return 0;
+        // ✅ No-account adorers (2026-07-21): blank email used to bail here
+        // and fall through to fallback_db_insert_with_reflection(), which
+        // raw-inserted `email => ''` — worked once, then threw a confusing
+        // "email already in use" on the *second* blank submission (empty
+        // string still collides on the UNIQUE index). upsert_by_email()
+        // now generates a proper unique placeholder for a blank email
+        // itself, so this can go through the normal path below instead.
 
         try {
             $rm = new \ReflectionMethod($repo, 'upsert_by_email');
