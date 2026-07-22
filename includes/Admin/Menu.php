@@ -218,6 +218,16 @@ class Menu {
             [__CLASS__, 'render_coverage_alerts_page']
         );
 
+        // ✅ SMS Reminders (Twilio credentials + 24h reminder text template)
+        add_submenu_page(
+            'adoration_scheduler_dashboard',
+            __('SMS Reminders', 'adoration-scheduler'),
+            __('SMS Reminders', 'adoration-scheduler'),
+            self::CAP_MANAGE_SETTINGS,
+            'adoration_scheduler_sms',
+            [__CLASS__, 'render_sms_settings_page']
+        );
+
         // ✅ Coverage Report (2026-07-17): hours-served + fill-rate history,
         // for stewardship recognition / year-end reports. Grouped into the
         // Settings tab family like Coverage Alerts and Email Log (both
@@ -335,6 +345,7 @@ class Menu {
             'adoration_scheduler_pages_shortcodes',
             'adoration_scheduler_access',
             'adoration_scheduler_coverage_alerts',
+            'adoration_scheduler_sms',
             'adoration_scheduler_coverage_report',
             'adoration_scheduler_attendance',
             'adoration_scheduler_no_show_alerts',
@@ -365,6 +376,7 @@ class Menu {
             'adoration_scheduler_antispam'          => __('Anti-Spam', 'adoration-scheduler'),
             'adoration_scheduler_access'            => __('Access & Privacy', 'adoration-scheduler'),
             'adoration_scheduler_coverage_alerts'   => __('Coverage Alerts', 'adoration-scheduler'),
+            'adoration_scheduler_sms'               => __('SMS Reminders', 'adoration-scheduler'),
             'adoration_scheduler_coverage_report'   => __('Coverage Report', 'adoration-scheduler'),
             'adoration_scheduler_attendance'        => __('Attendance', 'adoration-scheduler'),
             'adoration_scheduler_no_show_alerts'    => __('No-Show Alerts', 'adoration-scheduler'),
@@ -865,6 +877,27 @@ SVG;
         self::require_admin_page_file($candidates);
 
         $class = '\\AdorationScheduler\\Admin\\Pages\\CoverageAlertsSettingsPage';
+        if (!class_exists($class)) {
+            self::die_missing($class, $candidates);
+        }
+
+        if (method_exists($class, 'render')) {
+            $class::render();
+            return;
+        }
+
+        (new $class())->render();
+    }
+
+    public static function render_sms_settings_page(): void {
+        if ( ! current_user_can(self::CAP_MANAGE_SETTINGS) && ! current_user_can('manage_options') ) {
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+        }
+
+        $candidates = ['Pages/SmsSettingsPage.php'];
+        self::require_admin_page_file($candidates);
+
+        $class = '\\AdorationScheduler\\Admin\\Pages\\SmsSettingsPage';
         if (!class_exists($class)) {
             self::die_missing($class, $candidates);
         }

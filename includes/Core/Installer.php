@@ -11,7 +11,7 @@ class Installer {
      * Bump this whenever you change DB schema.
      * Keep it monotonic.
      */
-    public const DB_VERSION = '2026-07-19-02';
+    public const DB_VERSION = '2026-07-21-02';
 
     /**
      * Plugin capabilities (v1.0 guard rails).
@@ -36,7 +36,7 @@ class Installer {
      * Adoration page is now provisioned with this stack instead. Existing
      * pages with real content are never touched (see ensure_my_adoration_page()).
      */
-    private const MY_ADORATION_SHORTCODE = "[adoration_account_status]\n[adoration_profile_card]\n[adoration_next_adoration_hour]\n[adoration_announcements]\n[adoration_calendar_subscribe]\n[adoration_my_schedule]\n[adoration_my_replacement_requests]\n[adoration_needed_replacements]";
+    private const MY_ADORATION_SHORTCODE = "[adoration_account_status]\n[adoration_profile_card]\n[adoration_reminder_preferences]\n[adoration_next_adoration_hour]\n[adoration_announcements]\n[adoration_calendar_subscribe]\n[adoration_my_schedule]\n[adoration_my_replacement_requests]\n[adoration_needed_replacements]";
 
     /**
      * Request Access page option + defaults.
@@ -470,6 +470,11 @@ class Installer {
         // ✅ Replacement requests (Phase 3, 2026-07-16).
         if (!self::column_exists($persons_table, 'substitute_opt_in')) return false;
 
+        // ✅ Per-person reminder channel preferences (2026-07-21).
+        if (!self::column_exists($persons_table, 'email_reminder_opt_in')) return false;
+        if (!self::column_exists($persons_table, 'sms_reminder_opt_in'))   return false;
+        if (!self::column_exists($persons_table, 'reminder_lead_hours'))   return false;
+
         // ✅ Clergy title + parish profile fields (2026-07-16).
         if (!self::column_exists($persons_table, 'title'))  return false;
         if (!self::column_exists($persons_table, 'parish')) return false;
@@ -759,6 +764,9 @@ class Installer {
             password_hash VARCHAR(255) NULL,
             password_set_at DATETIME NULL,
             substitute_opt_in TINYINT(1) NOT NULL DEFAULT 0,
+            email_reminder_opt_in TINYINT(1) NOT NULL DEFAULT 1,
+            sms_reminder_opt_in TINYINT(1) NOT NULL DEFAULT 0,
+            reminder_lead_hours SMALLINT UNSIGNED NOT NULL DEFAULT 24,
             calendar_token CHAR(64) NULL,
             anonymized_at DATETIME NULL,
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -1576,6 +1584,32 @@ class Installer {
         // emailed when someone needs coverage. Off by default — opt-in only.
         if (!isset($have['substitute_opt_in'])) {
             $alters[] = "ADD COLUMN substitute_opt_in TINYINT(1) NOT NULL DEFAULT 0";
+        }
+
+        // ✅ Per-person reminder channel preferences (2026-07-21): email
+        // defaults ON so every existing person's behavior is unchanged
+        // (they already always got the 24h email reminder); SMS defaults
+        // OFF — nobody gets texted just because the parish turned on
+        // Twilio, only people who explicitly opt in on their own
+        // dashboard (see ReminderPreferencesShortcode).
+        if (!isset($have['email_reminder_opt_in'])) {
+            $alters[] = "ADD COLUMN email_reminder_opt_in TINYINT(1) NOT NULL DEFAULT 1";
+        }
+        if (!isset($have['sms_reminder_opt_in'])) {
+            $alters[] = "ADD COLUMN sms_reminder_opt_in TINYINT(1) NOT NULL DEFAULT 0";
+        }
+
+        // ✅ Configurable reminder lead time (2026-07-21): replaces a
+        // hardcoded "always 24h before" — a fixed offset reproduces the
+        // same clock time every day (a 3am hour's reminder would also
+        // land at 3am the day before), so each person can pick an offset
+        // that lands at a reasonable hour for their own schedule. Default
+        // 24 preserves today's exact behavior for every existing person.
+        // (ReminderScheduler::schedule_24h()/NotificationService::send_reminder_24h()
+        // keep their "24h" names — see those files — even though the
+        // actual offset is now per-person.)
+        if (!isset($have['reminder_lead_hours'])) {
+            $alters[] = "ADD COLUMN reminder_lead_hours SMALLINT UNSIGNED NOT NULL DEFAULT 24";
         }
 
         // ✅ Clergy title + parish profile fields (2026-07-16): e.g. "Fr.",

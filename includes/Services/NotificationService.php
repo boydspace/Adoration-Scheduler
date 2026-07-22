@@ -869,7 +869,12 @@ class NotificationService
         return (int)$val;
     }
 
-    private static function replace_tokens(string $text, array $args): string
+    /**
+     * Public (was private) so SmsService can reuse the same merge-tag map
+     * for the SMS reminder template instead of duplicating it — no
+     * behavior change for existing callers.
+     */
+    public static function replace_tokens(string $text, array $args): string
     {
         $schedule_title = (string)($args['schedule_title'] ?? $args['schedule_name'] ?? '');
         $schedule_name  = (string)($args['schedule_name'] ?? $args['schedule_title'] ?? '');

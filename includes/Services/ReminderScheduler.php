@@ -78,7 +78,12 @@ class ReminderScheduler {
     }
 
     /**
-     * Compute the reminder timestamp (UTC epoch seconds) = slot_start - 24 hours.
+     * Compute the reminder timestamp (UTC epoch seconds) = slot_start minus
+     * the signed-up person's own configured lead time (default 24h,
+     * ReminderScheduler::schedule_24h()/NotificationService::send_reminder_24h()
+     * keep their "24h" names for historical/data-key reasons — see
+     * PersonsRepository::get_reminder_lead_hours() — even though the
+     * actual offset is per-person now; see ReminderPreferencesShortcode).
      *
      * Key fixes:
      * - Prefer the SLOT occurrence date (not signup['date'] which may be "created date" or otherwise not the occurrence).
@@ -88,6 +93,7 @@ class ReminderScheduler {
     private function compute_remind_timestamp(int $signup_id): ?int {
         $signups = new SignupsRepository();
         $slots   = new SlotsRepository();
+        $persons = new PersonsRepository();
 
         $signup = $signups->find($signup_id);
         if (!$signup || ($signup['status'] ?? '') !== 'confirmed') return null;
@@ -97,6 +103,10 @@ class ReminderScheduler {
 
         $slot = $slots->find($slot_id);
         if (!$slot) return null;
+
+        $person_id  = (int)($signup['person_id'] ?? 0);
+        $person     = $person_id > 0 ? $persons->find($person_id) : null;
+        $lead_hours = $person ? $persons->get_reminder_lead_hours($person) : 24;
 
         // ✅ Prefer the slot occurrence date/time (that’s what the person is actually signed up for)
         $date  = trim((string)($slot['date'] ?? ''));
@@ -117,7 +127,7 @@ class ReminderScheduler {
             return null;
         }
 
-        $remind_ts = $slot_ts - DAY_IN_SECONDS;
+        $remind_ts = $slot_ts - ($lead_hours * HOUR_IN_SECONDS);
 
         // Don’t schedule in the past (or within 60 seconds)
         if ($remind_ts <= (time() + 60)) {
@@ -133,6 +143,7 @@ class ReminderScheduler {
             error_log('[AdorationScheduler] ReminderScheduler computed signup_id=' . (int)$signup_id
                 . ' slot_date=' . $date
                 . ' slot_start=' . $start
+                . ' lead_hours=' . $lead_hours
                 . ' slot_utc=' . gmdate('c', $slot_ts)
                 . ' remind_utc=' . gmdate('c', $remind_ts));
         }
@@ -208,6 +219,7 @@ class ReminderScheduler {
         $first = trim((string)($person['first_name'] ?? $person['first'] ?? ''));
         $last  = trim((string)($person['last_name'] ?? $person['last'] ?? ''));
         $title = trim((string)($person['title'] ?? ''));
+        $phone = trim((string)($person['phone'] ?? ''));
 
         $person_name = trim((string)($person['name'] ?? ''));
         if ($person_name === '') {
@@ -241,12 +253,23 @@ class ReminderScheduler {
             $checkin_url = '';
         }
 
-        NotificationService::send_reminder_24h([
+        // ✅ Per-person reminder channel preferences (2026-07-21): each
+        // person chooses these themselves on [adoration_reminder_preferences]
+        // — email defaults on (unchanged from before this existed), SMS
+        // defaults off. Falls back to the same defaults if $person is
+        // somehow null (shouldn't happen given the email-address check
+        // above, but never let a lookup gap silently suppress the email
+        // reminder that would otherwise always go out).
+        $email_opt_in = $person ? $persons->is_email_reminder_opt_in($person) : true;
+        $sms_opt_in   = $person ? $persons->is_sms_reminder_opt_in($person) : false;
+
+        $reminder_args = [
             'to_email'       => $to,
             'title'          => $title,
             'first_name'     => $first,
             'last_name'      => $last,
             'person_name'    => $person_name,
+            'phone'          => $phone,
             'schedule_title' => $schedule_title,
             'schedule_name'  => $schedule_title,
             'slot_date'      => $date,
@@ -255,8 +278,23 @@ class ReminderScheduler {
             'slot_label'     => $slot_label,
             'checkin_url'    => $checkin_url,
             'context'        => 'system',
-            'send'           => true,
+            'send'           => $email_opt_in,
+            'sms_reminder_opt_in' => $sms_opt_in,
             'signup_id'      => $signup_id, // deterministic dedupe
-        ]);
+        ];
+
+        NotificationService::send_reminder_24h($reminder_args);
+
+        // ✅ SMS reminders (Twilio): best-effort, mirrors the email call
+        // above — never lets an SMS failure affect the (already-sent)
+        // email reminder. No-ops entirely if SMS isn't configured or the
+        // person has no usable phone number (see SmsService::send_reminder_sms()).
+        try {
+            if (class_exists(SmsService::class)) {
+                SmsService::send_reminder_sms($reminder_args);
+            }
+        } catch (\Throwable $e) {
+            error_log('[AdorationScheduler] SMS reminder threw for signup_id=' . $signup_id . ': ' . $e->getMessage());
+        }
     }
 }

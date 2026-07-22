@@ -8,6 +8,7 @@ use AdorationScheduler\Frontend\Shortcodes\NeededReplacementsShortcode;
 use AdorationScheduler\Frontend\Shortcodes\MyReplacementRequestsShortcode;
 use AdorationScheduler\Frontend\Shortcodes\ProfileCardShortcode;
 use AdorationScheduler\Frontend\Shortcodes\CalendarSubscribeShortcode;
+use AdorationScheduler\Frontend\Shortcodes\ReminderPreferencesShortcode;
 
 /**
  * Backs the AJAX conversion of the My Adoration dashboard family (see
@@ -33,6 +34,7 @@ class WidgetRerenderAjax
         'adoration_my_replacement_requests' => MyReplacementRequestsShortcode::class,
         'adoration_profile_card'            => ProfileCardShortcode::class,
         'adoration_calendar_subscribe'      => CalendarSubscribeShortcode::class,
+        'adoration_reminder_preferences'    => ReminderPreferencesShortcode::class,
     ];
 
     public static function register(): void

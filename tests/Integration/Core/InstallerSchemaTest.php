@@ -32,7 +32,7 @@ class InstallerSchemaTest extends AdorationIntegrationTestCase
             $prefix . 'date_patterns'        => ['id', 'schedule_id', 'date', 'day_of_week', 'week_of_month'],
             $prefix . 'segments'             => ['id', 'schedule_id', 'date_pattern_id', 'start_time', 'end_time'],
             $prefix . 'slots'                => ['id', 'schedule_id', 'chapel_id', 'date', 'start_time', 'end_time', 'start_at', 'end_at', 'max_adorers'],
-            $prefix . 'persons'              => ['id', 'wp_user_id', 'first_name', 'last_name', 'title', 'email', 'phone', 'approval_status', 'calendar_token'],
+            $prefix . 'persons'              => ['id', 'wp_user_id', 'first_name', 'last_name', 'title', 'email', 'phone', 'approval_status', 'calendar_token', 'email_reminder_opt_in', 'sms_reminder_opt_in', 'reminder_lead_hours'],
             $prefix . 'signups'              => ['id', 'person_id', 'schedule_id', 'slot_id', 'date', 'status', 'is_active', 'needs_replacement'],
             $prefix . 'standing_commitments' => ['id', 'schedule_id', 'person_id'],
             $prefix . 'waitlist'             => ['id'],

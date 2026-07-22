@@ -229,6 +229,33 @@ class SignupsRepository {
     }
 
     /**
+     * ✅ Reminder lead-time rescheduling (2026-07-21): just the ids, no
+     * joins — used by ReminderPreferencesHandler to unschedule + reschedule
+     * a person's already-pending reminders after they change their lead
+     * time, so the change takes effect on signups made before the
+     * preference was saved, not only ones made after. Deliberately not a
+     * reuse of list_for_person() below (that does a 3-table join for full
+     * display data this doesn't need).
+     */
+    public function list_upcoming_confirmed_ids_for_person(int $person_id): array {
+        global $wpdb;
+
+        $person_id = (int)$person_id;
+        if ($person_id <= 0) return [];
+
+        $today = wp_date('Y-m-d');
+
+        $sql = $wpdb->prepare(
+            "SELECT id FROM {$this->table} WHERE person_id = %d AND status = 'confirmed' AND date >= %s",
+            $person_id,
+            $today
+        );
+
+        $ids = $wpdb->get_col($sql);
+        return array_map('intval', (array)$ids);
+    }
+
+    /**
      * ✅ List signups for a person (optionally only confirmed).
      * Includes schedule_name/schedule_slug (if schedules table exists)
      * AND slot timing fields (if slots table exists).

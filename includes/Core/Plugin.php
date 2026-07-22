@@ -733,6 +733,19 @@ class Plugin {
                 }
             });
 
+            // ✅ SMS Reminders settings page (Twilio credentials + 24h reminder text)
+            add_action('admin_init', function () use ($includes_dir) {
+                $path = $includes_dir . '/Admin/Pages/SmsSettingsPage.php';
+                if (is_file($path)) {
+                    require_once $path;
+
+                    if (class_exists('\\AdorationScheduler\\Admin\\Pages\\SmsSettingsPage')
+                        && method_exists('\\AdorationScheduler\\Admin\\Pages\\SmsSettingsPage', 'register')) {
+                        \AdorationScheduler\Admin\Pages\SmsSettingsPage::register();
+                    }
+                }
+            });
+
             // ✅ No-show Alerts settings page (unchecked-in-past-grace admin digest)
             add_action('admin_init', function () use ($includes_dir) {
                 $path = $includes_dir . '/Admin/Pages/NoShowAlertsSettingsPage.php';
@@ -968,6 +981,19 @@ class Plugin {
             error_log('[AdorationScheduler] UpdateContactInfoHandler missing or no register() method: ' . $updateContactHandler);
         }
 
+        // ✅ Frontend: per-person reminder channel preferences (email/SMS)
+        self::require_first_existing($includes_dir, [
+            'Frontend/Handlers/ReminderPreferencesHandler.php',
+            'Frontend/handlers/ReminderPreferencesHandler.php',
+        ]);
+
+        $reminderPreferencesHandler = 'AdorationScheduler\\Frontend\\Handlers\\ReminderPreferencesHandler';
+        if (class_exists($reminderPreferencesHandler) && method_exists($reminderPreferencesHandler, 'register')) {
+            $reminderPreferencesHandler::register();
+        } else {
+            error_log('[AdorationScheduler] ReminderPreferencesHandler missing or no register() method: ' . $reminderPreferencesHandler);
+        }
+
         // Notifications
         self::require_first_existing($includes_dir, [
             'Services/NotificationService.php',
@@ -1138,6 +1164,7 @@ class Plugin {
             'MyScheduleShortcode',
             'NeededReplacementsShortcode',
             'ProfileCardShortcode',
+            'ReminderPreferencesShortcode',
             'AccountStatusShortcode',
             'MyReplacementRequestsShortcode',
             'NextAdorationHourShortcode',

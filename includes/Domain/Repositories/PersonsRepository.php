@@ -644,11 +644,14 @@ class PersonsRepository {
                 'password_hash'     => null,
                 'password_set_at'   => null,
                 'substitute_opt_in' => 0,
+                'email_reminder_opt_in' => 1,
+                'sms_reminder_opt_in'   => 0,
+                'reminder_lead_hours'   => 24,
                 'calendar_token'    => null,
                 'anonymized_at'     => gmdate('Y-m-d H:i:s'),
             ],
             ['id' => $person_id],
-            ['%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s'],
+            ['%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%d', '%d', '%s', '%s'],
             ['%d']
         );
 
@@ -749,6 +752,63 @@ class PersonsRepository {
             ['substitute_opt_in' => $opt_in ? 1 : 0],
             ['id' => $person_id],
             ['%d'],
+            ['%d']
+        );
+
+        return $res !== false;
+    }
+
+    // -------------------------------------------------------------------------
+    // REMINDER CHANNEL PREFERENCES (2026-07-21): per-person opt-in for the
+    // 24h reminder, separate from the admin-level "is SMS configured at
+    // all" switch on SmsSettingsPage. See ReminderPreferencesShortcode.
+    // -------------------------------------------------------------------------
+
+    /**
+     * Defaults true (not false-if-missing like is_sms_reminder_opt_in())
+     * because the column default is 1 — every existing person already
+     * always got the email reminder, and this must never silently become
+     * an opt-out just because the key happened to be absent.
+     */
+    public function is_email_reminder_opt_in(array $person): bool {
+        return !isset($person['email_reminder_opt_in']) || (bool)$person['email_reminder_opt_in'];
+    }
+
+    public function is_sms_reminder_opt_in(array $person): bool {
+        return !empty($person['sms_reminder_opt_in']);
+    }
+
+    /**
+     * How many hours before their slot this person wants to be reminded.
+     * A fixed "always 24h before" reproduces the same clock time every
+     * day — bad for very early/late slots — so this is configurable per
+     * person; see ReminderScheduler::compute_remind_timestamp(). Clamped
+     * to [1, 168] (1 hour to 1 week) and defaults to 24 for missing/zero/
+     * invalid values, same defensive posture as is_email_reminder_opt_in().
+     */
+    public function get_reminder_lead_hours(array $person): int {
+        $hours = isset($person['reminder_lead_hours']) ? (int)$person['reminder_lead_hours'] : 24;
+        if ($hours < 1)   return 24;
+        if ($hours > 168) return 168;
+        return $hours;
+    }
+
+    public function set_reminder_preferences(int $person_id, bool $email_opt_in, bool $sms_opt_in, int $lead_hours): bool {
+        global $wpdb;
+
+        if ($person_id <= 0) return false;
+
+        $lead_hours = max(1, min(168, $lead_hours));
+
+        $res = $wpdb->update(
+            $this->table,
+            [
+                'email_reminder_opt_in' => $email_opt_in ? 1 : 0,
+                'sms_reminder_opt_in'   => $sms_opt_in ? 1 : 0,
+                'reminder_lead_hours'   => $lead_hours,
+            ],
+            ['id' => $person_id],
+            ['%d', '%d', '%d'],
             ['%d']
         );
 
