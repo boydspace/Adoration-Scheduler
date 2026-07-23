@@ -16,9 +16,6 @@ class AdminResendEmailAjaxService
     public static function register(): void
     {
         add_action('wp_ajax_adoration_signup_resend', [__CLASS__, 'handle']);
-
-        // Debug: confirm registration
-        error_log('[AdorationScheduler] AdminResendEmailAjaxService registered wp_ajax_adoration_signup_resend');
     }
 
     private static function audit_log(int $signup_id, string $event_type, array $meta = []): void
@@ -69,7 +66,9 @@ class AdminResendEmailAjaxService
             if (method_exists($cls, $m)) {
                 try {
                     $ok = (bool) $cls::$m($args);
-                    error_log('[AdorationScheduler] Resend used NotificationService::' . $m . '() -> ' . ($ok ? 'true' : 'false'));
+                    if (defined('WP_DEBUG') && WP_DEBUG) {
+                        error_log('[AdorationScheduler] Resend used NotificationService::' . $m . '() -> ' . ($ok ? 'true' : 'false'));
+                    }
                     return $ok;
                 } catch (\Throwable $e) {
                     error_log('[AdorationScheduler] NotificationService::' . $m . ' threw: ' . $e->getMessage());
@@ -95,7 +94,9 @@ class AdminResendEmailAjaxService
                         $ok = (bool) $cls::$m($args2);
                     }
 
-                    error_log('[AdorationScheduler] Resend used NotificationService::' . $m . '() -> ' . ($ok ? 'true' : 'false'));
+                    if (defined('WP_DEBUG') && WP_DEBUG) {
+                        error_log('[AdorationScheduler] Resend used NotificationService::' . $m . '() -> ' . ($ok ? 'true' : 'false'));
+                    }
                     return $ok;
 
                 } catch (\Throwable $e) {
@@ -133,9 +134,6 @@ class AdminResendEmailAjaxService
 
     public static function handle(): void
     {
-        // Debug: confirm handler is being hit
-        error_log('[AdorationScheduler] AdminResendEmailAjaxService::handle fired');
-
         if ( ! current_user_can('manage_options') ) {
             wp_send_json_error(['message' => 'Forbidden'], 403);
         }

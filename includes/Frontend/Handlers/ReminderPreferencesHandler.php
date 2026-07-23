@@ -78,20 +78,39 @@ class ReminderPreferencesHandler
         }
 
         // Checkboxes are only present in POST when checked — absence means "off".
-        $email_opt_in = isset($_POST['email_reminders']) ? 1 : 0;
-        $sms_opt_in   = isset($_POST['sms_reminders']) ? 1 : 0;
+        $email_opt_in = isset($_POST['email_reminders']);
+        $sms_opt_in   = isset($_POST['sms_reminders']);
 
+        $lead_hours = isset($_POST['reminder_lead_hours']) ? (int) $_POST['reminder_lead_hours'] : 24;
+
+        $ok = self::save_and_reschedule($person_id, $email_opt_in, $sms_opt_in, $lead_hours);
+
+        if (!$ok) {
+            self::redirect_with_toast($return, 'Could not save your preferences. Please try again.', 'error');
+        }
+
+        self::redirect_with_toast($return, 'Reminder preferences updated.', 'success');
+    }
+
+    /**
+     * The actual save-plus-reschedule logic, pulled out of handle() so
+     * integration tests can exercise it directly — handle() itself always
+     * ends in exit() via redirect_with_toast()/wp_send_json_*(), which
+     * isn't practical to run under PHPUnit (same rationale as
+     * SignupCancellationService::cancel_signup()).
+     */
+    public static function save_and_reschedule(int $person_id, bool $email_opt_in, bool $sms_opt_in, int $lead_hours): bool
+    {
         // Server-side whitelist, not just trusting the client — falls
         // back to 24 (today's long-standing default) for anything else.
-        $lead_hours = isset($_POST['reminder_lead_hours']) ? (int) $_POST['reminder_lead_hours'] : 24;
         if (!in_array($lead_hours, self::LEAD_HOURS_OPTIONS, true)) {
             $lead_hours = 24;
         }
 
-        $ok = (new PersonsRepository())->set_reminder_preferences($person_id, (bool)$email_opt_in, (bool)$sms_opt_in, $lead_hours);
+        $ok = (new PersonsRepository())->set_reminder_preferences($person_id, $email_opt_in, $sms_opt_in, $lead_hours);
 
         if (!$ok) {
-            self::redirect_with_toast($return, 'Could not save your preferences. Please try again.', 'error');
+            return false;
         }
 
         // ✅ Best-effort reschedule (2026-07-21): schedule_24h() locks in an
@@ -115,6 +134,6 @@ class ReminderPreferencesHandler
             error_log('[AdorationScheduler] ReminderPreferencesHandler reschedule failed for person_id=' . $person_id . ': ' . $e->getMessage());
         }
 
-        self::redirect_with_toast($return, 'Reminder preferences updated.', 'success');
+        return true;
     }
 }

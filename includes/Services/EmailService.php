@@ -213,7 +213,9 @@ class EmailService
             return null;
         }
 
-        error_log('[AdorationScheduler] EmailService build_args OK signup_id=' . $signup_id . ' to=' . $args['to_email']);
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('[AdorationScheduler] EmailService build_args OK signup_id=' . $signup_id . ' to=' . $args['to_email']);
+        }
 
         return $args;
     }

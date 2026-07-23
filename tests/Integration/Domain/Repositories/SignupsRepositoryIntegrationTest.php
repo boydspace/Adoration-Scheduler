@@ -2,6 +2,8 @@
 namespace AdorationScheduler\Tests\Integration\Domain\Repositories;
 
 use AdorationScheduler\Domain\Repositories\SignupsRepository;
+use AdorationScheduler\Domain\Repositories\EmailLogRepository;
+use AdorationScheduler\Services\ReminderScheduler;
 use AdorationScheduler\Tests\Support\AdorationIntegrationTestCase;
 
 /**
@@ -100,5 +102,88 @@ class SignupsRepositoryIntegrationTest extends AdorationIntegrationTestCase
         $this->assertSame('Ignatius', $rows[0]['first_name']);
         $this->assertSame(2, $rows[0]['signup_count']);
         $this->assertSame(120, $rows[0]['total_minutes'], 'Two one-hour slots should sum to 120 minutes via the real TIMESTAMPDIFF/TIMEDIFF SQL.');
+    }
+
+    /**
+     * ✅ Full end-to-end signup path (2026-07-21): the one gap
+     * tests/Integration/README.md flagged as "real end-to-end signup flows"
+     * — create() itself fires a confirmation email AND schedules the 24h
+     * reminder for a real 'confirmed' signup, not just persisting the row.
+     * Verified via EmailLogRepository (what NotificationService::send_mail()
+     * actually records, real or not — see its own docblock) and Action
+     * Scheduler's real schedule, rather than reaching into wp_mail()'s
+     * internals.
+     */
+    public function test_create_fires_confirmation_email_and_schedules_reminder(): void
+    {
+        $chapel_id   = $this->make_chapel();
+        $schedule_id = $this->make_schedule($chapel_id);
+        $date        = gmdate('Y-m-d', strtotime('+10 days'));
+        $slot_id     = $this->make_slot($schedule_id, $chapel_id, [
+            'date' => $date, 'start_time' => '09:00:00', 'end_time' => '10:00:00',
+        ]);
+        $person_id = $this->make_person([
+            'first_name' => 'Kateri',
+            'last_name'  => 'Tekakwitha',
+            'email'      => 'kateri-tekakwitha@example.test',
+        ]);
+
+        $repo = new SignupsRepository();
+        $signup_id = $repo->create([
+            'person_id'   => $person_id,
+            'schedule_id' => $schedule_id,
+            'slot_id'     => $slot_id,
+            'date'        => $date,
+            'status'      => 'confirmed',
+            'created_via' => 'admin',
+        ]);
+
+        $this->assertGreaterThan(0, $signup_id);
+
+        $log = (new EmailLogRepository())->query(['type' => 'signup_confirmation']);
+        $this->assertSame(1, $log['total'], 'Expected exactly one confirmation email attempt logged.');
+        $this->assertSame('kateri-tekakwitha@example.test', $log['rows'][0]['to_email']);
+
+        $expected_slot_ts = strtotime($date . ' 09:00:00 UTC');
+        $scheduled_ts = as_next_scheduled_action(ReminderScheduler::CRON_HOOK, [$signup_id], 'adoration-scheduler');
+        $this->assertSame($expected_slot_ts - DAY_IN_SECONDS, (int)$scheduled_ts, 'Expected the 24h reminder to be scheduled off the real slot time.');
+    }
+
+    /**
+     * The opposite of the test above: create()'s confirmation email is
+     * deliberately skipped when created_via is 'standing_commitment' — the
+     * commitment itself already got one dedicated confirmation email (see
+     * SignupsRepository::create()'s docblock on the duplicate-email bug
+     * this guards against). Reminder scheduling is unaffected.
+     */
+    public function test_create_skips_confirmation_email_for_standing_commitment_signups(): void
+    {
+        $chapel_id   = $this->make_chapel();
+        $schedule_id = $this->make_schedule($chapel_id);
+        $date        = gmdate('Y-m-d', strtotime('+10 days'));
+        $slot_id     = $this->make_slot($schedule_id, $chapel_id, [
+            'date' => $date, 'start_time' => '09:00:00', 'end_time' => '10:00:00',
+        ]);
+        $person_id = $this->make_person([
+            'email' => 'standing-commitment-adorer@example.test',
+        ]);
+
+        $repo = new SignupsRepository();
+        $signup_id = $repo->create([
+            'person_id'   => $person_id,
+            'schedule_id' => $schedule_id,
+            'slot_id'     => $slot_id,
+            'date'        => $date,
+            'status'      => 'confirmed',
+            'created_via' => 'standing_commitment',
+        ]);
+
+        $this->assertGreaterThan(0, $signup_id);
+
+        $log = (new EmailLogRepository())->query(['type' => 'signup_confirmation']);
+        $this->assertSame(0, $log['total'], 'Standing-commitment auto-fills must not send their own per-date confirmation email.');
+
+        $scheduled_ts = as_next_scheduled_action(ReminderScheduler::CRON_HOOK, [$signup_id], 'adoration-scheduler');
+        $this->assertNotFalse($scheduled_ts, 'The 24h reminder should still be scheduled even though the confirmation email is skipped.');
     }
 }

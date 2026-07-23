@@ -159,8 +159,6 @@ class MagicLinkService
      */
     public static function handle_request(): void
     {
-        error_log('[AdorationScheduler] MagicLinkService FILE=' . __FILE__);
-
         // Hard-guard against accidental invocation / misrouted posts.
         $action = isset($_REQUEST['action']) ? (string) $_REQUEST['action'] : '';
         if ($action !== 'adoration_magic_request') {
@@ -169,7 +167,9 @@ class MagicLinkService
 
         $method = isset($_SERVER['REQUEST_METHOD']) ? strtoupper((string)$_SERVER['REQUEST_METHOD']) : '';
         $uri    = isset($_SERVER['REQUEST_URI']) ? (string)$_SERVER['REQUEST_URI'] : '';
-        error_log('[AdorationScheduler] MagicLinkService::handle_request HIT method=' . $method . ' uri=' . $uri);
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('[AdorationScheduler] MagicLinkService::handle_request HIT method=' . $method . ' uri=' . $uri);
+        }
 
         if ($method !== 'POST') {
             wp_safe_redirect(home_url('/'));
@@ -355,7 +355,9 @@ class MagicLinkService
             'token'         => $raw_token,
         ]);
 
-        error_log('[AdorationScheduler] MagicLink send_magic_link sent=' . ($sent ? 'YES' : 'NO') . ' to=' . $email . ' person_id=' . $person_id);
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('[AdorationScheduler] MagicLink send_magic_link sent=' . ($sent ? 'YES' : 'NO') . ' to=' . $email . ' person_id=' . $person_id);
+        }
 
         // Always redirect with success toast, regardless of $sent (avoid leakage)
         self::finish_redirect($success);
@@ -397,7 +399,9 @@ class MagicLinkService
             return;
         }
 
-        error_log('[AdorationScheduler] MagicLinkService::handle_consume HIT url=' . (isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : ''));
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('[AdorationScheduler] MagicLinkService::handle_consume HIT url=' . (isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : ''));
+        }
 
         $t = isset($_GET['t']) ? trim((string) wp_unslash($_GET['t'])) : '';
         $r = isset($_GET['r']) ? (string) wp_unslash($_GET['r']) : '';
@@ -531,7 +535,9 @@ class MagicLinkService
             return false;
         }
 
-        error_log('[AdorationScheduler] SESSION INSERT OK insert_id=' . (int)$wpdb->insert_id);
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('[AdorationScheduler] SESSION INSERT OK insert_id=' . (int)$wpdb->insert_id);
+        }
 
         self::set_session_cookie($session_token_raw);
 
@@ -569,7 +575,9 @@ class MagicLinkService
                     OR (session_token IS NOT NULL AND session_token = %s)",
                 $hash, $hash, $raw
             ));
-            error_log('[AdorationScheduler] Logout deleted_sessions=' . (string)$deleted);
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('[AdorationScheduler] Logout deleted_sessions=' . (string)$deleted);
+            }
         }
 
         self::clear_session_cookie();

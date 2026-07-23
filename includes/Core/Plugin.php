@@ -381,7 +381,9 @@ class Plugin {
                 foreach ($mergeCandidates as $cls) {
                     if (class_exists($cls) && method_exists($cls, 'handle')) {
                         add_action('admin_post_adoration_merge_people', [ $cls, 'handle' ]);
-                        error_log('[AdorationScheduler] Fallback merge hook added -> ' . $cls . '::handle');
+                        if (defined('WP_DEBUG') && WP_DEBUG) {
+                            error_log('[AdorationScheduler] Fallback merge hook added -> ' . $cls . '::handle');
+                        }
                         break;
                     }
                 }
@@ -837,7 +839,9 @@ class Plugin {
             }
         }
 
-        error_log('[AdorationScheduler] Plugin::init complete');
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('[AdorationScheduler] Plugin::init complete');
+        }
     }
 
     /**
@@ -1280,7 +1284,9 @@ class Plugin {
 
             foreach ($methodCandidates as $m) {
                 if (method_exists($class, $m)) {
-                    error_log('[AdorationScheduler] ' . $label . ' using ' . $class . '::' . $m . '()');
+                    if (defined('WP_DEBUG') && WP_DEBUG) {
+                        error_log('[AdorationScheduler] ' . $label . ' using ' . $class . '::' . $m . '()');
+                    }
                     try {
                         $class::$m();
                     } catch (\Throwable $e) {
@@ -1306,7 +1312,9 @@ class Plugin {
         }
         self::$did_admin_menu = true;
 
-        error_log('[AdorationScheduler] Plugin::register_admin_menu fired');
+        if (defined('WP_DEBUG') && WP_DEBUG) {
+            error_log('[AdorationScheduler] Plugin::register_admin_menu fired');
+        }
 
         $menuClass = \AdorationScheduler\Admin\Menu::class;
 

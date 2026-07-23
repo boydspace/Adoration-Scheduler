@@ -43,6 +43,8 @@ For documentation, updates, and support, visit the plugin's website: https://fat
 * Daily coverage-gap alert emails, warning parish staff about unfilled hours coming up soon
 * Parish announcements shortcode for the portal, with an optional public front-page feed and an image-carousel slider when several are live
 * Email confirmations, reminders, and cancellations, plus an admin email log and resend tools
+* Optional SMS text reminders via Twilio, with each adorer separately choosing their own channel(s) and reminder lead time
+* No-account adorers: admins can add someone to a one-time signup or a standing weekly commitment with no email address at all, for adorers who don't want an online account
 * Signup audit trail for accountability
 * Privacy controls for public listings and a consolidated, simplified admin menu
 
@@ -130,7 +132,19 @@ Visit https://fatherboyd.com/adoration-scheduler for documentation and updates.
 == Changelog ==
 
 = 1.0.0 =
-* Initial release, since expanded with perpetual and monthly recurring schedules, a modular "My Adoration" portal, replacement requests (including direct-to-person requests), coverage-gap alerts, parish announcements, and an optional approval-gated access system.
+* Three schedule types: single/multi-day events, weekly perpetual adoration with standing commitments, and monthly nth-weekday devotions.
+* Secure magic-link email sign-in with an optional password, and an optional approval-gated access system.
+* A modular "My Adoration" portal built from composable shortcodes.
+* Replacement requests, including direct-to-person requests, plus waitlists with automatic promotion when a spot opens up.
+* Editable email templates with merge tags and a send-test tool, plus optional SMS text reminders via Twilio with per-person channel and lead-time preferences.
+* Coverage-gap and no-show alert digests for parish staff.
+* Parish announcements, with an optional public front-page feed.
+* Attendance and check-in: self-report links, a per-chapel kiosk page, and an admin Attendance page.
+* Bulk roster import/export (CSV/XLSX), printable rosters, and a Coverage Report with CSV export.
+* No-account adorers: admins can add someone to the schedule with no email address at all.
+* Self-service "Download My Data" export and "Delete My Account."
+* First-run Setup Wizard and a "Finish setting up" Dashboard checklist.
+* Signup audit trail, admin email log with resend tools, and an accessibility pass on public-facing pages.
 
 == Upgrade Notice ==
 

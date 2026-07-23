@@ -582,7 +582,9 @@ class SignupHandler {
 
             $signup_id = $ex_id;
             $wpdb->query('COMMIT');
-            error_log('[AdorationScheduler] Public signup reactivated signup_id=' . $signup_id);
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('[AdorationScheduler] Public signup reactivated signup_id=' . $signup_id);
+            }
 
         } else {
             // No existing row for this person+slot -> insert new
@@ -615,7 +617,9 @@ class SignupHandler {
 
             $signup_id = (int)$wpdb->insert_id;
             $wpdb->query('COMMIT');
-            error_log('[AdorationScheduler] Public signup inserted signup_id=' . $signup_id);
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('[AdorationScheduler] Public signup inserted signup_id=' . $signup_id);
+            }
         }
 
         // --- Send confirmation email + schedule reminder (best-effort) --------
@@ -655,7 +659,9 @@ class SignupHandler {
                 'person_id'      => (int)$person_id,
             ]);
 
-            error_log('[AdorationScheduler] Public signup confirmation email signup_id=' . $signup_id . ' sent=' . ($sent ? 'YES' : 'NO'));
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('[AdorationScheduler] Public signup confirmation email signup_id=' . $signup_id . ' sent=' . ($sent ? 'YES' : 'NO'));
+            }
         } catch (\Throwable $e) {
             error_log('[AdorationScheduler] Public signup email exception: ' . $e->getMessage());
         }
@@ -663,7 +669,9 @@ class SignupHandler {
         try {
             $rs = new ReminderScheduler();
             $rs->schedule_24h($signup_id);
-            error_log('[AdorationScheduler] ReminderScheduler scheduled 24h reminder signup_id=' . $signup_id);
+            if (defined('WP_DEBUG') && WP_DEBUG) {
+                error_log('[AdorationScheduler] ReminderScheduler scheduled 24h reminder signup_id=' . $signup_id);
+            }
         } catch (\Throwable $e) {
             error_log('[AdorationScheduler] ReminderScheduler exception: ' . $e->getMessage());
         }

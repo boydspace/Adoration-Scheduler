@@ -25,10 +25,6 @@ class Autoloader {
 
         if ( file_exists( $file ) ) {
             require_once $file;
-            return;
         }
-
-        // TEMP debug line (remove later)
-        error_log('[AdorationScheduler] Autoloader miss: ' . $class . ' => ' . $file);
     }
 }

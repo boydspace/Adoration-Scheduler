@@ -206,8 +206,12 @@ class SignupCancellationService
      *
      * Returns false if:
      * - row not found / not owned by this person
+     *
+     * Public (was private) so integration tests can exercise the actual
+     * cancel logic directly — handle() itself always ends in exit() via
+     * finish_redirect(), which isn't practical to run under PHPUnit.
      */
-    private static function cancel_signup(int $signup_id, int $person_id): bool
+    public static function cancel_signup(int $signup_id, int $person_id): bool
     {
         global $wpdb;
 

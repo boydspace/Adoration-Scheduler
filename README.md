@@ -30,6 +30,8 @@ Adoration Scheduler turns WordPress into a complete Eucharistic Adoration schedu
 
 ### Communications
 - Automatic email confirmations, reminders, and cancellations — every outgoing email is editable from Email Templates, with merge tags and a send-test tool.
+- Optional SMS text reminders via Twilio, alongside the existing email reminder — a parish enables SMS as an option, but each adorer separately chooses whether they want it, on their own "Reminder Preferences" dashboard widget.
+- Per-person reminder preferences: each adorer chooses which channel(s) (email, text, both, or neither) and how many hours before their hour they're reminded — configurable lead time avoids, for example, a text arriving at 3am the day before a 3am hour.
 - Daily coverage-gap alert emails warning staff about unfilled hours coming up soon, with a configurable time window and recipient address.
 - Parish announcements shortcode for the portal.
 - Admin email log with resend tools.
@@ -47,6 +49,7 @@ Adoration Scheduler turns WordPress into a complete Eucharistic Adoration schedu
 - Coverage Report — hours served per person and month-by-month fill rate over any date range, each with CSV export, for stewardship recognition and year-end reports.
 - First-run Setup Wizard shown once right after activation, plus a persistent "Finish setting up" checklist on the Dashboard for anyone who skips it — walks a new install through creating a schedule, adding hours, activating it, and deciding on the approval gate.
 - Accessibility pass on the public-facing signup pages and the "My Adoration" portal: properly labeled form fields, keyboard-trapped and focus-returning modals, screen-reader-friendly table headers and button names, and status indicators that don't rely on color alone.
+- No-account adorers: an admin can add someone directly to a one-time signup or a standing weekly commitment with no email address at all, for adorers who don't want (or can't use) an online account. If they later decide they want one, giving them a real email from the People page automatically emails them a "you can now sign in" notice.
 
 ### Attendance and check-in
 - Three no-login ways to record who actually showed up: a self-report "I'm here" / "I'm leaving" link in the confirmation and reminder emails and on the My Adoration portal, a per-chapel kiosk page (printable as a QR code for the chapel entrance) showing who's on the clock right now, and an admin Attendance page for marking present/absent by hand.
@@ -103,12 +106,12 @@ service container.
 
 ## Roadmap
 
-- SMS reminders (pending a provider decision)
+No open items at the moment — SMS reminders (the last roadmap item) shipped. Future work will be tracked here as it comes up.
 
 ## Development status
 
-Adoration Scheduler is under active development. Test upgrades carefully before using a development build with irreplaceable parish scheduling data.
+Adoration Scheduler has reached its 1.0 release. As with any WordPress plugin, test upgrades on a staging site before applying them where irreplaceable parish scheduling data is at stake.
 
 ## License
 
-License information will be added before the first public release.
+GPLv2 or later. See [LICENSE](LICENSE) for the full text.
