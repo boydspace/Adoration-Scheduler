@@ -1,0 +1,42 @@
+name: Deploy to WordPress.org
+
+# NOT active yet — manual-trigger only. This needs SVN_USERNAME and
+# SVN_PASSWORD secrets from an approved WordPress.org plugin listing,
+# which doesn't exist until the initial manual submission (via
+# https://wordpress.org/plugins/developers/add/) has been reviewed and
+# approved. There is no API for that submission/review step — it's a
+# one-time action only a maintainer can do.
+#
+# Once approved:
+#   1. Add SVN_USERNAME / SVN_PASSWORD in this repo's Settings > Secrets
+#      and variables > Actions.
+#   2. Run this workflow manually from the Actions tab per release (as
+#      set up below), or change the `on:` trigger to match release.yml
+#      (`push: tags: ['[0-9]+.[0-9]+.[0-9]+']`) to deploy automatically
+#      alongside each GitHub Release.
+#
+# 10up/action-wordpress-plugin-deploy reads the same .gitattributes
+# export-ignore rules release.yml's zip does, so the WordPress.org SVN
+# copy and the GitHub Release zip always contain exactly the same files.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Git tag to deploy (e.g. 1.0.0)'
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag }}
+
+      - name: WordPress Plugin Deploy
+        uses: 10up/action-wordpress-plugin-deploy@stable
+        env:
+          SVN_USERNAME: ${{ secrets.SVN_USERNAME }}
+          SVN_PASSWORD: ${{ secrets.SVN_PASSWORD }}
+          SLUG: adoration-scheduler

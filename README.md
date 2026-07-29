@@ -61,7 +61,7 @@ Adoration Scheduler turns WordPress into a complete Eucharistic Adoration schedu
 - WordPress 6.2 or newer
 - PHP 8.0 or newer
 - MySQL or MariaDB
-- No external services required
+- No external services required for core functionality. SMS text reminders are an optional feature — if enabled, and only for adorers who individually opt in, the plugin sends the reminder text and the recipient's phone number to Twilio's API to be delivered.
 
 ## Installation
 

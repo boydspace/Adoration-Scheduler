@@ -25,7 +25,7 @@ This plugin prioritizes:
 * Safe handling of personal data
 * Reliability for long-running schedules
 
-No external services are required.
+No external services are required for core functionality. SMS text reminders are an optional feature that uses Twilio if a site administrator enables it — see "External Services" below.
 
 For documentation, updates, and support, visit the plugin's website: https://fatherboyd.com/adoration-scheduler
 
@@ -128,6 +128,18 @@ An adorer who can't make their scheduled hour can request a replacement instead 
 = Where can I get more information or support? =
 
 Visit https://fatherboyd.com/adoration-scheduler for documentation and updates.
+
+== External Services ==
+
+This plugin optionally connects to Twilio's SMS API to deliver text message reminders. This only happens if:
+
+1. A site administrator enables SMS reminders and enters their own Twilio account credentials (Account SID, Auth Token, and phone number) under Adoration Scheduler > SMS Reminders, AND
+2. An individual adorer separately opts in to text reminders on their own "Reminder Preferences" dashboard widget.
+
+If both conditions are met, this plugin sends the adorer's phone number and a reminder message (which includes their name and adoration schedule details) to Twilio's API (api.twilio.com) so it can be delivered as a text message. No data is sent to Twilio for any adorer who has not opted in, and no data is sent to Twilio at all unless an administrator has configured it.
+
+Twilio Terms of Service: https://www.twilio.com/legal/tos
+Twilio Privacy Policy: https://www.twilio.com/legal/privacy
 
 == Changelog ==
 

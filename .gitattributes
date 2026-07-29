@@ -1,0 +1,20 @@
+# Distribution packaging.
+#
+# `git archive` (what GitHub's "Download ZIP" button, GitHub Releases
+# source archives, and this repo's own release-zip Action all build on)
+# skips anything marked export-ignore below, so the zip a parish actually
+# installs only contains what the plugin needs to run — no test suite, no
+# CI config, no dev-only tooling. The plugin has no runtime Composer
+# dependencies (see composer.json's "require" — just a PHP version
+# constraint), so none of this affects functionality.
+
+/tests                          export-ignore
+/.github                        export-ignore
+/images                         export-ignore
+/phpunit.xml.dist                export-ignore
+/phpunit-integration.xml.dist   export-ignore
+/composer.json                   export-ignore
+/composer.lock                   export-ignore
+/README.md                       export-ignore
+/.gitattributes                 export-ignore
+/.gitignore                      export-ignore
