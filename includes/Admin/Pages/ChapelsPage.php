@@ -225,8 +225,61 @@ class ChapelsPage {
         echo '</p>';
         echo '<p>';
         echo '<a class="button" href="' . esc_url($kiosk_url) . '" target="_blank" rel="noopener">' . esc_html__('Open kiosk page', 'adoration-scheduler') . '</a> ';
-        echo '<a class="button" href="' . esc_url($regen_url) . '" onclick="return confirm(' . esc_attr(wp_json_encode(__('Reset this link? Any printed QR code will stop working.', 'adoration-scheduler'))) . ');">' . esc_html__('Reset link', 'adoration-scheduler') . '</a>';
+        echo '<a class="button" href="' . esc_url($regen_url) . '" onclick="return confirm(' . esc_attr(wp_json_encode(__('Reset this link? Any printed QR code will stop working.', 'adoration-scheduler'))) . ');">' . esc_html__('Reset link', 'adoration-scheduler') . '</a> ';
+        echo '<button type="button" class="button" onclick="window.print();">' . esc_html__('Print QR code', 'adoration-scheduler') . '</button>';
         echo '</p>';
+
+        echo '<div id="adoration-kiosk-qr" data-kiosk-url="' . esc_attr($kiosk_url) . '" style="margin-top:12px;"><p class="description">' . esc_html__('Generating QR code…', 'adoration-scheduler') . '</p></div>';
+
+        $this->enqueue_kiosk_qr_script();
+    }
+
+    /**
+     * Renders the printable QR code client-side (see assets/qrcode.js — a
+     * vendored, independently-verified QR encoder) rather than shipping a
+     * PHP port, since this is the only place in the plugin that needs one.
+     */
+    private function enqueue_kiosk_qr_script(): void {
+        static $done = false;
+        if ($done) return;
+        $done = true;
+
+        $lib_path = ADORATION_SCHEDULER_DIR . 'assets/qrcode.js';
+        $lib_js = file_exists($lib_path) ? (string) file_get_contents($lib_path) : '';
+        if ($lib_js === '') return;
+
+        wp_register_script('adoration-scheduler-kiosk-qr', '', [], null, true);
+        wp_enqueue_script('adoration-scheduler-kiosk-qr');
+        wp_add_inline_script('adoration-scheduler-kiosk-qr', $lib_js);
+
+        $wire_js = <<<JS
+(function(){
+    var el = document.getElementById('adoration-kiosk-qr');
+    if (!el || !window.AdorationQR) return;
+    var url = el.getAttribute('data-kiosk-url') || '';
+    if (!url) return;
+    try {
+        var matrix = window.AdorationQR.generateMatrix(url, 'M');
+        var svg = window.AdorationQR.toSvg(matrix, { moduleSize: 5, margin: 3 });
+        el.innerHTML = svg;
+        var svgEl = el.querySelector('svg');
+        if (svgEl) {
+            svgEl.style.display = 'block';
+            svgEl.style.maxWidth = '260px';
+            svgEl.style.width = '100%';
+            svgEl.style.height = 'auto';
+            svgEl.style.border = '1px solid #dcdcde';
+            svgEl.style.borderRadius = '8px';
+            svgEl.style.padding = '12px';
+            svgEl.style.background = '#fff';
+        }
+    } catch (e) {
+        el.textContent = '';
+    }
+})();
+JS;
+
+        wp_add_inline_script('adoration-scheduler-kiosk-qr', $wire_js);
     }
 
     private function render_form(array $chapel): void {

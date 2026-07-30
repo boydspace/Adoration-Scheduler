@@ -213,6 +213,19 @@ class CheckInService
         $checkin_action_url = admin_url('admin-post.php');
         $notice = isset($_GET['done']) ? sanitize_key((string) wp_unslash($_GET['done'])) : '';
 
+        // ✅ Kiosk polish (2026-07-30): the URL a printed QR code points at
+        // never has ?done=... — that only appears right after this device's
+        // own tap-through redirect. Auto-refresh (so a tablet left mounted
+        // at the chapel entrance stays current without staff touching it)
+        // targets this clean URL, and the address bar is swapped to it via
+        // replaceState as soon as the page loads, so the confirmation
+        // banner doesn't reappear on every refresh.
+        $clean_kiosk_url = add_query_arg(
+            ['action' => self::ACTION_KIOSK_PAGE, 'token' => $token],
+            admin_url('admin-post.php')
+        );
+        $refresh_ms = 45000;
+
         ob_start();
         ?>
         <!DOCTYPE html>
@@ -222,18 +235,24 @@ class CheckInService
             <meta name="viewport" content="width=device-width, initial-scale=1">
             <title><?php echo esc_html($chapel_name); ?> — Check In</title>
             <style>
-                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background:#f6f7f7; margin:0; padding:24px 16px; color:#1d2327; }
-                .wrap { max-width: 480px; margin: 0 auto; }
-                h1 { font-size: 22px; margin: 0 0 4px; }
-                p.sub { color:#646970; margin: 0 0 20px; }
-                .notice { background:#e4f5e9; border:1px solid #00a32a; color:#10521c; border-radius:8px; padding:10px 14px; margin-bottom:16px; font-size:14px; }
+                * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+                body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 18px; background:#f2f3f4; margin:0; padding:28px 18px 60px; color:#1d2327; }
+                .wrap { max-width: 560px; margin: 0 auto; }
+                h1 { font-size: 26px; margin: 0 0 4px; }
+                p.sub { color:#646970; margin: 0 0 20px; font-size: 16px; }
+                .notice { background:#e4f5e9; border:1px solid #00a32a; color:#10521c; border-radius:8px; padding:12px 16px; margin-bottom:18px; font-size:16px; }
                 ul { list-style:none; margin:0; padding:0; }
-                li { background:#fff; border:1px solid #dcdcde; border-radius:10px; margin-bottom:12px; padding:14px 16px; display:flex; align-items:center; justify-content:space-between; gap:12px; }
-                .name { font-size:17px; font-weight:600; }
-                .time { display:block; font-size:13px; color:#646970; font-weight:400; margin-top:2px; }
-                button { font-size:16px; font-weight:600; padding:12px 18px; border-radius:8px; border:1px solid #2271b1; background:#2271b1; color:#fff; cursor:pointer; min-height:44px; }
-                button[disabled] { opacity:.5; cursor:default; }
-                .empty { background:#fff; border:1px solid #dcdcde; border-radius:10px; padding:24px 16px; text-align:center; color:#646970; }
+                li { background:#fff; border:1px solid #dcdcde; border-left:6px solid #dcdcde; border-radius:10px; margin-bottom:14px; padding:16px 18px; display:flex; align-items:center; justify-content:space-between; gap:14px; }
+                li.state-in { border-left-color:#2271b1; }
+                li.state-out { border-left-color:#dba617; }
+                li.state-done { border-left-color:#00a32a; opacity:.75; }
+                .name { font-size:19px; font-weight:600; }
+                .time { display:block; font-size:14px; color:#646970; font-weight:400; margin-top:2px; }
+                button { font-size:17px; font-weight:600; padding:16px 20px; border-radius:10px; border:1px solid #2271b1; background:#2271b1; color:#fff; cursor:pointer; min-height:52px; min-width:120px; touch-action: manipulation; }
+                button.mode-out { border-color:#dba617; background:#dba617; }
+                button[disabled] { opacity:.6; cursor:default; border-color:#00a32a; background:#00a32a; }
+                .empty { background:#fff; border:1px solid #dcdcde; border-radius:10px; padding:28px 18px; text-align:center; color:#646970; font-size:17px; }
+                .footnote { text-align:center; color:#8c8f94; font-size:12px; margin-top:24px; }
             </style>
         </head>
         <body>
@@ -243,6 +262,8 @@ class CheckInService
 
                 <?php if ($notice === '1'): ?>
                     <div class="notice"><?php esc_html_e("You're checked in. Thank you for your time in prayer.", 'adoration-scheduler'); ?></div>
+                <?php elseif ($notice === '2'): ?>
+                    <div class="notice"><?php esc_html_e("You're checked out. Thank you for your time in prayer.", 'adoration-scheduler'); ?></div>
                 <?php endif; ?>
 
                 <?php if (empty($rows)): ?>
@@ -256,10 +277,25 @@ class CheckInService
                             $last  = trim((string)($row['person_last_name'] ?? ''));
                             $name  = trim($first . ' ' . substr($last, 0, 1)) . (($last !== '') ? '.' : '');
                             if ($name === '') $name = __('(unnamed)', 'adoration-scheduler');
-                            $already_in = !empty($row['checked_in_at']);
+                            $checked_in  = !empty($row['checked_in_at']);
+                            $checked_out = !empty($row['checked_out_at']);
                             $time_lbl = self::format_slot_label($row, $row);
+
+                            if ($checked_out) {
+                                $mode = '';
+                                $label = __("Done ✓", 'adoration-scheduler');
+                                $state_class = 'state-done';
+                            } elseif ($checked_in) {
+                                $mode = 'out';
+                                $label = __("I'm leaving", 'adoration-scheduler');
+                                $state_class = 'state-out';
+                            } else {
+                                $mode = 'in';
+                                $label = __("I'm here", 'adoration-scheduler');
+                                $state_class = 'state-in';
+                            }
                             ?>
-                            <li>
+                            <li class="<?php echo esc_attr($state_class); ?>">
                                 <span>
                                     <span class="name"><?php echo esc_html($name); ?></span>
                                     <?php if ($time_lbl !== ''): ?><span class="time"><?php echo esc_html($time_lbl); ?></span><?php endif; ?>
@@ -268,15 +304,29 @@ class CheckInService
                                     <input type="hidden" name="action" value="<?php echo esc_attr(self::ACTION_KIOSK_CHECKIN); ?>">
                                     <input type="hidden" name="token" value="<?php echo esc_attr($token); ?>">
                                     <input type="hidden" name="signup_id" value="<?php echo (int)$signup_id; ?>">
-                                    <button type="submit" <?php disabled($already_in); ?>>
-                                        <?php echo $already_in ? esc_html__("I'm here ✓", 'adoration-scheduler') : esc_html__("I'm here", 'adoration-scheduler'); ?>
+                                    <input type="hidden" name="mode" value="<?php echo esc_attr($mode); ?>">
+                                    <button type="submit" class="mode-<?php echo esc_attr($mode !== '' ? $mode : 'in'); ?>" <?php disabled($checked_out); ?>>
+                                        <?php echo esc_html($label); ?>
                                     </button>
                                 </form>
                             </li>
                         <?php endforeach; ?>
                     </ul>
                 <?php endif; ?>
+
+                <p class="footnote"><?php esc_html_e('This page refreshes automatically.', 'adoration-scheduler'); ?></p>
             </div>
+            <script>
+                (function () {
+                    var CLEAN_URL = <?php echo wp_json_encode($clean_kiosk_url); ?>;
+                    if (window.history && window.history.replaceState) {
+                        window.history.replaceState(null, '', CLEAN_URL);
+                    }
+                    window.setTimeout(function () {
+                        window.location.href = CLEAN_URL;
+                    }, <?php echo (int) $refresh_ms; ?>);
+                })();
+            </script>
         </body>
         </html>
         <?php
@@ -295,6 +345,8 @@ class CheckInService
 
         $token     = isset($_POST['token']) ? trim((string) wp_unslash($_POST['token'])) : '';
         $signup_id = isset($_POST['signup_id']) ? (int) $_POST['signup_id'] : 0;
+        $mode      = isset($_POST['mode']) ? sanitize_key((string) wp_unslash($_POST['mode'])) : 'in';
+        $mode      = ($mode === 'out') ? 'out' : 'in';
 
         if ($token === '' || $signup_id <= 0) {
             wp_die(esc_html__('Missing check-in information.', 'adoration-scheduler'), 400);
@@ -322,8 +374,13 @@ class CheckInService
         $kiosk_url = self::build_kiosk_url($chapel_id) ?? admin_url('admin-post.php?action=' . self::ACTION_KIOSK_PAGE);
 
         if ($is_current) {
-            $signups_repo->check_in($signup_id, 'kiosk');
-            $kiosk_url = add_query_arg('done', '1', $kiosk_url);
+            if ($mode === 'out') {
+                $signups_repo->check_out($signup_id);
+                $kiosk_url = add_query_arg('done', '2', $kiosk_url);
+            } else {
+                $signups_repo->check_in($signup_id, 'kiosk');
+                $kiosk_url = add_query_arg('done', '1', $kiosk_url);
+            }
         }
 
         wp_safe_redirect($kiosk_url);
