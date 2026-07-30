@@ -10,6 +10,7 @@
 
 /tests                          export-ignore
 /.github                        export-ignore
+/docs                            export-ignore
 /images                         export-ignore
 /phpunit.xml.dist                export-ignore
 /phpunit-integration.xml.dist   export-ignore
