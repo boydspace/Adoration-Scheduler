@@ -4,7 +4,7 @@ Tags: adoration, eucharistic adoration, scheduling, church, parish
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.0.5
+Stable tag: 1.0.6
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -145,6 +145,9 @@ Cloudflare Terms of Service: https://www.cloudflare.com/website-terms/
 Cloudflare Privacy Policy: https://www.cloudflare.com/privacypolicy/
 
 == Changelog ==
+
+= 1.0.6 =
+* WordPress.org submission readiness: fixed real Plugin Check findings in the plugin's own code — unescaped output in admin pages and the public signup shortcode (all confirmed already-safe values, now escaped or annotated at the actual output point), `date()` calls swapped for `gmdate()`, and explicit version arguments added to inline-only script/style registrations.
 
 = 1.0.5 =
 * WordPress.org submission readiness: updated "Tested up to" (was stale), removed a stray readme line that was truncating the plugin's short description, and added missing "translators:" comments (plus numbered placeholders where needed) to ~20 translatable strings.
