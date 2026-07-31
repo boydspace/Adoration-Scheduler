@@ -5,6 +5,7 @@ if ( ! defined('ABSPATH') ) exit;
 
 use AdorationScheduler\Domain\Repositories\SchedulesRepository;
 use AdorationScheduler\Utils\XlsxWriter;
+use AdorationScheduler\Utils\SpreadsheetSafety;
 
 /**
  * CSV/XLSX export of the Schedules list (export-only — unlike People,
@@ -81,7 +82,7 @@ class ScheduleExportService
         $out = fopen('php://output', 'w');
         fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF)); // BOM for Excel
         foreach ($rows as $row) {
-            fputcsv($out, $row);
+            fputcsv($out, SpreadsheetSafety::sanitize_row($row));
         }
         fclose($out);
         exit;

@@ -10,10 +10,14 @@ use AdorationScheduler\Utils\PhoneNumberFormatter;
  * "SMS Reminders" settings — Twilio credentials + the 24h reminder message
  * template. Built on the same WordPress Settings API pattern as
  * CoverageAlertsSettingsPage (one options array, defaults()/sanitize_options()/
- * get_options()), and the same unmasked-password-field precedent as
- * AntiSpamSettingsPage's Turnstile secret key — no encryption, no
- * "leave blank to keep existing" dance, consistent with how this plugin
- * already stores its one other third-party secret.
+ * get_options()).
+ *
+ * The Auth Token is still stored in plaintext in wp_options (matching
+ * AntiSpamSettingsPage's Turnstile secret key — no bundled secrets vault
+ * to encrypt it with), but the field never re-renders the saved value
+ * into the page: submitting the form with it left blank keeps whatever
+ * was already saved, and a separate checkbox is the only way to actually
+ * clear it. See field_auth_token()/sanitize_options().
  *
  * Read by SmsService, which is what ReminderScheduler::send_reminder()
  * actually calls.
@@ -135,10 +139,24 @@ class SmsSettingsPage {
             $from_number = '';
         }
 
+        // ✅ Auth Token: the field is never pre-filled with the real secret
+        // (see field_auth_token()), so a blank submission means "leave it
+        // alone" rather than "the admin wants to erase it" — only a new
+        // value, or the explicit "remove" checkbox, changes what's saved.
+        $submitted_token = sanitize_text_field((string)($opts['twilio_auth_token'] ?? ''));
+        if ($submitted_token !== '') {
+            $auth_token = $submitted_token;
+        } elseif (!empty($opts['twilio_auth_token_clear'])) {
+            $auth_token = '';
+        } else {
+            $existing = self::get_options();
+            $auth_token = (string)$existing['twilio_auth_token'];
+        }
+
         return [
             'enabled'            => !empty($opts['enabled']) ? 1 : 0,
             'twilio_account_sid' => sanitize_text_field((string)($opts['twilio_account_sid'] ?? '')),
-            'twilio_auth_token'  => sanitize_text_field((string)($opts['twilio_auth_token'] ?? '')),
+            'twilio_auth_token'  => $auth_token,
             'twilio_from_number' => $from_number,
             'reminder_sms_body'  => sanitize_textarea_field((string)($opts['reminder_sms_body'] ?? $defaults['reminder_sms_body'])),
         ];
@@ -174,11 +192,19 @@ class SmsSettingsPage {
 
     public static function field_auth_token(): void {
         $o = self::get_options();
+        $has_token = trim((string)$o['twilio_auth_token']) !== '';
         ?>
         <input type="password" class="regular-text"
                name="<?php echo esc_attr(self::OPTION_NAME); ?>[twilio_auth_token]"
-               value="<?php echo esc_attr((string)$o['twilio_auth_token']); ?>"
+               value=""
+               placeholder="<?php echo $has_token ? esc_attr__('Saved — leave blank to keep it', 'adoration-scheduler') : ''; ?>"
                autocomplete="off">
+        <?php if ($has_token): ?>
+            <label style="display:block;margin-top:6px;font-weight:normal;">
+                <input type="checkbox" name="<?php echo esc_attr(self::OPTION_NAME); ?>[twilio_auth_token_clear]" value="1">
+                <?php esc_html_e('Remove the saved Auth Token', 'adoration-scheduler'); ?>
+            </label>
+        <?php endif; ?>
         <p class="description">
             <?php esc_html_e('Keep this private. Found on your Twilio Console dashboard.', 'adoration-scheduler'); ?>
         </p>

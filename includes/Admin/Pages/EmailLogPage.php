@@ -3,6 +3,8 @@ namespace AdorationScheduler\Admin\Pages;
 
 if ( ! defined('ABSPATH') ) exit;
 
+use AdorationScheduler\Utils\SpreadsheetSafety;
+
 class EmailLogPage
 {
     private const ACTION_EXPORT      = 'adoration_email_log_export';
@@ -569,7 +571,7 @@ class EmailLogPage
         ]);
 
         foreach ($rows as $r) {
-            fputcsv($out, [
+            fputcsv($out, SpreadsheetSafety::sanitize_row([
                 (string)($r['id'] ?? ''),
                 (string)($r['created_at'] ?? ''),
                 (string)($r['to_email'] ?? ''),
@@ -580,7 +582,7 @@ class EmailLogPage
                 (string)($r['success'] ?? ''),
                 (string)($r['subject'] ?? ''),
                 (string)($r['error_message'] ?? ''),
-            ]);
+            ]));
         }
 
         fclose($out);

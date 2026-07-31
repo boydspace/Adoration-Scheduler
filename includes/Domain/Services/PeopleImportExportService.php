@@ -6,6 +6,7 @@ if ( ! defined('ABSPATH') ) exit;
 use AdorationScheduler\Domain\Repositories\PersonsRepository;
 use AdorationScheduler\Utils\XlsxWriter;
 use AdorationScheduler\Utils\XlsxReader;
+use AdorationScheduler\Utils\SpreadsheetSafety;
 
 /**
  * Bulk CSV/XLSX export and import for the People roster.
@@ -113,7 +114,7 @@ class PeopleImportExportService
         $out = fopen('php://output', 'w');
         fprintf($out, chr(0xEF) . chr(0xBB) . chr(0xBF)); // BOM for Excel
         foreach ($rows as $row) {
-            fputcsv($out, $row);
+            fputcsv($out, SpreadsheetSafety::sanitize_row($row));
         }
         fclose($out);
         exit;

@@ -28,7 +28,7 @@ class XlsxWriter
 
     public function add_row(array $cells): void
     {
-        $this->rows[] = array_map(static fn($v) => (string)$v, array_values($cells));
+        $this->rows[] = SpreadsheetSafety::sanitize_row(array_values($cells));
     }
 
     public static function is_available(): bool
