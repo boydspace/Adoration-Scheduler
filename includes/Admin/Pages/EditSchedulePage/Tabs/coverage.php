@@ -145,7 +145,7 @@ $today_ymd = current_time('Y-m-d');
                         <td>
                             <form method="post" action="<?php echo esc_url($post_url); ?>">
                                 <?php wp_nonce_field('adoration_remove_closure'); ?>
-                                <input type="hidden" name="closure_id" value="<?php echo $c_id; ?>">
+                                <input type="hidden" name="closure_id" value="<?php echo (int) $c_id; ?>">
                                 <button
                                     type="submit"
                                     name="adoration_remove_closure"

@@ -47,7 +47,7 @@ class CoverageReportService
         $schedule_id = (int)($_GET['schedule_id'] ?? 0);
 
         $today = current_time('Y-m-d');
-        $default_from = date('Y-m-01', strtotime($today . ' -11 months'));
+        $default_from = gmdate('Y-m-01', strtotime($today . ' -11 months'));
 
         $from = isset($_GET['from']) ? sanitize_text_field(wp_unslash($_GET['from'])) : '';
         $to   = isset($_GET['to'])   ? sanitize_text_field(wp_unslash($_GET['to']))   : '';

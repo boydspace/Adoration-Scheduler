@@ -86,7 +86,10 @@ class DashboardPage {
                             <?php esc_html_e('Hide this checklist', 'adoration-scheduler'); ?>
                         </a>
                     </div>
-                    <?php echo OnboardingChecklist::render_list($onboarding_steps, true); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                    <?php
+                    // phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped -- render_list()/stat_card() below escape all dynamic output internally; a single-line ignore doesn't cover every argument line of these multi-line calls.
+                    echo OnboardingChecklist::render_list($onboarding_steps, true);
+                    ?>
                 </div>
             <?php endif; ?>
 
@@ -161,7 +164,9 @@ class DashboardPage {
                     admin_url('admin.php?page=adoration_scheduler_pages_shortcodes'),
                     __('View shortcodes', 'adoration-scheduler'),
                     '#646970'
-                ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                );
+                // phpcs:enable WordPress.Security.EscapeOutput.OutputNotEscaped
+                ?>
 
             </div>
 
@@ -210,7 +215,7 @@ class DashboardPage {
                         printf(
                             /* translators: %d: number of additional unfilled hours not shown */
                             esc_html__('+ %d more', 'adoration-scheduler'),
-                            $urgent_count - count($urgent_preview)
+                            (int) ($urgent_count - count($urgent_preview))
                         );
                         ?>
                     </p>

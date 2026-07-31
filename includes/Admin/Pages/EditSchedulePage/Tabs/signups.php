@@ -209,7 +209,7 @@ $as_admin_post_form = function(
 
 <?php
 $roster_today   = current_time('Y-m-d');
-$roster_default_to = date('Y-m-d', strtotime($roster_today . ' +30 days'));
+$roster_default_to = gmdate('Y-m-d', strtotime($roster_today . ' +30 days'));
 $roster_nonce   = wp_create_nonce(RosterPrintService::ACTION . '_' . $schedule_id);
 ?>
 <form method="get" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" target="_blank"

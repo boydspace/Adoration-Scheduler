@@ -488,7 +488,7 @@ class EmailLogPage
     private function kv_row(string $label, string $value, bool $value_is_html = false): void
     {
         echo '<tr><th style="width: 180px;">' . esc_html($label) . '</th><td>';
-        if ($value_is_html) echo $value;
+        if ($value_is_html) echo $value; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- every caller passing true already escapes the dynamic parts of $value itself.
         else echo esc_html($value);
         echo '</td></tr>';
     }
@@ -555,7 +555,7 @@ class EmailLogPage
             : [];
 
         // Send CSV
-        $filename = 'adoration-email-log-' . date('Y-m-d-His') . '.csv';
+        $filename = 'adoration-email-log-' . gmdate('Y-m-d-His') . '.csv';
 
         nocache_headers();
         header('Content-Type: text/csv; charset=UTF-8');

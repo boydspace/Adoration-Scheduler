@@ -88,7 +88,7 @@ class RosterPrintService
     private static function resolve_range(): array
     {
         $today = current_time('Y-m-d');
-        $default_to = date('Y-m-d', strtotime($today . ' +30 days'));
+        $default_to = gmdate('Y-m-d', strtotime($today . ' +30 days'));
 
         $from = isset($_GET['from']) ? sanitize_text_field(wp_unslash($_GET['from'])) : '';
         $to   = isset($_GET['to'])   ? sanitize_text_field(wp_unslash($_GET['to']))   : '';
@@ -105,7 +105,7 @@ class RosterPrintService
         if ($from_ts !== false && $to_ts !== false) {
             $days = (int) round(($to_ts - $from_ts) / DAY_IN_SECONDS);
             if ($days > self::MAX_RANGE_DAYS) {
-                $to = date('Y-m-d', strtotime($from . ' +' . self::MAX_RANGE_DAYS . ' days'));
+                $to = gmdate('Y-m-d', strtotime($from . ' +' . self::MAX_RANGE_DAYS . ' days'));
             }
         }
 
