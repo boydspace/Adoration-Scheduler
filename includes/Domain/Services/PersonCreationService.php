@@ -88,6 +88,7 @@ class PersonCreationService {
         if ($name === '') $name = __('Person', 'adoration-scheduler');
 
         // ✅ Toast on success (no person_created=1, to avoid double notices)
+        // translators: %s: the newly created person's name.
         $msg = sanitize_text_field(wp_strip_all_tags(sprintf(__('%s created.', 'adoration-scheduler'), $name)));
         if (strlen($msg) > 300) $msg = substr($msg, 0, 300);
 

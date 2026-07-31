@@ -115,6 +115,7 @@ class PersonsPage {
         static $cache = [];
         if (isset($cache[$schedule_id])) return $cache[$schedule_id];
 
+        // translators: %d: schedule ID (used as a fallback label when the schedule's name can't be found).
         $label = sprintf(__('Schedule #%d', 'adoration-scheduler'), $schedule_id);
 
         try {
@@ -206,6 +207,7 @@ class PersonsPage {
             if (!empty($parts)) {
                 $label = implode(' — ', $parts);
             } else {
+                // translators: %d: slot ID (used as a fallback label when a readable date/time can't be found).
                 $label = sprintf(__('Slot #%d', 'adoration-scheduler'), $slot_id);
             }
         } catch (\Throwable $e) {
@@ -318,6 +320,7 @@ class PersonsPage {
                             <p style="margin-top:0; color:#646970;">
                                 <?php
                                 printf(
+                                    // translators: %d: number of signups shown.
                                     esc_html(_n('Showing %d signup.', 'Showing %d signups.', count($signups), 'adoration-scheduler')),
                                     (int)count($signups)
                                 );

@@ -328,5 +328,8 @@ if ( isset($_POST['adoration_send_schedule_test_email']) ) {
 </form>
 
 <p class="description" style="color:#646970;">
-    <?php printf(esc_html__('Schedule ID: %d', 'adoration-scheduler'), (int)$schedule_id); ?>
+    <?php
+    // translators: %d: schedule ID.
+    printf(esc_html__('Schedule ID: %d', 'adoration-scheduler'), (int)$schedule_id);
+    ?>
 </p>

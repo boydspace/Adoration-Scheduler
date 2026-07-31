@@ -189,6 +189,7 @@ $get_slot_display = function(array $row) use (
             <strong><?php esc_html_e('Guardrail:', 'adoration-scheduler'); ?></strong>
             <?php
             printf(
+                // translators: %d: number of existing signups for this schedule.
                 esc_html__('This schedule has %d signup(s). “Rebuild Slots (Delete + Recreate)” is disabled to prevent orphaning signups. Use “Safe Sync” instead.', 'adoration-scheduler'),
                 (int) number_format_i18n($signups_total)
             );
