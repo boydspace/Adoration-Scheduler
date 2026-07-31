@@ -337,12 +337,14 @@ class SchedulesPage {
                 $parts = [];
                 if ($bulk_trashed > 0) {
                     $parts[] = sprintf(
+                        // translators: %d: number of schedules moved to Trash.
                         _n('%d schedule moved to Trash.', '%d schedules moved to Trash.', $bulk_trashed, 'adoration-scheduler'),
                         $bulk_trashed
                     );
                 }
                 if ($bulk_blocked > 0) {
                     $parts[] = sprintf(
+                        // translators: %d: number of schedules that could not be trashed.
                         _n('%d schedule could not be trashed (has signups).', '%d schedules could not be trashed (have signups).', $bulk_blocked, 'adoration-scheduler'),
                         $bulk_blocked
                     );
@@ -355,6 +357,7 @@ class SchedulesPage {
             if ($bulk_restored > 0) {
                 echo '<div class="notice notice-success is-dismissible"><p>'
                     . esc_html(sprintf(
+                        // translators: %d: number of schedules restored.
                         _n('%d schedule restored.', '%d schedules restored.', $bulk_restored, 'adoration-scheduler'),
                         $bulk_restored
                     ))
@@ -368,12 +371,14 @@ class SchedulesPage {
                 $parts = [];
                 if ($bulk_deleted_perm > 0) {
                     $parts[] = sprintf(
+                        // translators: %d: number of schedules permanently deleted.
                         _n('%d schedule permanently deleted.', '%d schedules permanently deleted.', $bulk_deleted_perm, 'adoration-scheduler'),
                         $bulk_deleted_perm
                     );
                 }
                 if ($bulk_blocked_perm > 0) {
                     $parts[] = sprintf(
+                        // translators: %d: number of schedules that could not be permanently deleted.
                         _n('%d schedule could not be permanently deleted (has signups or not in Trash).', '%d schedules could not be permanently deleted (have signups or not in Trash).', $bulk_blocked_perm, 'adoration-scheduler'),
                         $bulk_blocked_perm
                     );

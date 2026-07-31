@@ -30,6 +30,7 @@ class MergePeoplePage {
             $deleted = (string)($_GET['merge_deleted'] ?? '0') === '1';
 
             $msg = sprintf(
+                // translators: 1: number of signups moved, 2: number of duplicate signups removed, 3: "was"/"was NOT".
                 __('People merged. %1$d signup(s) moved, %2$d duplicate signup(s) removed. Source %3$s deleted.', 'adoration-scheduler'),
                 $moved,
                 $skipped,
@@ -97,7 +98,10 @@ class MergePeoplePage {
                                 ></div>
                             </div>
                             <p class="description" id="from_selected" style="margin-top:6px;">
-                                <?php echo $prefill_from > 0 ? esc_html(sprintf(__('Selected ID: %d', 'adoration-scheduler'), $prefill_from)) : esc_html__('No person selected yet.', 'adoration-scheduler'); ?>
+                                <?php
+                                // translators: %d: selected person's ID.
+                                echo $prefill_from > 0 ? esc_html(sprintf(__('Selected ID: %d', 'adoration-scheduler'), $prefill_from)) : esc_html__('No person selected yet.', 'adoration-scheduler');
+                                ?>
                             </p>
                         </div>
 
@@ -121,7 +125,10 @@ class MergePeoplePage {
                                 ></div>
                             </div>
                             <p class="description" id="to_selected" style="margin-top:6px;">
-                                <?php echo $prefill_to > 0 ? esc_html(sprintf(__('Selected ID: %d', 'adoration-scheduler'), $prefill_to)) : esc_html__('No person selected yet.', 'adoration-scheduler'); ?>
+                                <?php
+                                // translators: %d: selected person's ID.
+                                echo $prefill_to > 0 ? esc_html(sprintf(__('Selected ID: %d', 'adoration-scheduler'), $prefill_to)) : esc_html__('No person selected yet.', 'adoration-scheduler');
+                                ?>
                             </p>
                         </div>
 

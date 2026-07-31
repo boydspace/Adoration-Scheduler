@@ -389,8 +389,10 @@ class SignupsListTable extends \WP_List_Table {
 
         if ($ok_count > 0 && $fail_count === 0) {
             if ($action === 'bulk-cancel') {
+                // translators: %d: number of signups cancelled.
                 $this->redirect_with_toast(sprintf(__('Cancelled %d signup(s).', 'adoration-scheduler'), (int)$ok_count), 'success');
             } else {
+                // translators: %d: number of signups deleted.
                 $this->redirect_with_toast(sprintf(__('Deleted %d signup(s).', 'adoration-scheduler'), (int)$ok_count), 'success');
             }
         }
@@ -398,12 +400,22 @@ class SignupsListTable extends \WP_List_Table {
         if ($ok_count > 0 && $fail_count > 0) {
             if ($action === 'bulk-cancel') {
                 $this->redirect_with_toast(
-                    sprintf(__('Cancelled %d signup(s); %d failed.', 'adoration-scheduler'), (int)$ok_count, (int)$fail_count),
+                    sprintf(
+                        // translators: 1: number of signups cancelled, 2: number that failed.
+                        __('Cancelled %1$d signup(s); %2$d failed.', 'adoration-scheduler'),
+                        (int)$ok_count,
+                        (int)$fail_count
+                    ),
                     'warning'
                 );
             } else {
                 $this->redirect_with_toast(
-                    sprintf(__('Deleted %d signup(s); %d failed.', 'adoration-scheduler'), (int)$ok_count, (int)$fail_count),
+                    sprintf(
+                        // translators: 1: number of signups deleted, 2: number that failed.
+                        __('Deleted %1$d signup(s); %2$d failed.', 'adoration-scheduler'),
+                        (int)$ok_count,
+                        (int)$fail_count
+                    ),
                     'warning'
                 );
             }

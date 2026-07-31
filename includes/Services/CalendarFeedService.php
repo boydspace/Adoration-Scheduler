@@ -127,6 +127,7 @@ class CalendarFeedService
         $tz = function_exists('wp_timezone') ? wp_timezone() : new \DateTimeZone('UTC');
         $host = wp_parse_url(home_url(), PHP_URL_HOST) ?: 'adoration-scheduler.local';
 
+        // translators: %s: site name.
         $ics = new IcsBuilder(sprintf(__('My Adoration Hours — %s', 'adoration-scheduler'), get_bloginfo('name')));
 
         foreach ($rows as $row) {
@@ -187,7 +188,8 @@ class CalendarFeedService
         $host = wp_parse_url(home_url(), PHP_URL_HOST) ?: 'adoration-scheduler.local';
 
         $calendar_name = $schedule_name !== ''
-            ? sprintf(__('%s — %s', 'adoration-scheduler'), get_bloginfo('name'), $schedule_name)
+            // translators: 1: site name, 2: schedule name.
+            ? sprintf(__('%1$s — %2$s', 'adoration-scheduler'), get_bloginfo('name'), $schedule_name)
             : get_bloginfo('name');
 
         $ics = new IcsBuilder($calendar_name);
