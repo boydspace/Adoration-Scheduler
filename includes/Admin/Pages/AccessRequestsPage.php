@@ -21,7 +21,7 @@ class AccessRequestsPage {
 
     public function render(): void {
         if ( ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         $repo = new PersonsRepository();

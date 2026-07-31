@@ -35,7 +35,7 @@ class AddPersonPage {
 
     public function render(): void {
         if ( ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         $page_slug = sanitize_key($_GET['page'] ?? 'adoration_scheduler_people_add');

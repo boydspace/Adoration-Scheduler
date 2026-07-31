@@ -24,7 +24,7 @@ class SetupWizardPage {
 
     public function render(): void {
         if ( ! current_user_can('manage_options') && ! current_user_can('adoration_manage_schedules') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         // "Skip for now" — dismiss and go straight to the Dashboard. Handled

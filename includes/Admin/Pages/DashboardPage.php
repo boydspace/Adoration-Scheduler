@@ -25,7 +25,7 @@ class DashboardPage {
         if ( ! current_user_can('manage_options')
             && ! current_user_can('adoration_manage_schedules')
         ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         // "Hide this checklist" — dismiss the onboarding card and reload the

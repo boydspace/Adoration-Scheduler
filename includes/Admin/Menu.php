@@ -440,7 +440,7 @@ class Menu {
      */
     public static function load_announcements_page(): void {
         if ( ! current_user_can(self::CAP_MANAGE_SETTINGS) && ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         $candidates = ['Pages/AnnouncementsPage.php'];
@@ -463,7 +463,7 @@ class Menu {
      */
     public static function load_chapels_page(): void {
         if ( ! current_user_can(self::CAP_MANAGE_SETTINGS) && ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         $candidates = [
@@ -492,7 +492,7 @@ class Menu {
      */
     public static function load_attendance_page(): void {
         if ( ! current_user_can(self::CAP_MANAGE_SETTINGS) && ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         $candidates = ['Pages/AttendancePage.php'];
@@ -563,7 +563,7 @@ class Menu {
 
     public static function render_schedules_page(): void {
         if ( ! current_user_can(self::CAP_MANAGE_SCHEDULES) && ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         $candidates = [
@@ -583,7 +583,7 @@ class Menu {
 
     public static function render_add_new_page(): void {
         if ( ! current_user_can(self::CAP_MANAGE_SCHEDULES) && ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         $candidates = [
@@ -611,7 +611,7 @@ class Menu {
 
     public static function render_signups_page(): void {
         if ( ! current_user_can(self::CAP_MANAGE_SIGNUPS) && ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         $candidates = [
@@ -635,7 +635,7 @@ class Menu {
 
     public static function render_people_page(): void {
         if ( ! current_user_can(self::CAP_MANAGE_PEOPLE) && ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         self::require_admin_page_file(['Pages/PersonsPage.php']);
@@ -650,7 +650,7 @@ class Menu {
 
     public static function render_dashboard_page(): void {
         if ( ! current_user_can(self::CAP_MANAGE_SCHEDULES) && ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         $candidates = ['Pages/DashboardPage.php'];
@@ -666,7 +666,7 @@ class Menu {
 
     public static function render_access_requests_page(): void {
         if ( ! current_user_can(self::CAP_MANAGE_PEOPLE) && ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         $candidates = ['Pages/AccessRequestsPage.php'];
@@ -682,7 +682,7 @@ class Menu {
 
     public static function render_add_person_page(): void {
         if ( ! current_user_can(self::CAP_MANAGE_PEOPLE) && ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         $candidates = ['Pages/AddPersonPage.php'];
@@ -698,7 +698,7 @@ class Menu {
 
     public static function render_merge_people_page(): void {
         if ( ! current_user_can(self::CAP_MANAGE_PEOPLE) && ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         $candidates = ['Pages/MergePeoplePage.php'];
@@ -714,7 +714,7 @@ class Menu {
 
     public static function render_people_import_export_page(): void {
         if ( ! current_user_can(self::CAP_MANAGE_PEOPLE) && ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         $candidates = ['Pages/PeopleImportExportPage.php'];
@@ -730,7 +730,7 @@ class Menu {
 
     public static function render_chapels_page(): void {
         if ( ! current_user_can(self::CAP_MANAGE_SETTINGS) && ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         $candidates = [
@@ -750,7 +750,7 @@ class Menu {
 
     public static function render_email_templates_page(): void {
         if ( ! current_user_can(self::CAP_MANAGE_SETTINGS) && ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         $path = plugin_dir_path(__FILE__) . 'Pages/EmailTemplatesPage.php';
@@ -768,7 +768,7 @@ class Menu {
 
     public static function render_email_log_page(): void {
         if ( ! current_user_can(self::CAP_MANAGE_SETTINGS) && ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         $candidates = [
@@ -791,7 +791,7 @@ class Menu {
 
     public static function render_antispam_page(): void {
         if ( ! current_user_can(self::CAP_MANAGE_SETTINGS) && ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         $path = plugin_dir_path(__FILE__) . 'Pages/AntiSpamSettingsPage.php';
@@ -831,7 +831,7 @@ class Menu {
 
     public static function render_pages_shortcodes_page(): void {
         if ( ! current_user_can(self::CAP_MANAGE_SETTINGS) && ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         $candidates = ['Pages/PagesShortcodesPage.php'];
@@ -847,7 +847,7 @@ class Menu {
 
     public static function render_access_settings_page(): void {
         if ( ! current_user_can(self::CAP_MANAGE_SETTINGS) && ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         $candidates = ['Pages/AccessSettingsPage.php'];
@@ -868,7 +868,7 @@ class Menu {
 
     public static function render_coverage_alerts_page(): void {
         if ( ! current_user_can(self::CAP_MANAGE_SETTINGS) && ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         $candidates = ['Pages/CoverageAlertsSettingsPage.php'];
@@ -889,7 +889,7 @@ class Menu {
 
     public static function render_sms_settings_page(): void {
         if ( ! current_user_can(self::CAP_MANAGE_SETTINGS) && ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         $candidates = ['Pages/SmsSettingsPage.php'];
@@ -910,7 +910,7 @@ class Menu {
 
     public static function render_coverage_report_page(): void {
         if ( ! current_user_can(self::CAP_MANAGE_SETTINGS) && ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         $candidates = ['Pages/CoverageReportPage.php'];
@@ -926,7 +926,7 @@ class Menu {
 
     public static function render_attendance_page(): void {
         if ( ! current_user_can(self::CAP_MANAGE_SETTINGS) && ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         $candidates = ['Pages/AttendancePage.php'];
@@ -942,7 +942,7 @@ class Menu {
 
     public static function render_no_show_alerts_page(): void {
         if ( ! current_user_can(self::CAP_MANAGE_SETTINGS) && ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         $candidates = ['Pages/NoShowAlertsSettingsPage.php'];
@@ -963,7 +963,7 @@ class Menu {
 
     public static function render_setup_wizard_page(): void {
         if ( ! current_user_can(self::CAP_MANAGE_SCHEDULES) && ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         $candidates = ['Pages/SetupWizardPage.php'];
@@ -979,7 +979,7 @@ class Menu {
 
     public static function render_announcements_page(): void {
         if ( ! current_user_can(self::CAP_MANAGE_SETTINGS) && ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         $candidates = ['Pages/AnnouncementsPage.php'];

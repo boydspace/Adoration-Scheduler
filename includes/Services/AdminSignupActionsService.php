@@ -465,7 +465,7 @@ class AdminSignupActionsService
     private static function require_admin_cap(string $capability): void
     {
         if (!is_admin()) {
-            wp_die(esc_html__('Sorry, you are not allowed to do that.'), 403);
+            wp_die(esc_html__('Sorry, you are not allowed to do that.', 'adoration-scheduler'), 403);
         }
 
         // Capability: allow granular cap if present; otherwise fall back to manage_options.
@@ -479,7 +479,7 @@ class AdminSignupActionsService
         }
 
         if (!$allowed) {
-            wp_die(esc_html__('Sorry, you are not allowed to do that.'), 403);
+            wp_die(esc_html__('Sorry, you are not allowed to do that.', 'adoration-scheduler'), 403);
         }
 
         $method = isset($_SERVER['REQUEST_METHOD']) ? strtoupper((string)$_SERVER['REQUEST_METHOD']) : '';

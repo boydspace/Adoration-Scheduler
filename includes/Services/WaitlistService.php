@@ -53,12 +53,12 @@ class WaitlistService
     public static function handle_admin_remove(): void
     {
         if (!is_admin()) {
-            wp_die(esc_html__('Sorry, you are not allowed to do that.'), 403);
+            wp_die(esc_html__('Sorry, you are not allowed to do that.', 'adoration-scheduler'), 403);
         }
 
         $allowed = current_user_can(self::CAP_MANAGE_SIGNUPS) || current_user_can('manage_options');
         if (!$allowed) {
-            wp_die(esc_html__('Sorry, you are not allowed to do that.'), 403);
+            wp_die(esc_html__('Sorry, you are not allowed to do that.', 'adoration-scheduler'), 403);
         }
 
         $return_default = admin_url('admin.php?page=adoration_scheduler_schedules');
