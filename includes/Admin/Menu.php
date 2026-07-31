@@ -558,7 +558,7 @@ class Menu {
         }
         $msg .= '</ul>';
         $msg .= '<p>This usually means the filename does not match the class name your autoloader expects, or the file was moved/renamed.</p>';
-        wp_die($msg, 500);
+        wp_die($msg, 500); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- all dynamic pieces above are already run through esc_html().
     }
 
     public static function render_schedules_page(): void {

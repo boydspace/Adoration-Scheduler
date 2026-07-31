@@ -105,7 +105,7 @@ class PeopleImportExportService
         check_admin_referer('adoration_people_export');
 
         $rows = self::export_rows();
-        $filename = 'adoration-people-' . date('Y-m-d-His') . '.csv';
+        $filename = 'adoration-people-' . gmdate('Y-m-d-His') . '.csv';
 
         nocache_headers();
         header('Content-Type: text/csv; charset=UTF-8');
@@ -135,7 +135,7 @@ class PeopleImportExportService
             $writer->add_row($row);
         }
 
-        $filename = 'adoration-people-' . date('Y-m-d-His') . '.xlsx';
+        $filename = 'adoration-people-' . gmdate('Y-m-d-His') . '.xlsx';
         $writer->output($filename);
     }
 

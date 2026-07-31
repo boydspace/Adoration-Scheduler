@@ -65,7 +65,7 @@ class EditSchedulePage {
         ?>
         <script>
         (function(){
-            var toasts = <?php echo $payload; ?>;
+            var toasts = <?php echo $payload; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $payload is JSON from wp_json_encode(); HTML-escaping it here would corrupt the JSON for JS. ?>;
 
             function ensureWrap(){
                 return document.querySelector('.wrap') || document.body;

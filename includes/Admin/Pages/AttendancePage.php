@@ -98,7 +98,7 @@ class AttendancePage {
                         <option value="0" <?php selected($schedule_id, 0); ?>><?php esc_html_e('All Schedules', 'adoration-scheduler'); ?></option>
                         <?php foreach ($schedules as $s): ?>
                             <?php $sid = (int)($s['id'] ?? 0); ?>
-                            <option value="<?php echo $sid; ?>" <?php selected($schedule_id, $sid); ?>>
+                            <option value="<?php echo (int) $sid; ?>" <?php selected($schedule_id, $sid); ?>>
                                 <?php echo esc_html((string)($s['name'] ?? '')); ?>
                             </option>
                         <?php endforeach; ?>
@@ -176,7 +176,7 @@ class AttendancePage {
                                         <form method="post" action="<?php echo esc_url(admin_url('admin.php?page=' . self::PAGE_SLUG)); ?>" style="display:inline-block;">
                                             <input type="hidden" name="_wpnonce" value="<?php echo esc_attr($nonce); ?>">
                                             <input type="hidden" name="adoration_set_attendance" value="1">
-                                            <input type="hidden" name="signup_id" value="<?php echo $signup_id; ?>">
+                                            <input type="hidden" name="signup_id" value="<?php echo (int) $signup_id; ?>">
                                             <input type="hidden" name="present" value="0">
                                             <button type="submit" class="button button-small"><?php esc_html_e('Mark Absent', 'adoration-scheduler'); ?></button>
                                         </form>
@@ -184,7 +184,7 @@ class AttendancePage {
                                         <form method="post" action="<?php echo esc_url(admin_url('admin.php?page=' . self::PAGE_SLUG)); ?>" style="display:inline-block;">
                                             <input type="hidden" name="_wpnonce" value="<?php echo esc_attr($nonce); ?>">
                                             <input type="hidden" name="adoration_set_attendance" value="1">
-                                            <input type="hidden" name="signup_id" value="<?php echo $signup_id; ?>">
+                                            <input type="hidden" name="signup_id" value="<?php echo (int) $signup_id; ?>">
                                             <input type="hidden" name="present" value="1">
                                             <button type="submit" class="button button-small"><?php esc_html_e('Mark Present', 'adoration-scheduler'); ?></button>
                                         </form>
@@ -210,7 +210,7 @@ class AttendancePage {
         $schedule_id = (int)($_GET['schedule_id'] ?? ($_POST['schedule_id'] ?? 0));
 
         $today = current_time('Y-m-d');
-        $default_from = date('Y-m-d', strtotime($today . ' -7 days'));
+        $default_from = gmdate('Y-m-d', strtotime($today . ' -7 days'));
 
         $from = isset($_GET['from']) ? sanitize_text_field(wp_unslash($_GET['from'])) : '';
         $to   = isset($_GET['to'])   ? sanitize_text_field(wp_unslash($_GET['to']))   : '';

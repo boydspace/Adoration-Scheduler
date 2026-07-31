@@ -202,7 +202,7 @@ class SignupsListTable extends \WP_List_Table {
         echo '<option value="">' . esc_html__('All statuses', 'adoration-scheduler') . '</option>';
         foreach ($statuses as $st) {
             $sel = selected($current_status, $st, false);
-            echo '<option value="' . esc_attr($st) . '"' . $sel . '>' . esc_html(ucfirst($st)) . '</option>';
+            echo '<option value="' . esc_attr($st) . '"' . $sel . '>' . esc_html(ucfirst($st)) . '</option>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $sel comes from WordPress's own selected() helper, not user input.
         }
         echo '</select>';
 
@@ -216,7 +216,7 @@ class SignupsListTable extends \WP_List_Table {
             $nm  = (string)($sc['name'] ?? '');
             if ($id <= 0) continue;
             $sel = selected($current_scheduleId, $id, false);
-            echo '<option value="' . esc_attr((string)$id) . '"' . $sel . '>' . esc_html($nm) . '</option>';
+            echo '<option value="' . esc_attr((string)$id) . '"' . $sel . '>' . esc_html($nm) . '</option>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $sel comes from WordPress's own selected() helper, not user input.
         }
         echo '</select>';
 

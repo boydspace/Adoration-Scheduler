@@ -891,7 +891,7 @@ class Plugin {
         // Only set flags for now (no forced UIkit load).
         $has_uikit = self::theme_has_uikit();
 
-        wp_register_script('adoration-scheduler-frontend-flags', '', [], null, true);
+        wp_register_script('adoration-scheduler-frontend-flags', '', [], false, true);
         wp_enqueue_script('adoration-scheduler-frontend-flags');
         wp_add_inline_script(
             'adoration-scheduler-frontend-flags',
@@ -902,7 +902,7 @@ class Plugin {
     public static function enqueue_admin_assets($hook_suffix): void
     {
         // Admin does NOT generally use theme UIkit; still expose a flag for consistency.
-        wp_register_script('adoration-scheduler-admin-flags', '', [], null, true);
+        wp_register_script('adoration-scheduler-admin-flags', '', [], false, true);
         wp_enqueue_script('adoration-scheduler-admin-flags');
         wp_add_inline_script(
             'adoration-scheduler-admin-flags',

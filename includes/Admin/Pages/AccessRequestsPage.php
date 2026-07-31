@@ -66,7 +66,7 @@ class AccessRequestsPage {
             <?php else: ?>
                 <div style="margin-top:16px; max-width:900px;">
                     <?php foreach ($pending as $p): ?>
-                        <?php echo $this->render_card($p); ?>
+                        <?php echo $this->render_card($p); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- render_card() escapes all dynamic output internally. ?>
                     <?php endforeach; ?>
                 </div>
             <?php endif; ?>

@@ -219,7 +219,7 @@ class ScheduleShortcode {
 
                 $ts = strtotime($date);
                 if ($ts === false) continue;
-                $dow = (int)date('w', $ts);
+                $dow = (int)gmdate('w', $ts);
                 $st  = substr((string)($s['start_time'] ?? ''), 0, 8);
                 if ($st === '') continue;
 
@@ -720,7 +720,7 @@ class ScheduleShortcode {
                             <button type="button" data-as-mode-btn="onetime" data-as-modal="uk"><?php esc_html_e('Just this date', 'adoration-scheduler'); ?></button>
                         </div>
 
-                        <form method="post" action="<?php echo $action_url; ?>" id="<?php echo esc_attr($form_id); ?>">
+                        <form method="post" action="<?php echo $action_url; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- already esc_url()'d at assignment. ?>" id="<?php echo esc_attr($form_id); ?>">
                             <input type="hidden" name="action" value="adoration_public_claim_standing" data-as-action="1">
                             <?php wp_nonce_field('adoration_public_signup', 'adoration_public_nonce'); ?>
                             <?php wp_nonce_field('adoration_public_claim_standing', 'adoration_public_nonce_standing'); ?>
@@ -758,25 +758,25 @@ class ScheduleShortcode {
                                 <div class="uk-width-1-2@s">
                                     <label class="uk-form-label" for="<?php echo esc_attr($first_id); ?>">First name</label>
                                     <div class="uk-form-controls">
-                                        <input class="uk-input" type="text" name="first_name" id="<?php echo esc_attr($first_id); ?>" required value="<?php echo $cp_first; ?>">
+                                        <input class="uk-input" type="text" name="first_name" id="<?php echo esc_attr($first_id); ?>" required value="<?php echo $cp_first; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- already esc_attr()'d at assignment. ?>">
                                     </div>
                                 </div>
                                 <div class="uk-width-1-2@s">
                                     <label class="uk-form-label" for="<?php echo esc_attr($last_id); ?>">Last name</label>
                                     <div class="uk-form-controls">
-                                        <input class="uk-input" type="text" name="last_name" id="<?php echo esc_attr($last_id); ?>" required value="<?php echo $cp_last; ?>">
+                                        <input class="uk-input" type="text" name="last_name" id="<?php echo esc_attr($last_id); ?>" required value="<?php echo $cp_last; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- already esc_attr()'d at assignment. ?>">
                                     </div>
                                 </div>
                                 <div class="uk-width-1-1">
                                     <label class="uk-form-label" for="<?php echo esc_attr($email_id); ?>">Email</label>
                                     <div class="uk-form-controls">
-                                        <input class="uk-input" type="email" name="email" id="<?php echo esc_attr($email_id); ?>" required value="<?php echo $cp_email; ?>">
+                                        <input class="uk-input" type="email" name="email" id="<?php echo esc_attr($email_id); ?>" required value="<?php echo $cp_email; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- already esc_attr()'d at assignment. ?>">
                                     </div>
                                 </div>
                                 <div class="uk-width-1-1">
                                     <label class="uk-form-label" for="<?php echo esc_attr($phone_id); ?>">Phone</label>
                                     <div class="uk-form-controls">
-                                        <input class="uk-input" type="text" name="phone" id="<?php echo esc_attr($phone_id); ?>" required placeholder="(555) 123-4567" value="<?php echo $cp_phone; ?>">
+                                        <input class="uk-input" type="text" name="phone" id="<?php echo esc_attr($phone_id); ?>" required placeholder="(555) 123-4567" value="<?php echo $cp_phone; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- already esc_attr()'d at assignment. ?>">
                                     </div>
                                 </div>
                             </div>
@@ -818,7 +818,7 @@ class ScheduleShortcode {
                             <button type="button" data-as-mode-btn="onetime" data-as-modal="fb"><?php esc_html_e('Just this date', 'adoration-scheduler'); ?></button>
                         </div>
 
-                        <form method="post" action="<?php echo $action_url; ?>" data-as-fb-form="1">
+                        <form method="post" action="<?php echo $action_url; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- already esc_url()'d at assignment. ?>" data-as-fb-form="1">
                             <input type="hidden" name="action" value="adoration_public_claim_standing" data-as-action="1">
                             <?php wp_nonce_field('adoration_public_signup', 'adoration_public_nonce'); ?>
                             <?php wp_nonce_field('adoration_public_claim_standing', 'adoration_public_nonce_standing'); ?>
@@ -853,19 +853,19 @@ class ScheduleShortcode {
                                 </tr>
                                 <tr>
                                     <th><label for="<?php echo esc_attr($uid); ?>_fb_first">First name</label></th>
-                                    <td><input type="text" name="first_name" id="<?php echo esc_attr($uid); ?>_fb_first" class="regular-text" required value="<?php echo $cp_first; ?>"></td>
+                                    <td><input type="text" name="first_name" id="<?php echo esc_attr($uid); ?>_fb_first" class="regular-text" required value="<?php echo $cp_first; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- already esc_attr()'d at assignment. ?>"></td>
                                 </tr>
                                 <tr>
                                     <th><label for="<?php echo esc_attr($uid); ?>_fb_last">Last name</label></th>
-                                    <td><input type="text" name="last_name" id="<?php echo esc_attr($uid); ?>_fb_last" class="regular-text" required value="<?php echo $cp_last; ?>"></td>
+                                    <td><input type="text" name="last_name" id="<?php echo esc_attr($uid); ?>_fb_last" class="regular-text" required value="<?php echo $cp_last; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- already esc_attr()'d at assignment. ?>"></td>
                                 </tr>
                                 <tr>
                                     <th><label for="<?php echo esc_attr($uid); ?>_fb_email">Email</label></th>
-                                    <td><input type="email" name="email" id="<?php echo esc_attr($uid); ?>_fb_email" class="regular-text" required value="<?php echo $cp_email; ?>"></td>
+                                    <td><input type="email" name="email" id="<?php echo esc_attr($uid); ?>_fb_email" class="regular-text" required value="<?php echo $cp_email; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- already esc_attr()'d at assignment. ?>"></td>
                                 </tr>
                                 <tr>
                                     <th><label for="<?php echo esc_attr($uid); ?>_fb_phone">Phone</label></th>
-                                    <td><input type="text" name="phone" id="<?php echo esc_attr($uid); ?>_fb_phone" class="regular-text" required placeholder="(555) 123-4567" data-as-fb-phone="1" value="<?php echo $cp_phone; ?>"></td>
+                                    <td><input type="text" name="phone" id="<?php echo esc_attr($uid); ?>_fb_phone" class="regular-text" required placeholder="(555) 123-4567" data-as-fb-phone="1" value="<?php echo $cp_phone; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- already esc_attr()'d at assignment. ?>"></td>
                                 </tr>
                             </table>
 
@@ -1272,7 +1272,7 @@ class ScheduleShortcode {
                             Time: <strong id="<?php echo esc_attr($slotlabel_id); ?>">—</strong>
                         </p>
 
-                        <form method="post" action="<?php echo $action_url; ?>" id="<?php echo esc_attr($form_id); ?>">
+                        <form method="post" action="<?php echo $action_url; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- already esc_url()'d at assignment. ?>" id="<?php echo esc_attr($form_id); ?>">
                             <input type="hidden" name="action" value="adoration_public_signup">
                             <?php wp_nonce_field('adoration_public_signup', 'adoration_public_nonce'); ?>
 
@@ -1303,25 +1303,25 @@ class ScheduleShortcode {
                                 <div class="uk-width-1-2@s">
                                     <label class="uk-form-label" for="<?php echo esc_attr($first_id); ?>">First name</label>
                                     <div class="uk-form-controls">
-                                        <input class="uk-input" type="text" name="first_name" id="<?php echo esc_attr($first_id); ?>" required value="<?php echo $cp_first; ?>">
+                                        <input class="uk-input" type="text" name="first_name" id="<?php echo esc_attr($first_id); ?>" required value="<?php echo $cp_first; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- already esc_attr()'d at assignment. ?>">
                                     </div>
                                 </div>
                                 <div class="uk-width-1-2@s">
                                     <label class="uk-form-label" for="<?php echo esc_attr($last_id); ?>">Last name</label>
                                     <div class="uk-form-controls">
-                                        <input class="uk-input" type="text" name="last_name" id="<?php echo esc_attr($last_id); ?>" required value="<?php echo $cp_last; ?>">
+                                        <input class="uk-input" type="text" name="last_name" id="<?php echo esc_attr($last_id); ?>" required value="<?php echo $cp_last; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- already esc_attr()'d at assignment. ?>">
                                     </div>
                                 </div>
                                 <div class="uk-width-1-1">
                                     <label class="uk-form-label" for="<?php echo esc_attr($email_id); ?>">Email</label>
                                     <div class="uk-form-controls">
-                                        <input class="uk-input" type="email" name="email" id="<?php echo esc_attr($email_id); ?>" required value="<?php echo $cp_email; ?>">
+                                        <input class="uk-input" type="email" name="email" id="<?php echo esc_attr($email_id); ?>" required value="<?php echo $cp_email; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- already esc_attr()'d at assignment. ?>">
                                     </div>
                                 </div>
                                 <div class="uk-width-1-1">
                                     <label class="uk-form-label" for="<?php echo esc_attr($phone_id); ?>">Phone</label>
                                     <div class="uk-form-controls">
-                                        <input class="uk-input" type="text" name="phone" id="<?php echo esc_attr($phone_id); ?>" required placeholder="(555) 123-4567" value="<?php echo $cp_phone; ?>">
+                                        <input class="uk-input" type="text" name="phone" id="<?php echo esc_attr($phone_id); ?>" required placeholder="(555) 123-4567" value="<?php echo $cp_phone; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- already esc_attr()'d at assignment. ?>">
                                     </div>
                                 </div>
                             </div>
@@ -1358,7 +1358,7 @@ class ScheduleShortcode {
                             <strong data-as-fb-slotlabel="1">—</strong>
                         </p>
 
-                        <form method="post" action="<?php echo $action_url; ?>" data-as-fb-form="1">
+                        <form method="post" action="<?php echo $action_url; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- already esc_url()'d at assignment. ?>" data-as-fb-form="1">
                             <input type="hidden" name="action" value="adoration_public_signup">
                             <?php wp_nonce_field('adoration_public_signup', 'adoration_public_nonce'); ?>
 
@@ -1386,19 +1386,19 @@ class ScheduleShortcode {
                                 </tr>
                                 <tr>
                                     <th><label for="<?php echo esc_attr($uid); ?>_fb2_first">First name</label></th>
-                                    <td><input type="text" name="first_name" id="<?php echo esc_attr($uid); ?>_fb2_first" class="regular-text" required value="<?php echo $cp_first; ?>"></td>
+                                    <td><input type="text" name="first_name" id="<?php echo esc_attr($uid); ?>_fb2_first" class="regular-text" required value="<?php echo $cp_first; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- already esc_attr()'d at assignment. ?>"></td>
                                 </tr>
                                 <tr>
                                     <th><label for="<?php echo esc_attr($uid); ?>_fb2_last">Last name</label></th>
-                                    <td><input type="text" name="last_name" id="<?php echo esc_attr($uid); ?>_fb2_last" class="regular-text" required value="<?php echo $cp_last; ?>"></td>
+                                    <td><input type="text" name="last_name" id="<?php echo esc_attr($uid); ?>_fb2_last" class="regular-text" required value="<?php echo $cp_last; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- already esc_attr()'d at assignment. ?>"></td>
                                 </tr>
                                 <tr>
                                     <th><label for="<?php echo esc_attr($uid); ?>_fb2_email">Email</label></th>
-                                    <td><input type="email" name="email" id="<?php echo esc_attr($uid); ?>_fb2_email" class="regular-text" required value="<?php echo $cp_email; ?>"></td>
+                                    <td><input type="email" name="email" id="<?php echo esc_attr($uid); ?>_fb2_email" class="regular-text" required value="<?php echo $cp_email; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- already esc_attr()'d at assignment. ?>"></td>
                                 </tr>
                                 <tr>
                                     <th><label for="<?php echo esc_attr($uid); ?>_fb2_phone">Phone</label></th>
-                                    <td><input type="text" name="phone" id="<?php echo esc_attr($uid); ?>_fb2_phone" class="regular-text" required placeholder="(555) 123-4567" data-as-fb-phone="1" value="<?php echo $cp_phone; ?>"></td>
+                                    <td><input type="text" name="phone" id="<?php echo esc_attr($uid); ?>_fb2_phone" class="regular-text" required placeholder="(555) 123-4567" data-as-fb-phone="1" value="<?php echo $cp_phone; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- already esc_attr()'d at assignment. ?>"></td>
                                 </tr>
                             </table>
 

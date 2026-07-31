@@ -61,7 +61,7 @@ class CoverageReportPage {
                         <option value="0" <?php selected($schedule_id, 0); ?>><?php esc_html_e('All Schedules', 'adoration-scheduler'); ?></option>
                         <?php foreach ($schedules as $s): ?>
                             <?php $sid = (int)($s['id'] ?? 0); ?>
-                            <option value="<?php echo $sid; ?>" <?php selected($schedule_id, $sid); ?>>
+                            <option value="<?php echo (int) $sid; ?>" <?php selected($schedule_id, $sid); ?>>
                                 <?php echo esc_html((string)($s['name'] ?? '')); ?>
                             </option>
                         <?php endforeach; ?>
@@ -161,8 +161,8 @@ class CoverageReportPage {
                             ?>
                             <tr>
                                 <td><?php echo esc_html($month_label); ?></td>
-                                <td><?php echo $total_slots; ?></td>
-                                <td><?php echo $filled_slots; ?></td>
+                                <td><?php echo (int) $total_slots; ?></td>
+                                <td><?php echo (int) $filled_slots; ?></td>
                                 <td><?php echo esc_html((string)$fill_pct); ?>%</td>
                                 <td><?php echo esc_html((string)$capacity_pct); ?>%</td>
                             </tr>
@@ -186,7 +186,7 @@ class CoverageReportPage {
         $schedule_id = (int)($_GET['schedule_id'] ?? 0);
 
         $today = current_time('Y-m-d');
-        $default_from = date('Y-m-01', strtotime($today . ' -11 months'));
+        $default_from = gmdate('Y-m-01', strtotime($today . ' -11 months'));
 
         $from = isset($_GET['from']) ? sanitize_text_field(wp_unslash($_GET['from'])) : '';
         $to   = isset($_GET['to'])   ? sanitize_text_field(wp_unslash($_GET['to']))   : '';

@@ -73,7 +73,7 @@ class ScheduleExportService
         check_admin_referer('adoration_schedules_export');
 
         $rows = self::export_rows();
-        $filename = 'adoration-schedules-' . date('Y-m-d-His') . '.csv';
+        $filename = 'adoration-schedules-' . gmdate('Y-m-d-His') . '.csv';
 
         nocache_headers();
         header('Content-Type: text/csv; charset=UTF-8');
@@ -108,7 +108,7 @@ class ScheduleExportService
             $writer->add_row($row);
         }
 
-        $filename = 'adoration-schedules-' . date('Y-m-d-His') . '.xlsx';
+        $filename = 'adoration-schedules-' . gmdate('Y-m-d-His') . '.xlsx';
         $writer->output($filename);
     }
 }

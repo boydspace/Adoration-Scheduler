@@ -354,7 +354,7 @@ class SlotsRepository {
             );
         } else {
             $today = current_time('Y-m-d');
-            $until = date('Y-m-d', strtotime($today . ' +' . $days_ahead . ' days'));
+            $until = gmdate('Y-m-d', strtotime($today . ' +' . $days_ahead . ' days'));
 
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $sql = $wpdb->prepare(

@@ -106,7 +106,7 @@ class ToastService
         $style_handle  = is_admin() ? 'adoration-scheduler-admin-toasts' : 'adoration-scheduler-frontend-toasts';
         $script_handle = is_admin() ? 'adoration-scheduler-admin-toasts' : 'adoration-scheduler-frontend-toasts';
 
-        wp_register_style($style_handle, false, [], null);
+        wp_register_style($style_handle, false, [], false);
         wp_enqueue_style($style_handle);
 
         $css = '
@@ -167,7 +167,7 @@ class ToastService
 
         wp_add_inline_style($style_handle, $css);
 
-        wp_register_script($script_handle, '', [], null, true);
+        wp_register_script($script_handle, '', [], false, true);
         wp_enqueue_script($script_handle);
 
         $payload_json = $toast ? wp_json_encode($toast) : 'null';
