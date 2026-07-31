@@ -16,6 +16,9 @@ if ( ! defined('ABSPATH') ) {
 }
 
 // Useful constants
+if ( ! defined('ADORATION_SCHEDULER_VERSION') ) {
+    define('ADORATION_SCHEDULER_VERSION', '1.0.6');
+}
 if ( ! defined('ADORATION_SCHEDULER_FILE') ) {
     define('ADORATION_SCHEDULER_FILE', __FILE__);
 }
