@@ -7,6 +7,7 @@ use AdorationScheduler\Domain\Repositories\SignupsRepository;
 use AdorationScheduler\Domain\Repositories\SlotsRepository;
 use AdorationScheduler\Domain\Repositories\SchedulesRepository;
 use AdorationScheduler\Utils\ClergyTitles;
+use AdorationScheduler\Utils\SpreadsheetSafety;
 
 /**
  * CoverageReportService
@@ -82,7 +83,7 @@ class CoverageReportService
             $title = ClergyTitles::abbreviate((string)($r['title'] ?? ''));
             if ($title !== '' && $name !== '') $name = $title . ' ' . $name;
             $hours = round(((int)($r['total_minutes'] ?? 0)) / 60, 1);
-            fputcsv($out, [$name, (string)($r['email'] ?? ''), (int)($r['signup_count'] ?? 0), $hours]);
+            fputcsv($out, SpreadsheetSafety::sanitize_row([$name, (string)($r['email'] ?? ''), (int)($r['signup_count'] ?? 0), $hours]));
         }
         fclose($out);
         exit;
@@ -116,7 +117,7 @@ class CoverageReportService
             $fill_pct     = $total_slots > 0 ? round(($filled_slots / $total_slots) * 100, 1) : 0;
             $capacity_pct = $capacity > 0 ? round(($confirmed / $capacity) * 100, 1) : 0;
 
-            fputcsv($out, [$ym, $total_slots, $filled_slots, $fill_pct, $capacity, $confirmed, $capacity_pct]);
+            fputcsv($out, SpreadsheetSafety::sanitize_row([$ym, $total_slots, $filled_slots, $fill_pct, $capacity, $confirmed, $capacity_pct]));
         }
         fclose($out);
         exit;

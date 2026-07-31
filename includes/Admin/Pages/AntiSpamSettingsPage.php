@@ -77,10 +77,24 @@ class AntiSpamSettingsPage {
     public static function sanitize_options($opts): array {
         $opts = is_array($opts) ? $opts : [];
 
+        // ✅ Secret Key: the field is never pre-filled with the real value
+        // (see field_secret_key()), so a blank submission means "leave it
+        // alone" — only a new value, or the explicit "remove" checkbox,
+        // changes what's saved. Mirrors SmsSettingsPage's Auth Token.
+        $submitted_secret = sanitize_text_field($opts['turnstile_secret_key'] ?? '');
+        if ($submitted_secret !== '') {
+            $secret_key = $submitted_secret;
+        } elseif (!empty($opts['turnstile_secret_key_clear'])) {
+            $secret_key = '';
+        } else {
+            $existing = self::get_options();
+            $secret_key = (string)$existing['turnstile_secret_key'];
+        }
+
         return [
             'turnstile_enabled'    => !empty($opts['turnstile_enabled']) ? 1 : 0,
             'turnstile_site_key'   => sanitize_text_field($opts['turnstile_site_key'] ?? ''),
-            'turnstile_secret_key' => sanitize_text_field($opts['turnstile_secret_key'] ?? ''),
+            'turnstile_secret_key' => $secret_key,
         ];
     }
 
@@ -118,11 +132,19 @@ class AntiSpamSettingsPage {
 
     public static function field_secret_key(): void {
         $o = self::get_options();
+        $has_secret = trim((string)$o['turnstile_secret_key']) !== '';
         ?>
         <input type="password" class="regular-text"
                name="<?php echo esc_attr(self::OPTION_NAME); ?>[turnstile_secret_key]"
-               value="<?php echo esc_attr($o['turnstile_secret_key']); ?>"
-               placeholder="0x4AAAAAA..." autocomplete="off">
+               value=""
+               placeholder="<?php echo $has_secret ? esc_attr__('Saved — leave blank to keep it', 'adoration-scheduler') : '0x4AAAAAA...'; ?>"
+               autocomplete="off">
+        <?php if ($has_secret): ?>
+            <label style="display:block;margin-top:6px;font-weight:normal;">
+                <input type="checkbox" name="<?php echo esc_attr(self::OPTION_NAME); ?>[turnstile_secret_key_clear]" value="1">
+                <?php esc_html_e('Remove the saved Secret Key', 'adoration-scheduler'); ?>
+            </label>
+        <?php endif; ?>
         <p class="description">
             <?php esc_html_e('Keep this private. It is used for server-side verification.', 'adoration-scheduler'); ?>
         </p>
