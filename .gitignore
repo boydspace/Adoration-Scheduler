@@ -8,9 +8,17 @@ Thumbs.db
 *.sublime-project
 *.sublime-workspace
 
-# Dependency directories (if ever introduced)
-node_modules/
-vendor/
+# Dependency directories (if ever introduced) — anchored to the repo root
+# so this doesn't also match assets/vendor/ (bundled, checked-in front-end
+# libraries like UIkit, which are meant to be tracked).
+/node_modules/
+/vendor/
+
+# Action Scheduler's own dev-only Composer vendor dir — not referenced by
+# any runtime require/include (it does its own internal class-loading,
+# not Composer's), so it's unused build-tooling cruft, not a dependency
+# the bundled library actually needs at runtime.
+libraries/action-scheduler/vendor/
 
 # Build artifacts
 *.log
