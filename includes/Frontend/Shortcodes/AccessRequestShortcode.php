@@ -1,12 +1,12 @@
 <?php
 namespace AdorationScheduler\Frontend\Shortcodes;
 
+if ( ! defined('ABSPATH') ) exit;
+
 use AdorationScheduler\Services\AccessGateService;
 use AdorationScheduler\Public\AccessRequestHandler;
 use AdorationScheduler\Domain\Repositories\PersonsRepository;
 use AdorationScheduler\Utils\ClergyTitles;
-
-if ( ! defined('ABSPATH') ) exit;
 
 /**
  * Shortcode: [adoration_request_access]
