@@ -61,7 +61,7 @@ class DashboardActionsAssets
         self::$enqueued = true;
 
         $handle = 'adoration-scheduler-dashboard-actions';
-        wp_register_script($handle, '', [], false, true);
+        wp_register_script($handle, '', [], ADORATION_SCHEDULER_VERSION, true);
         wp_enqueue_script($handle);
         wp_localize_script($handle, 'AdorationSchedulerAjax', [
             'ajaxUrl'        => admin_url('admin-ajax.php'),
