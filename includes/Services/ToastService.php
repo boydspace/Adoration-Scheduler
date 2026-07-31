@@ -109,7 +109,7 @@ class ToastService
         wp_register_style($style_handle, false, [], null);
         wp_enqueue_style($style_handle);
 
-        $css = <<<CSS
+        $css = '
 #adoration-scheduler-toast-root{
     position: fixed;
     left: 50%;
@@ -163,7 +163,7 @@ class ToastService
 @media (max-width: 782px){
     #adoration-scheduler-toast-root{ width: calc(100vw - 20px); }
 }
-CSS;
+';
 
         wp_add_inline_style($style_handle, $css);
 
@@ -172,7 +172,7 @@ CSS;
 
         $payload_json = $toast ? wp_json_encode($toast) : 'null';
 
-        $js = <<<JS
+        $js = "
 (function(){
     var EXIT_MS = 190;
     var ALLOWED = { success:1, error:1, warning:1, info:1 };
@@ -247,7 +247,7 @@ CSS;
         }
     }
 })();
-JS;
+";
 
         wp_add_inline_script($script_handle, $js);
     }

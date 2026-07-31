@@ -515,22 +515,20 @@ class Menu {
      * Uses currentColor so WP applies the correct menu icon color automatically.
      */
     private static function menu_icon_monstrance_data_uri(): string {
-        $svg = <<<SVG
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <g fill="currentColor">
-    <rect x="31" y="2" width="2" height="10"/>
-    <rect x="31" y="52" width="2" height="10"/>
-    <rect x="2" y="31" width="10" height="2"/>
-    <rect x="52" y="31" width="10" height="2"/>
-    <rect x="10" y="10" width="2" height="10" transform="rotate(-45 11 15)"/>
-    <rect x="52" y="10" width="2" height="10" transform="rotate(45 53 15)"/>
-    <rect x="10" y="44" width="2" height="10" transform="rotate(45 11 49)"/>
-    <rect x="52" y="44" width="2" height="10" transform="rotate(-45 53 49)"/>
-    <circle cx="32" cy="32" r="14"/>
-    <circle cx="32" cy="32" r="6" fill="#fff"/>
-  </g>
-</svg>
-SVG;
+        $svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
+            . '<g fill="currentColor">'
+            . '<rect x="31" y="2" width="2" height="10"/>'
+            . '<rect x="31" y="52" width="2" height="10"/>'
+            . '<rect x="2" y="31" width="10" height="2"/>'
+            . '<rect x="52" y="31" width="10" height="2"/>'
+            . '<rect x="10" y="10" width="2" height="10" transform="rotate(-45 11 15)"/>'
+            . '<rect x="52" y="10" width="2" height="10" transform="rotate(45 53 15)"/>'
+            . '<rect x="10" y="44" width="2" height="10" transform="rotate(45 11 49)"/>'
+            . '<rect x="52" y="44" width="2" height="10" transform="rotate(-45 53 49)"/>'
+            . '<circle cx="32" cy="32" r="14"/>'
+            . '<circle cx="32" cy="32" r="6" fill="#fff"/>'
+            . '</g>'
+            . '</svg>';
 
         return 'data:image/svg+xml;base64,' . base64_encode($svg);
     }
