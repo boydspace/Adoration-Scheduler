@@ -4,7 +4,7 @@ Tags: adoration, eucharistic adoration, scheduling, church, parish, volunteer sc
 Requires at least: 6.2
 Tested up to: 6.5
 Requires PHP: 8.0
-Stable tag: 1.0.0
+Stable tag: 1.0.1
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -142,6 +142,10 @@ Twilio Terms of Service: https://www.twilio.com/legal/tos
 Twilio Privacy Policy: https://www.twilio.com/legal/privacy
 
 == Changelog ==
+
+= 1.0.1 =
+* Security fix: CSV/XLSX exports (People, Schedules, Coverage Report, Email Log) now neutralize spreadsheet formula injection in exported data.
+* Security fix: the Twilio Auth Token and Turnstile Secret Key settings fields no longer re-display the saved secret; leaving them blank on save now keeps the existing value instead of requiring it to be retyped.
 
 = 1.0.0 =
 * Three schedule types: single/multi-day events, weekly perpetual adoration with standing commitments, and monthly nth-weekday devotions.
