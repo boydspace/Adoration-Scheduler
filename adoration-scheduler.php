@@ -3,7 +3,7 @@
  * Plugin Name: Adoration Scheduler
  * Plugin URI: https://fatherboyd.com/adoration-scheduler
  * Description: A scheduling system for Eucharistic Adoration.
- * Version: 1.0.1
+ * Version: 1.0.2
  * Author: Fr. Andy Boyd
  * Author URI: https://fatherboyd.com
  * Text Domain: adoration-scheduler

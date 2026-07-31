@@ -4,7 +4,7 @@ Tags: adoration, eucharistic adoration, scheduling, church, parish, volunteer sc
 Requires at least: 6.2
 Tested up to: 6.5
 Requires PHP: 8.0
-Stable tag: 1.0.1
+Stable tag: 1.0.2
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -142,6 +142,9 @@ Twilio Terms of Service: https://www.twilio.com/legal/tos
 Twilio Privacy Policy: https://www.twilio.com/legal/privacy
 
 == Changelog ==
+
+= 1.0.2 =
+* WordPress.org submission readiness: added the required License header to the plugin's main file, and removed heredoc syntax (not permitted by the Plugin Check tool) in favor of standard strings.
 
 = 1.0.1 =
 * Security fix: CSV/XLSX exports (People, Schedules, Coverage Report, Email Log) now neutralize spreadsheet formula injection in exported data.
