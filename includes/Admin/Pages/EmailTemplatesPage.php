@@ -294,7 +294,7 @@ class EmailTemplatesPage {
      */
     public static function handle_save(): void {
         if ( ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         check_admin_referer('adoration_scheduler_email_templates_save');
@@ -337,7 +337,7 @@ class EmailTemplatesPage {
      */
     public static function handle_send_test(): void {
         if ( ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         check_admin_referer('adoration_scheduler_email_templates_test');
@@ -372,7 +372,7 @@ class EmailTemplatesPage {
 
     public function render(): void {
         if ( ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         $t = self::get_templates();

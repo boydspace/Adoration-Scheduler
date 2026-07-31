@@ -156,7 +156,7 @@ class PeopleAdminActionsService {
     public static function handle_delete_person(): void {
 
         if ( ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to do that.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to do that.', 'adoration-scheduler'), 403 );
         }
 
         $page_slug = sanitize_key((string) wp_unslash($_POST['page'] ?? 'adoration_scheduler_people'));
@@ -212,7 +212,7 @@ class PeopleAdminActionsService {
     public static function handle_save_person(): void {
 
         if ( ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to do that.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to do that.', 'adoration-scheduler'), 403 );
         }
 
         check_admin_referer('adoration_save_person');
@@ -343,7 +343,7 @@ class PeopleAdminActionsService {
     public static function handle_set_approval(): void {
 
         if ( ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to do that.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to do that.', 'adoration-scheduler'), 403 );
         }
 
         $page_slug = sanitize_key((string) wp_unslash($_POST['page'] ?? 'adoration_scheduler_people'));

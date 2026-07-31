@@ -220,7 +220,7 @@ class SignupsListTable extends \WP_List_Table {
         }
         echo '</select>';
 
-        submit_button(__('Filter'), 'button', 'filter_action', false);
+        submit_button(__('Filter', 'adoration-scheduler'), 'button', 'filter_action', false);
 
         echo '</div>';
     }

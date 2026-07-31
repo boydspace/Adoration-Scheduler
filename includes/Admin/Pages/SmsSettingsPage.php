@@ -248,7 +248,7 @@ class SmsSettingsPage {
      */
     public static function handle_send_test(): void {
         if (!current_user_can('manage_options')) {
-            wp_die(esc_html__('Sorry, you are not allowed to access this page.'), 403);
+            wp_die(esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403);
         }
 
         check_admin_referer('adoration_scheduler_sms_test');
@@ -272,7 +272,7 @@ class SmsSettingsPage {
 
     public static function render(): void {
         if (!current_user_can('manage_options')) {
-            wp_die(esc_html__('Sorry, you are not allowed to access this page.'), 403);
+            wp_die(esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403);
         }
 
         self::register_settings();

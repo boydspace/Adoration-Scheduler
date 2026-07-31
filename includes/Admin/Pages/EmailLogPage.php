@@ -23,7 +23,7 @@ class EmailLogPage
     public function render(): void
     {
         if ( ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         $repo_class = '\\AdorationScheduler\\Domain\\Repositories\\EmailLogRepository';
@@ -500,7 +500,7 @@ class EmailLogPage
     public static function handle_purge(): void
     {
         if ( ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to do that.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to do that.', 'adoration-scheduler'), 403 );
         }
         check_admin_referer('adoration_email_log_purge');
 
@@ -527,7 +527,7 @@ class EmailLogPage
     public static function handle_export(): void
     {
         if ( ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to do that.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to do that.', 'adoration-scheduler'), 403 );
         }
         check_admin_referer('adoration_email_log_export');
 
@@ -592,7 +592,7 @@ class EmailLogPage
     public static function handle_bulk_delete(): void
     {
         if ( ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to do that.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to do that.', 'adoration-scheduler'), 403 );
         }
         check_admin_referer('adoration_email_log_bulk_delete');
 
@@ -643,7 +643,7 @@ class EmailLogPage
     public static function handle_delete_one(): void
     {
         if ( ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to do that.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to do that.', 'adoration-scheduler'), 403 );
         }
         // This one is a GET admin-post link with wp_nonce_url()
         check_admin_referer('adoration_email_log_delete_one');

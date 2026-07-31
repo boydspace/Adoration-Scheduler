@@ -243,7 +243,7 @@ class SchedulesPage {
     public function render(): void {
 
         if ( ! self::current_user_can_with_fallback(self::CAP_MANAGE_SCHEDULES) ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         $action = sanitize_key($_GET['action'] ?? '');

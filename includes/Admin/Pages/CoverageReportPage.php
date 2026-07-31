@@ -21,7 +21,7 @@ class CoverageReportPage {
 
     public function render(): void {
         if ( ! current_user_can(self::CAP_MANAGE_SETTINGS) && ! current_user_can('manage_options') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         if (class_exists('\\AdorationScheduler\\Admin\\Menu')) {

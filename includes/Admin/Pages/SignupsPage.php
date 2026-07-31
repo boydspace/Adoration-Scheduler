@@ -119,7 +119,7 @@ class SignupsPage {
     public function render(): void {
         // ✅ Use granular cap with fallback so Editors can access if granted.
         if ( ! Plugin::current_user_can_with_fallback('adoration_manage_signups') ) {
-            wp_die( esc_html__('Sorry, you are not allowed to access this page.'), 403 );
+            wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         // ✅ Thickbox for modal UI
