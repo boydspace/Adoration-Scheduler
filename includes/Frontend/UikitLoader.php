@@ -19,17 +19,16 @@ if ( ! defined('ABSPATH') ) exit;
  *  - Does nothing if `window.UIkit` already exists — a theme that already
  *    bundles UIkit (in any way, WP-registered or not) is always left alone;
  *    we never load a second copy.
- *  - Otherwise injects a single pinned UIkit build (CSS + JS + icons) from a
- *    CDN, so modals work even on a theme with no UIkit at all.
+ *  - Otherwise injects a single pinned UIkit build (v3.25.20; CSS + JS +
+ *    icons) bundled with this plugin (assets/vendor/uikit/), so modals
+ *    work even on a theme with no UIkit at all. Bundled locally rather
+ *    than loaded from a CDN — WordPress.org's plugin guidelines don't
+ *    allow pulling JS/CSS from third-party CDNs.
  *  - A `adoration_scheduler_load_bundled_uikit` filter lets a site owner
  *    force this off entirely.
  */
 class UikitLoader
 {
-    private const UIKIT_CSS_URL   = 'https://cdn.jsdelivr.net/npm/uikit@3/dist/css/uikit.min.css';
-    private const UIKIT_JS_URL    = 'https://cdn.jsdelivr.net/npm/uikit@3/dist/js/uikit.min.js';
-    private const UIKIT_ICONS_URL = 'https://cdn.jsdelivr.net/npm/uikit@3/dist/js/uikit-icons.min.js';
-
     private static bool $printed = false;
 
     /**
@@ -45,9 +44,10 @@ class UikitLoader
             return '';
         }
 
-        $css_url   = self::UIKIT_CSS_URL;
-        $js_url    = self::UIKIT_JS_URL;
-        $icons_url = self::UIKIT_ICONS_URL;
+        $vendor_url = ADORATION_SCHEDULER_URL . 'assets/vendor/uikit/';
+        $css_url    = $vendor_url . 'uikit.min.css';
+        $js_url     = $vendor_url . 'uikit.min.js';
+        $icons_url  = $vendor_url . 'uikit-icons.min.js';
 
         ob_start();
         ?>

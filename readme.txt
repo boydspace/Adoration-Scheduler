@@ -1,10 +1,10 @@
 === Adoration Scheduler ===
 Contributors: boydspace
-Tags: adoration, eucharistic adoration, scheduling, church, parish, volunteer scheduling
+Tags: adoration, eucharistic adoration, scheduling, church, parish
 Requires at least: 6.2
 Tested up to: 6.5
 Requires PHP: 8.0
-Stable tag: 1.0.2
+Stable tag: 1.0.3
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -25,7 +25,7 @@ This plugin prioritizes:
 * Safe handling of personal data
 * Reliability for long-running schedules
 
-No external services are required for core functionality. SMS text reminders are an optional feature that uses Twilio if a site administrator enables it — see "External Services" below.
+No external services are required for core functionality. SMS text reminders (Twilio) and anti-spam verification (Cloudflare Turnstile) are optional features a site administrator can separately choose to enable — see "External Services" below.
 
 For documentation, updates, and support, visit the plugin's website: https://fatherboyd.com/adoration-scheduler
 
@@ -141,7 +141,16 @@ If both conditions are met, this plugin sends the adorer's phone number and a re
 Twilio Terms of Service: https://www.twilio.com/legal/tos
 Twilio Privacy Policy: https://www.twilio.com/legal/privacy
 
+This plugin optionally uses Cloudflare Turnstile to help block spam and automated submissions on the public signup form. This only happens if a site administrator enables it and enters their own Turnstile site/secret keys under Adoration Scheduler > Anti-Spam Settings. When enabled, each public signup submission sends the visitor's Turnstile response token and IP address to Cloudflare's verification API (challenges.cloudflare.com) to confirm the submission is not automated. No data is sent to Cloudflare unless an administrator has turned this on.
+
+Cloudflare Terms of Service: https://www.cloudflare.com/website-terms/
+Cloudflare Privacy Policy: https://www.cloudflare.com/privacypolicy/
+
 == Changelog ==
+
+= 1.0.3 =
+* WordPress.org submission readiness: UIkit (used for a few modal dialogs) is now bundled with the plugin instead of loaded from a third-party CDN, per the plugin directory's guidelines.
+* Documentation: disclosed Cloudflare Turnstile (optional anti-spam verification) in the "External Services" section, and trimmed the readme's tag list to the directory's 5-tag limit.
 
 = 1.0.2 =
 * WordPress.org submission readiness: added the required License header to the plugin's main file, and removed heredoc syntax (not permitted by the Plugin Check tool) in favor of standard strings.
