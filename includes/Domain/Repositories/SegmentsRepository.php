@@ -30,7 +30,8 @@ class SegmentsRepository {
     public function list_for_date_pattern(int $date_pattern_id): array {
         global $wpdb;
         $sql = $wpdb->prepare(
-            "SELECT * FROM {$this->table} WHERE date_pattern_id = %d ORDER BY start_time ASC",
+            "SELECT * FROM %i WHERE date_pattern_id = %d ORDER BY start_time ASC",
+            $this->table,
             $date_pattern_id
         );
         return (array)$wpdb->get_results($sql, ARRAY_A);
@@ -39,7 +40,8 @@ class SegmentsRepository {
     public function list_for_schedule(int $schedule_id): array {
         global $wpdb;
         $sql = $wpdb->prepare(
-            "SELECT * FROM {$this->table} WHERE schedule_id = %d ORDER BY date_pattern_id ASC, start_time ASC",
+            "SELECT * FROM %i WHERE schedule_id = %d ORDER BY date_pattern_id ASC, start_time ASC",
+            $this->table,
             $schedule_id
         );
         return (array)$wpdb->get_results($sql, ARRAY_A);

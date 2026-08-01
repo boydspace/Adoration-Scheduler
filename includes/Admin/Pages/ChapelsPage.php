@@ -410,18 +410,18 @@ JS;
         $slots_table     = $wpdb->prefix . 'adoration_slots';
 
         if ($this->table_exists($schedules_table)) {
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             $wpdb->query($wpdb->prepare(
-                "UPDATE {$schedules_table} SET chapel_id = %d WHERE chapel_id = %d",
+                "UPDATE %i SET chapel_id = %d WHERE chapel_id = %d",
+                $schedules_table,
                 $to_id,
                 $from_id
             ));
         }
 
         if ($this->table_exists($slots_table)) {
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             $wpdb->query($wpdb->prepare(
-                "UPDATE {$slots_table} SET chapel_id = %d WHERE chapel_id = %d",
+                "UPDATE %i SET chapel_id = %d WHERE chapel_id = %d",
+                $slots_table,
                 $to_id,
                 $from_id
             ));

@@ -52,8 +52,7 @@ class OnboardingChecklist
         $segments_table = $wpdb->prefix . 'adoration_segments';
         $hours_configured = false;
         if (self::table_exists($segments_table)) {
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            $hours_configured = ((int) $wpdb->get_var("SELECT COUNT(*) FROM {$segments_table}")) > 0;
+            $hours_configured = ((int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM %i", $segments_table))) > 0;
         }
 
         $privacy_reviewed = get_option('adoration_scheduler_access_options', null) !== null;

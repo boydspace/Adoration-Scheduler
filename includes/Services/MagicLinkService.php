@@ -77,11 +77,10 @@ class MagicLinkService
          * So be robust and match ANY of them.
          * Also respect revoked_at if present.
          */
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
         $row = $wpdb->get_row($wpdb->prepare("
             SELECT p.*
-            FROM {$sessions} s
-            INNER JOIN {$persons} p ON p.id = s.person_id
+            FROM %i s
+            INNER JOIN %i p ON p.id = s.person_id
             WHERE s.expires_at > %s
               AND (
                     (s.session_token_hash IS NOT NULL AND s.session_token_hash = %s)
@@ -90,7 +89,7 @@ class MagicLinkService
               )
               AND (s.revoked_at IS NULL OR s.revoked_at = '0000-00-00 00:00:00')
             LIMIT 1
-        ", $now, $token_hash, $token_hash, $raw), ARRAY_A);
+        ", $sessions, $persons, $now, $token_hash, $token_hash, $raw), ARRAY_A);
 
         return is_array($row) ? $row : null;
     }
@@ -240,9 +239,8 @@ class MagicLinkService
         $persons = $wpdb->prefix . 'adoration_persons';
         $magic   = $wpdb->prefix . 'adoration_magic_links';
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
         $person = $wpdb->get_row(
-            $wpdb->prepare("SELECT * FROM {$persons} WHERE email = %s LIMIT 1", $email),
+            $wpdb->prepare("SELECT * FROM %i WHERE email = %s LIMIT 1", $persons, $email),
             ARRAY_A
         );
 
@@ -261,9 +259,9 @@ class MagicLinkService
         $expires = gmdate('Y-m-d H:i:s', time() + self::LINK_TTL_SECONDS);
 
         // Optional: invalidate old unused links for this person
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
         $wpdb->query($wpdb->prepare(
-            "UPDATE {$magic} SET used_at = %s WHERE person_id = %d AND used_at IS NULL",
+            "UPDATE %i SET used_at = %s WHERE person_id = %d AND used_at IS NULL",
+            $magic,
             $now,
             $person_id
         ));
@@ -424,15 +422,14 @@ class MagicLinkService
         $now = gmdate('Y-m-d H:i:s');
 
         // Atomic one-time use
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
         $updated = $wpdb->query($wpdb->prepare("
-            UPDATE {$magic}
+            UPDATE %i
             SET used_at = %s
             WHERE token_hash = %s
               AND used_at IS NULL
               AND expires_at > %s
             LIMIT 1
-        ", $now, $token_hash, $now));
+        ", $magic, $now, $token_hash, $now));
 
         if ($updated !== 1) {
             error_log('[AdorationScheduler] Magic consume invalid/expired/already-used token_hash=' . substr($token_hash, 0, 12) . '... updated=' . (string)$updated);
@@ -441,13 +438,12 @@ class MagicLinkService
         }
 
         // Fetch person_id
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
         $row = $wpdb->get_row($wpdb->prepare("
             SELECT person_id
-            FROM {$magic}
+            FROM %i
             WHERE token_hash = %s
             LIMIT 1
-        ", $token_hash), ARRAY_A);
+        ", $magic, $token_hash), ARRAY_A);
 
         if (!is_array($row) || empty($row['person_id'])) {
             error_log('[AdorationScheduler] Magic consume: token marked used but person_id missing token_hash=' . substr($token_hash, 0, 12) . '...');
@@ -567,13 +563,12 @@ class MagicLinkService
              * ✅ FIX:
              * Delete by ANY of the possible identifiers, depending on schema/state.
              */
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             $deleted = $wpdb->query($wpdb->prepare(
-                "DELETE FROM {$sessions}
+                "DELETE FROM %i
                  WHERE (session_token_hash IS NOT NULL AND session_token_hash = %s)
                     OR (session_hash IS NOT NULL AND session_hash = %s)
                     OR (session_token IS NOT NULL AND session_token = %s)",
-                $hash, $hash, $raw
+                $sessions, $hash, $hash, $raw
             ));
             if (defined('WP_DEBUG') && WP_DEBUG) {
                 error_log('[AdorationScheduler] Logout deleted_sessions=' . (string)$deleted);
@@ -629,7 +624,7 @@ class MagicLinkService
             return substr(bin2hex(random_bytes(16)), 0, 24);
         } catch (\Throwable $e) {
             // Fallback if random_bytes unavailable for some reason
-            return substr(md5(uniqid((string)mt_rand(), true)), 0, 24);
+            return substr(md5(uniqid((string)wp_rand(), true)), 0, 24);
         }
     }
 

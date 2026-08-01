@@ -348,8 +348,7 @@ class PeopleMergeService {
             return ['ok' => false, 'error' => 'missing_signups_repo', 'moved' => 0, 'skipped' => 0];
         }
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $cols = $wpdb->get_col("DESCRIBE `$signup_table`", 0);
+        $cols = $wpdb->get_col($wpdb->prepare("DESCRIBE %i", $signup_table), 0);
         $cols = array_map('strval', (array)$cols);
 
         if (!in_array('person_id', $cols, true) || !in_array('slot_id', $cols, true)) {
@@ -357,9 +356,8 @@ class PeopleMergeService {
         }
 
         // Get TO slot_ids
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
         $to_slots = $wpdb->get_col(
-            $wpdb->prepare("SELECT slot_id FROM `$signup_table` WHERE person_id = %d", $to_id)
+            $wpdb->prepare("SELECT slot_id FROM %i WHERE person_id = %d", $signup_table, $to_id)
         );
         $to_slots = array_map('intval', (array)$to_slots);
         $to_slots = array_values(array_filter($to_slots, fn($v) => $v > 0));
@@ -368,13 +366,12 @@ class PeopleMergeService {
 
         if (!empty($to_slots)) {
             $placeholders = implode(',', array_fill(0, count($to_slots), '%d'));
-            $params = array_merge([$from_id], $to_slots);
+            $params = array_merge([$signup_table, $from_id], $to_slots);
 
             // Delete duplicates from FROM where TO already has that slot
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             $wpdb->query(
                 $wpdb->prepare(
-                    "DELETE FROM `$signup_table` WHERE person_id = %d AND slot_id IN ($placeholders)",
+                    "DELETE FROM %i WHERE person_id = %d AND slot_id IN ($placeholders)",
                     $params
                 )
             );
@@ -382,10 +379,10 @@ class PeopleMergeService {
         }
 
         // Move remaining FROM signups to TO
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
         $wpdb->query(
             $wpdb->prepare(
-                "UPDATE `$signup_table` SET person_id = %d WHERE person_id = %d",
+                "UPDATE %i SET person_id = %d WHERE person_id = %d",
+                $signup_table,
                 $to_id,
                 $from_id
             )

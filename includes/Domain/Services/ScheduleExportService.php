@@ -84,7 +84,7 @@ class ScheduleExportService
         foreach ($rows as $row) {
             fputcsv($out, SpreadsheetSafety::sanitize_row($row));
         }
-        fclose($out);
+        fclose($out); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- closing a php://output stream, not a real file; WP_Filesystem has no equivalent.
         exit;
     }
 

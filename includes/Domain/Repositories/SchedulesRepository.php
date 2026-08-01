@@ -55,7 +55,8 @@ class SchedulesRepository {
 
         if ($include_deleted) {
             $sql = $wpdb->prepare(
-                "SELECT * FROM {$this->table} ORDER BY created_at DESC LIMIT %d",
+                "SELECT * FROM %i ORDER BY created_at DESC LIMIT %d",
+                $this->table,
                 $limit
             );
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
@@ -63,7 +64,8 @@ class SchedulesRepository {
         }
 
         $sql = $wpdb->prepare(
-            "SELECT * FROM {$this->table} WHERE status <> %s ORDER BY created_at DESC LIMIT %d",
+            "SELECT * FROM %i WHERE status <> %s ORDER BY created_at DESC LIMIT %d",
+            $this->table,
             self::STATUS_TRASH,
             $limit
         );
@@ -83,12 +85,16 @@ class SchedulesRepository {
 
         $chapels = $wpdb->prefix . 'adoration_chapels';
 
-        $sql = "SELECT s.*, c.name AS chapel_name
-                FROM {$this->table} s
-                LEFT JOIN {$chapels} c ON c.id = s.chapel_id
-                ORDER BY s.name ASC";
+        $sql = $wpdb->prepare(
+            "SELECT s.*, c.name AS chapel_name
+                FROM %i s
+                LEFT JOIN %i c ON c.id = s.chapel_id
+                ORDER BY s.name ASC",
+            $this->table,
+            $chapels
+        );
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
         return (array) $wpdb->get_results( $sql, ARRAY_A );
     }
 
@@ -100,7 +106,8 @@ class SchedulesRepository {
         global $wpdb;
 
         $sql = $wpdb->prepare(
-            "SELECT * FROM {$this->table} WHERE type = %s AND status = %s ORDER BY id ASC",
+            "SELECT * FROM %i WHERE type = %s AND status = %s ORDER BY id ASC",
+            $this->table,
             'perpetual',
             'active'
         );
@@ -116,7 +123,8 @@ class SchedulesRepository {
         global $wpdb;
 
         $sql = $wpdb->prepare(
-            "SELECT * FROM {$this->table} WHERE type = %s AND status = %s ORDER BY id ASC",
+            "SELECT * FROM %i WHERE type = %s AND status = %s ORDER BY id ASC",
+            $this->table,
             'monthly',
             'active'
         );
@@ -139,12 +147,14 @@ class SchedulesRepository {
 
         if ($include_deleted) {
             $sql = $wpdb->prepare(
-                "SELECT * FROM {$this->table} WHERE id = %d",
+                "SELECT * FROM %i WHERE id = %d",
+                $this->table,
                 $id
             );
         } else {
             $sql = $wpdb->prepare(
-                "SELECT * FROM {$this->table} WHERE id = %d AND status <> %s",
+                "SELECT * FROM %i WHERE id = %d AND status <> %s",
+                $this->table,
                 $id,
                 self::STATUS_TRASH
             );
@@ -195,12 +205,14 @@ class SchedulesRepository {
 
         if ($include_deleted) {
             $sql = $wpdb->prepare(
-                "SELECT * FROM {$this->table} WHERE slug = %s",
+                "SELECT * FROM %i WHERE slug = %s",
+                $this->table,
                 $slug
             );
         } else {
             $sql = $wpdb->prepare(
-                "SELECT * FROM {$this->table} WHERE slug = %s AND status <> %s",
+                "SELECT * FROM %i WHERE slug = %s AND status <> %s",
+                $this->table,
                 $slug,
                 self::STATUS_TRASH
             );
@@ -259,7 +271,8 @@ class SchedulesRepository {
         global $wpdb;
         $slug = sanitize_title( $slug );
         $sql = $wpdb->prepare(
-            "SELECT COUNT(*) FROM {$this->table} WHERE slug = %s AND status <> %s",
+            "SELECT COUNT(*) FROM %i WHERE slug = %s AND status <> %s",
+            $this->table,
             $slug,
             self::STATUS_TRASH
         );
@@ -277,7 +290,8 @@ class SchedulesRepository {
         $slug = sanitize_title( $slug );
 
         $sql = $wpdb->prepare(
-            "SELECT COUNT(*) FROM {$this->table} WHERE slug = %s AND id <> %d AND status <> %s",
+            "SELECT COUNT(*) FROM %i WHERE slug = %s AND id <> %d AND status <> %s",
+            $this->table,
             $slug,
             $id,
             self::STATUS_TRASH
@@ -392,7 +406,8 @@ class SchedulesRepository {
         $signups = $wpdb->prefix . 'adoration_signups';
 
         $sql = $wpdb->prepare(
-            "SELECT COUNT(*) FROM {$signups} WHERE schedule_id = %d",
+            "SELECT COUNT(*) FROM %i WHERE schedule_id = %d",
+            $signups,
             $schedule_id
         );
 
@@ -587,60 +602,59 @@ class SchedulesRepository {
         $orderby = $allowed_orderby[(string)$a['orderby']] ?? 'created_at';
         $order   = strtoupper((string)$a['order']) === 'ASC' ? 'ASC' : 'DESC';
 
-        $where  = [];
-        $params = [];
-
-        if ($status === self::STATUS_TRASH) {
-            $where[]  = "status = %s";
-            $params[] = self::STATUS_TRASH;
-        } elseif ($status !== '') {
-            $where[]  = "status = %s";
-            $params[] = $status;
-        } else {
-            $where[]  = "status <> %s";
-            $params[] = self::STATUS_TRASH;
-        }
-
-        if ($search !== '') {
-            $like = '%' . $wpdb->esc_like($search) . '%';
-            $where[]  = "(name LIKE %s OR slug LIKE %s)";
-            $params[] = $like;
-            $params[] = $like;
-        }
-
         $start_from = sanitize_text_field((string)$a['start_from']);
         $start_to   = sanitize_text_field((string)$a['start_to']);
         $end_from   = sanitize_text_field((string)$a['end_from']);
         $end_to     = sanitize_text_field((string)$a['end_to']);
+        $like = '%' . $wpdb->esc_like($search) . '%';
 
-        if ($start_from !== '') {
-            $where[]  = "start_date >= %s";
-            $params[] = $start_from;
-        }
-        if ($start_to !== '') {
-            $where[]  = "start_date <= %s";
-            $params[] = $start_to;
-        }
-        if ($end_from !== '') {
-            $where[]  = "end_date >= %s";
-            $params[] = $end_from;
-        }
-        if ($end_to !== '') {
-            $where[]  = "end_date <= %s";
-            $params[] = $end_to;
-        }
+        // Every filter below is expressed as an always-present, parameterized
+        // condition (using (%s <> '' AND ...) / (%s = '' OR ...) forms) so no
+        // conditional WHERE fragment ever needs to be interpolated:
+        //  - status: an explicit status matches it exactly; no status means
+        //    "anything but trash" (same semantics as the old three-way branch).
+        //  - search/date-range filters: each becomes a no-op when blank.
+        $count_prepared = $wpdb->prepare(
+            "SELECT COUNT(*) FROM %i
+                       WHERE ( (%s <> '' AND status = %s) OR (%s = '' AND status <> %s) )
+                         AND (%s = '' OR (name LIKE %s OR slug LIKE %s))
+                         AND (%s = '' OR start_date >= %s)
+                         AND (%s = '' OR start_date <= %s)
+                         AND (%s = '' OR end_date >= %s)
+                         AND (%s = '' OR end_date <= %s)",
+            $this->table,
+            $status, $status, $status, self::STATUS_TRASH,
+            $search, $like, $like,
+            $start_from, $start_from,
+            $start_to, $start_to,
+            $end_from, $end_from,
+            $end_to, $end_to
+        );
+        $total = (int)$wpdb->get_var($count_prepared);
 
-        $where_sql = $where ? ('WHERE ' . implode(' AND ', $where)) : '';
+        // $orderby is looked up from $allowed_orderby and $order forced to
+        // ASC/DESC — neither is ever raw user input.
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        $items_prepared = $wpdb->prepare(
+            "SELECT * FROM %i
+                       WHERE ( (%s <> '' AND status = %s) OR (%s = '' AND status <> %s) )
+                         AND (%s = '' OR (name LIKE %s OR slug LIKE %s))
+                         AND (%s = '' OR start_date >= %s)
+                         AND (%s = '' OR start_date <= %s)
+                         AND (%s = '' OR end_date >= %s)
+                         AND (%s = '' OR end_date <= %s)
+                       ORDER BY {$orderby} {$order} LIMIT %d OFFSET %d",
+            $this->table,
+            $status, $status, $status, self::STATUS_TRASH,
+            $search, $like, $like,
+            $start_from, $start_from,
+            $start_to, $start_to,
+            $end_from, $end_from,
+            $end_to, $end_to,
+            $per_page, $offset
+        );
 
-        $count_sql = "SELECT COUNT(*) FROM {$this->table} {$where_sql}";
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $total = (int)$wpdb->get_var($wpdb->prepare($count_sql, $params));
-
-        $items_sql = "SELECT * FROM {$this->table} {$where_sql} ORDER BY {$orderby} {$order} LIMIT %d OFFSET %d";
-        $items_params = array_merge($params, [$per_page, $offset]);
-
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $items = (array)$wpdb->get_results($wpdb->prepare($items_sql, $items_params), ARRAY_A);
+        $items = (array)$wpdb->get_results($items_prepared, ARRAY_A);
 
         return [
             'items' => $items,
@@ -654,9 +668,8 @@ class SchedulesRepository {
     public function admin_counts_by_status(): array {
         global $wpdb;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
         $rows = (array)$wpdb->get_results(
-            "SELECT status, COUNT(*) AS c FROM {$this->table} GROUP BY status",
+            $wpdb->prepare("SELECT status, COUNT(*) AS c FROM %i GROUP BY status", $this->table),
             ARRAY_A
         );
 

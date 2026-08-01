@@ -221,14 +221,17 @@ class SignupCancellationService
         $has_updated_at = self::table_has_column($table, 'updated_at');
         $has_is_active  = self::table_has_column($table, 'is_active');
 
-        // Pull row (include slot_id so we can prevent uniq collisions when setting is_active=0)
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
+        // Pull row (include slot_id so we can prevent uniq collisions when setting is_active=0).
+        // The "is_active" column fragment is a fixed literal chosen above by
+        // a real schema check, never raw user input.
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
         $row = $wpdb->get_row(
             $wpdb->prepare(
                 "SELECT id, person_id, slot_id, status" . ($has_is_active ? ", is_active" : "") . "
-                 FROM {$table}
+                 FROM %i
                  WHERE id = %d AND person_id = %d
                  LIMIT 1",
+                $table,
                 $signup_id,
                 $person_id
             ),
@@ -257,14 +260,14 @@ class SignupCancellationService
          */
         if ($has_is_active && $slot_id > 0) {
             try {
-                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
                 $wpdb->query(
                     $wpdb->prepare(
-                        "DELETE FROM {$table}
+                        "DELETE FROM %i
                          WHERE person_id = %d
                            AND slot_id = %d
                            AND is_active = 0
                            AND id <> %d",
+                        $table,
                         $person_id,
                         $slot_id,
                         $signup_id
@@ -361,9 +364,8 @@ class SignupCancellationService
 
         try {
             $like = $wpdb->esc_like($column);
-            $sql  = "SHOW COLUMNS FROM `{$table}` LIKE %s";
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
-            $found = $wpdb->get_var($wpdb->prepare($sql, $like));
+            $prepared = $wpdb->prepare("SHOW COLUMNS FROM %i LIKE %s", $table, $like);
+            $found = $wpdb->get_var($prepared);
             return !empty($found);
         } catch (\Throwable $e) {
             return false;

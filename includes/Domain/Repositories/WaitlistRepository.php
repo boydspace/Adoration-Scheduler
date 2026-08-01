@@ -36,7 +36,7 @@ class WaitlistRepository {
         if ($id <= 0) return null;
 
         $row = $wpdb->get_row(
-            $wpdb->prepare("SELECT * FROM {$this->table} WHERE id = %d LIMIT 1", $id),
+            $wpdb->prepare("SELECT * FROM %i WHERE id = %d LIMIT 1", $this->table, $id),
             ARRAY_A
         );
 
@@ -53,7 +53,8 @@ class WaitlistRepository {
         if ($person_id <= 0 || $slot_id <= 0) return false;
 
         $count = (int)$wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$this->table} WHERE person_id = %d AND slot_id = %d AND status = 'waiting'",
+            "SELECT COUNT(*) FROM %i WHERE person_id = %d AND slot_id = %d AND status = 'waiting'",
+            $this->table,
             $person_id,
             $slot_id
         ));
@@ -79,7 +80,8 @@ class WaitlistRepository {
         }
 
         $existing_id = (int)$wpdb->get_var($wpdb->prepare(
-            "SELECT id FROM {$this->table} WHERE person_id = %d AND slot_id = %d AND status = 'waiting' LIMIT 1",
+            "SELECT id FROM %i WHERE person_id = %d AND slot_id = %d AND status = 'waiting' LIMIT 1",
+            $this->table,
             $person_id,
             $slot_id
         ));
@@ -167,10 +169,11 @@ class WaitlistRepository {
         if ($slot_id <= 0) return null;
 
         $row = $wpdb->get_row($wpdb->prepare(
-            "SELECT * FROM {$this->table}
+            "SELECT * FROM %i
              WHERE slot_id = %d AND status = 'waiting'
              ORDER BY created_at ASC, id ASC
              LIMIT 1",
+            $this->table,
             $slot_id
         ), ARRAY_A);
 
@@ -183,7 +186,8 @@ class WaitlistRepository {
         if ($slot_id <= 0) return 0;
 
         return (int)$wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$this->table} WHERE slot_id = %d AND status = 'waiting'",
+            "SELECT COUNT(*) FROM %i WHERE slot_id = %d AND status = 'waiting'",
+            $this->table,
             $slot_id
         ));
     }
@@ -202,9 +206,10 @@ class WaitlistRepository {
         $id         = (int)$row['id'];
 
         $ahead = (int)$wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$this->table}
+            "SELECT COUNT(*) FROM %i
              WHERE slot_id = %d AND status = 'waiting'
                AND (created_at < %s OR (created_at = %s AND id < %d))",
+            $this->table,
             $slot_id,
             $created_at,
             $created_at,
@@ -223,20 +228,24 @@ class WaitlistRepository {
         $person_id = (int)$person_id;
         if ($person_id <= 0) return [];
 
-        $where_status = $active_only ? " AND w.status = 'waiting' " : "";
-
+        // The (%d = 0 OR ...) form lets "active only" stay an optional
+        // filter without interpolating a conditional WHERE fragment.
         $sql = $wpdb->prepare(
             "SELECT
                 w.*,
                 sch.name AS schedule_name,
                 sl.start_time AS slot_start_time,
                 sl.end_time AS slot_end_time
-             FROM {$this->table} w
-             LEFT JOIN {$this->schedules_table} sch ON sch.id = w.schedule_id
-             LEFT JOIN {$this->slots_table} sl ON sl.id = w.slot_id
-             WHERE w.person_id = %d {$where_status}
+             FROM %i w
+             LEFT JOIN %i sch ON sch.id = w.schedule_id
+             LEFT JOIN %i sl ON sl.id = w.slot_id
+             WHERE w.person_id = %d AND (%d = 0 OR w.status = 'waiting')
              ORDER BY w.date ASC, sl.start_time ASC, w.id ASC",
-            $person_id
+            $this->table,
+            $this->schedules_table,
+            $this->slots_table,
+            $person_id,
+            $active_only ? 1 : 0
         );
 
         return (array) $wpdb->get_results($sql, ARRAY_A);
@@ -251,17 +260,21 @@ class WaitlistRepository {
         if ($slot_id <= 0) return [];
 
         $persons_table = $wpdb->prefix . 'adoration_persons';
-        $where_status  = $active_only ? " AND w.status = 'waiting' " : "";
 
+        // The (%d = 0 OR ...) form lets "active only" stay an optional
+        // filter without interpolating a conditional WHERE fragment.
         $sql = $wpdb->prepare(
             "SELECT
                 w.*,
                 p.first_name, p.last_name, p.title, p.email, p.phone
-             FROM {$this->table} w
-             LEFT JOIN {$persons_table} p ON p.id = w.person_id
-             WHERE w.slot_id = %d {$where_status}
+             FROM %i w
+             LEFT JOIN %i p ON p.id = w.person_id
+             WHERE w.slot_id = %d AND (%d = 0 OR w.status = 'waiting')
              ORDER BY w.created_at ASC, w.id ASC",
-            $slot_id
+            $this->table,
+            $persons_table,
+            $slot_id,
+            $active_only ? 1 : 0
         );
 
         return (array) $wpdb->get_results($sql, ARRAY_A);
@@ -277,17 +290,21 @@ class WaitlistRepository {
         if ($schedule_id <= 0) return [];
 
         $persons_table = $wpdb->prefix . 'adoration_persons';
-        $where_status  = $active_only ? " AND w.status = 'waiting' " : "";
 
+        // The (%d = 0 OR ...) form lets "active only" stay an optional
+        // filter without interpolating a conditional WHERE fragment.
         $sql = $wpdb->prepare(
             "SELECT
                 w.*,
                 p.first_name, p.last_name, p.title, p.email, p.phone
-             FROM {$this->table} w
-             LEFT JOIN {$persons_table} p ON p.id = w.person_id
-             WHERE w.schedule_id = %d {$where_status}
+             FROM %i w
+             LEFT JOIN %i p ON p.id = w.person_id
+             WHERE w.schedule_id = %d AND (%d = 0 OR w.status = 'waiting')
              ORDER BY w.slot_id ASC, w.created_at ASC, w.id ASC",
-            $schedule_id
+            $this->table,
+            $persons_table,
+            $schedule_id,
+            $active_only ? 1 : 0
         );
 
         return (array) $wpdb->get_results($sql, ARRAY_A);
@@ -303,9 +320,10 @@ class WaitlistRepository {
         if ($person_id <= 0 || $from_date === '') return 0;
 
         $result = $wpdb->query($wpdb->prepare(
-            "UPDATE {$this->table}
+            "UPDATE %i
              SET status = 'cancelled', updated_at = %s
              WHERE person_id = %d AND status = 'waiting' AND date >= %s",
+            $this->table,
             gmdate('Y-m-d H:i:s'),
             $person_id,
             $from_date

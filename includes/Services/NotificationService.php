@@ -914,7 +914,8 @@ class NotificationService
 
         $val = $wpdb->get_var(
             $wpdb->prepare(
-                "SELECT schedule_id FROM {$table} WHERE id = %d LIMIT 1",
+                "SELECT schedule_id FROM %i WHERE id = %d LIMIT 1",
+                $table,
                 $signup_id
             )
         );

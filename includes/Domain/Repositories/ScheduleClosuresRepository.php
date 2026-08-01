@@ -63,7 +63,7 @@ class ScheduleClosuresRepository {
         $id = (int)$id;
         if ($id <= 0) return null;
 
-        $sql = $wpdb->prepare("SELECT * FROM {$this->table} WHERE id = %d LIMIT 1", $id);
+        $sql = $wpdb->prepare("SELECT * FROM %i WHERE id = %d LIMIT 1", $this->table, $id);
         $row = $wpdb->get_row($sql, ARRAY_A);
         return $row ? (array)$row : null;
     }
@@ -78,7 +78,8 @@ class ScheduleClosuresRepository {
         if ($schedule_id <= 0) return [];
 
         $sql = $wpdb->prepare(
-            "SELECT * FROM {$this->table} WHERE schedule_id = %d ORDER BY start_at DESC",
+            "SELECT * FROM %i WHERE schedule_id = %d ORDER BY start_at DESC",
+            $this->table,
             $schedule_id
         );
 
@@ -97,9 +98,10 @@ class ScheduleClosuresRepository {
         if ($schedule_id <= 0 || $range_start === '' || $range_end === '') return [];
 
         $sql = $wpdb->prepare(
-            "SELECT * FROM {$this->table}
+            "SELECT * FROM %i
              WHERE schedule_id = %d AND start_at < %s AND end_at > %s
              ORDER BY start_at ASC",
+            $this->table,
             $schedule_id,
             $range_end,
             $range_start

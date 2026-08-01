@@ -59,7 +59,7 @@ class EmailLogRepository {
         $id = (int)$id;
         if ($id <= 0) return null;
 
-        $sql = $wpdb->prepare("SELECT * FROM {$this->table} WHERE id = %d LIMIT 1", $id);
+        $sql = $wpdb->prepare("SELECT * FROM %i WHERE id = %d LIMIT 1", $this->table, $id);
         $row = $wpdb->get_row($sql, ARRAY_A);
 
         return $row ? (array)$row : null;
@@ -83,44 +83,43 @@ class EmailLogRepository {
         $per_page = max(1, min(100, (int)$args['per_page']));
         $offset   = ($paged - 1) * $per_page;
 
-        $where = "WHERE 1=1";
-        $params = [];
-
         $s = trim((string)$args['s']);
-        if ($s !== '') {
-            $where .= " AND (to_email LIKE %s OR subject LIKE %s OR type LIKE %s OR context LIKE %s)";
-            $like = '%' . $wpdb->esc_like($s) . '%';
-            $params[] = $like;
-            $params[] = $like;
-            $params[] = $like;
-            $params[] = $like;
-        }
+        $like = '%' . $wpdb->esc_like($s) . '%';
 
         $type = trim((string)$args['type']);
-        if ($type !== '') {
-            $where .= " AND type = %s";
-            $params[] = $type;
-        }
 
         $success = (string)$args['success'];
-        if ($success === '1' || $success === '0') {
-            $where .= " AND success = %d";
-            $params[] = (int)$success;
-        }
+        $has_success_filter = ($success === '1' || $success === '0') ? 1 : 0;
+        $success_val = $has_success_filter ? (int)$success : 0;
 
         $allowed_orderby = ['id','created_at','to_email','type','context','success'];
         $orderby = in_array($args['orderby'], $allowed_orderby, true) ? $args['orderby'] : 'created_at';
         $order   = strtoupper((string)$args['order']) === 'ASC' ? 'ASC' : 'DESC';
 
-        // Total
-        $sql_count = "SELECT COUNT(*) FROM {$this->table} {$where}";
-        $total = (int) $wpdb->get_var($params ? $wpdb->prepare($sql_count, ...$params) : $sql_count);
+        // The (%s = '' OR ...) / (%d = 0 OR ...) form lets each filter stay
+        // optional without interpolating a conditional WHERE fragment.
+        $count_prepared = $wpdb->prepare(
+            "SELECT COUNT(*) FROM %i
+             WHERE (%s = '' OR (to_email LIKE %s OR subject LIKE %s OR type LIKE %s OR context LIKE %s))
+               AND (%s = '' OR type = %s)
+               AND (%d = 0 OR success = %d)",
+            $this->table, $s, $like, $like, $like, $like, $type, $type, $has_success_filter, $success_val
+        );
+        $total = (int) $wpdb->get_var($count_prepared);
 
-        // Rows
-        $sql_rows = "SELECT * FROM {$this->table} {$where} ORDER BY {$orderby} {$order} LIMIT %d OFFSET %d";
-        $params_rows = array_merge($params, [$per_page, $offset]);
+        // $orderby is checked against $allowed_orderby above and $order is
+        // forced to ASC/DESC — neither is ever raw user input.
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        $rows_prepared = $wpdb->prepare(
+            "SELECT * FROM %i
+             WHERE (%s = '' OR (to_email LIKE %s OR subject LIKE %s OR type LIKE %s OR context LIKE %s))
+               AND (%s = '' OR type = %s)
+               AND (%d = 0 OR success = %d)
+             ORDER BY {$orderby} {$order} LIMIT %d OFFSET %d",
+            $this->table, $s, $like, $like, $like, $like, $type, $type, $has_success_filter, $success_val, $per_page, $offset
+        );
 
-        $rows = (array) $wpdb->get_results($wpdb->prepare($sql_rows, ...$params_rows), ARRAY_A);
+        $rows = (array) $wpdb->get_results($rows_prepared, ARRAY_A);
 
         return [
             'total' => $total,
@@ -140,7 +139,8 @@ class EmailLogRepository {
 
         // MySQL interval
         $sql = $wpdb->prepare(
-            "DELETE FROM {$this->table} WHERE created_at < (NOW() - INTERVAL %d DAY)",
+            "DELETE FROM %i WHERE created_at < (NOW() - INTERVAL %d DAY)",
+            $this->table,
             $days
         );
 
@@ -158,10 +158,13 @@ class EmailLogRepository {
         $ids = array_values(array_filter(array_map('intval', $ids), fn($v) => $v > 0));
         if (empty($ids)) return 0;
 
+        // Dynamic-length IN-clause: the placeholder count varies with the
+        // number of IDs, so the arg list can't be individually enumerated.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
         $placeholders = implode(',', array_fill(0, count($ids), '%d'));
         $sql = $wpdb->prepare(
-            "DELETE FROM {$this->table} WHERE id IN ({$placeholders})",
-            ...$ids
+            "DELETE FROM %i WHERE id IN ({$placeholders})",
+            ...array_merge([$this->table], $ids)
         );
 
         $res = $wpdb->query($sql);
@@ -186,38 +189,33 @@ class EmailLogRepository {
         ];
         $args = array_merge($defaults, $args);
 
-        $where = "WHERE 1=1";
-        $params = [];
-
         $s = trim((string)$args['s']);
-        if ($s !== '') {
-            $where .= " AND (to_email LIKE %s OR subject LIKE %s OR type LIKE %s OR context LIKE %s)";
-            $like = '%' . $wpdb->esc_like($s) . '%';
-            $params[] = $like;
-            $params[] = $like;
-            $params[] = $like;
-            $params[] = $like;
-        }
+        $like = '%' . $wpdb->esc_like($s) . '%';
 
         $type = trim((string)$args['type']);
-        if ($type !== '') {
-            $where .= " AND type = %s";
-            $params[] = $type;
-        }
 
         $success = (string)$args['success'];
-        if ($success === '1' || $success === '0') {
-            $where .= " AND success = %d";
-            $params[] = (int)$success;
-        }
+        $has_success_filter = ($success === '1' || $success === '0') ? 1 : 0;
+        $success_val = $has_success_filter ? (int)$success : 0;
 
         $allowed_orderby = ['id','created_at','to_email','type','context','success'];
         $orderby = in_array($args['orderby'], $allowed_orderby, true) ? $args['orderby'] : 'created_at';
         $order   = strtoupper((string)$args['order']) === 'ASC' ? 'ASC' : 'DESC';
 
-        $sql = "SELECT * FROM {$this->table} {$where} ORDER BY {$orderby} {$order} LIMIT %d";
-        $params2 = array_merge($params, [$limit]);
+        // The (%s = '' OR ...) / (%d = 0 OR ...) form lets each filter stay
+        // optional without interpolating a conditional WHERE fragment.
+        // $orderby is checked against $allowed_orderby above and $order is
+        // forced to ASC/DESC — neither is ever raw user input.
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        $prepared = $wpdb->prepare(
+            "SELECT * FROM %i
+             WHERE (%s = '' OR (to_email LIKE %s OR subject LIKE %s OR type LIKE %s OR context LIKE %s))
+               AND (%s = '' OR type = %s)
+               AND (%d = 0 OR success = %d)
+             ORDER BY {$orderby} {$order} LIMIT %d",
+            $this->table, $s, $like, $like, $like, $like, $type, $type, $has_success_filter, $success_val, $limit
+        );
 
-        return (array) $wpdb->get_results($wpdb->prepare($sql, ...$params2), ARRAY_A);
+        return (array) $wpdb->get_results($prepared, ARRAY_A);
     }
 }

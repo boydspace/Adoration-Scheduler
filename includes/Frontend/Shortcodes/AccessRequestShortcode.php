@@ -135,7 +135,12 @@ class AccessRequestShortcode
 
                     <?php if ($turnstile_enabled && $turnstile_site_key !== ''): ?>
                         <?php
-                        wp_enqueue_script(
+                        // Admin-opt-in anti-spam integration (disclosed in readme.txt's
+                        // "External Services" section) whose script must be served live
+                        // from Cloudflare — self-hosting it would break verification and
+                        // violates Cloudflare's terms, the same constraint as Google
+                        // reCAPTCHA/hCaptcha/Stripe.js.
+                        wp_enqueue_script( // phpcs:ignore PluginCheck.CodeAnalysis.EnqueuedResourceOffloading.OffloadedContent -- required third-party anti-spam script, must load live from Cloudflare; admin opt-in, disclosed in readme.
                             'cf-turnstile',
                             'https://challenges.cloudflare.com/turnstile/v0/api.js',
                             [],

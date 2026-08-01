@@ -45,8 +45,7 @@ class AnnouncementsRepository
         // the end of the admin-controlled order (highest sort_order + 10),
         // not forced to the top — an admin who has hand-arranged the list
         // can then move a new one up if it should jump the queue.
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $max_order  = $wpdb->get_var("SELECT MAX(sort_order) FROM {$this->table}");
+        $max_order  = $wpdb->get_var($wpdb->prepare("SELECT MAX(sort_order) FROM %i", $this->table));
         $sort_order = ($max_order === null) ? 0 : ((int)$max_order + 10);
 
         $ok = $wpdb->insert(
@@ -163,7 +162,7 @@ class AnnouncementsRepository
         if ($id <= 0) return null;
 
         $row = $wpdb->get_row(
-            $wpdb->prepare("SELECT * FROM {$this->table} WHERE id = %d LIMIT 1", $id),
+            $wpdb->prepare("SELECT * FROM %i WHERE id = %d LIMIT 1", $this->table, $id),
             ARRAY_A
         );
 
@@ -182,10 +181,10 @@ class AnnouncementsRepository
 
         $limit = max(1, min(50, (int)$limit));
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
         $rows = $wpdb->get_results(
             $wpdb->prepare(
-                "SELECT * FROM {$this->table} WHERE is_active = 1 ORDER BY sort_order ASC, created_at DESC LIMIT %d",
+                "SELECT * FROM %i WHERE is_active = 1 ORDER BY sort_order ASC, created_at DESC LIMIT %d",
+                $this->table,
                 $limit
             ),
             ARRAY_A
@@ -205,10 +204,10 @@ class AnnouncementsRepository
 
         $limit = max(1, min(50, (int)$limit));
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
         $rows = $wpdb->get_results(
             $wpdb->prepare(
-                "SELECT * FROM {$this->table} WHERE is_active = 1 AND show_public = 1 ORDER BY sort_order ASC, created_at DESC LIMIT %d",
+                "SELECT * FROM %i WHERE is_active = 1 AND show_public = 1 ORDER BY sort_order ASC, created_at DESC LIMIT %d",
+                $this->table,
                 $limit
             ),
             ARRAY_A
@@ -227,10 +226,10 @@ class AnnouncementsRepository
 
         $limit = max(1, min(50, (int)$limit));
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
         $rows = $wpdb->get_results(
             $wpdb->prepare(
-                "SELECT * FROM {$this->table} WHERE is_active = 1 AND show_private = 1 ORDER BY sort_order ASC, created_at DESC LIMIT %d",
+                "SELECT * FROM %i WHERE is_active = 1 AND show_private = 1 ORDER BY sort_order ASC, created_at DESC LIMIT %d",
+                $this->table,
                 $limit
             ),
             ARRAY_A
@@ -249,10 +248,10 @@ class AnnouncementsRepository
         $limit  = max(1, min(500, (int)$limit));
         $offset = max(0, (int)$offset);
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
         $rows = $wpdb->get_results(
             $wpdb->prepare(
-                "SELECT * FROM {$this->table} ORDER BY sort_order ASC, created_at DESC LIMIT %d OFFSET %d",
+                "SELECT * FROM %i ORDER BY sort_order ASC, created_at DESC LIMIT %d OFFSET %d",
+                $this->table,
                 $limit,
                 $offset
             ),
@@ -264,7 +263,6 @@ class AnnouncementsRepository
 
     public function count_all(): int {
         global $wpdb;
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        return (int) $wpdb->get_var("SELECT COUNT(*) FROM {$this->table}");
+        return (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM %i", $this->table));
     }
 }

@@ -182,16 +182,18 @@ class ScheduleDuplicationService {
                 }
             }
 
+            // $cols/$select_parts are column names read from a real schema
+            // introspection (get_table_columns()) above, never raw user
+            // input; the table name itself goes through %i below.
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $sql = sprintf(
-                "INSERT INTO %s (%s) SELECT %s FROM %s WHERE schedule_id = %%d",
-                $table,
+                "INSERT INTO %%i (%s) SELECT %s FROM %%i WHERE schedule_id = %%d",
                 implode(',', $cols),
-                implode(',', $select_parts),
-                $table
+                implode(',', $select_parts)
             );
 
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            $wpdb->query($wpdb->prepare($sql, $to_id, $from_id));
+            $prepared = $wpdb->prepare($sql, $table, $to_id, $table, $from_id);
+            $wpdb->query($prepared);
         }
     }
 
@@ -337,8 +339,7 @@ class ScheduleDuplicationService {
     private static function get_table_columns(string $table): array {
         global $wpdb;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $rows = (array)$wpdb->get_results("SHOW COLUMNS FROM {$table}", ARRAY_A);
+        $rows = (array)$wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM %i", $table), ARRAY_A);
         $cols = [];
         foreach ($rows as $r) {
             if (!empty($r['Field'])) {

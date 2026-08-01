@@ -116,7 +116,7 @@ class PeopleImportExportService
         foreach ($rows as $row) {
             fputcsv($out, SpreadsheetSafety::sanitize_row($row));
         }
-        fclose($out);
+        fclose($out); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- closing a php://output stream, not a real file; WP_Filesystem has no equivalent.
         exit;
     }
 
@@ -184,7 +184,7 @@ class PeopleImportExportService
                 ? XlsxReader::read_first_sheet($tmp_path)
                 : self::read_csv_rows($tmp_path);
         } catch (\Throwable $e) {
-            @unlink($tmp_path);
+            wp_delete_file($tmp_path);
             self::redirect_with_toast('Could not read that file: ' . $e->getMessage(), 'error');
             return;
         }
@@ -223,13 +223,16 @@ class PeopleImportExportService
     private static function read_csv_rows(string $path): array
     {
         $rows = [];
-        $fh = fopen($path, 'r');
+        // fopen/fread/fclose (not WP_Filesystem) are required here: correctly
+        // parsing CSV with quoted, multi-line fields needs fgetcsv() reading
+        // from a real file handle — WP_Filesystem has no CSV-aware reader.
+        $fh = fopen($path, 'r'); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
         if ($fh === false) {
             throw new \RuntimeException('the file could not be opened.');
         }
 
         // Skip a UTF-8 BOM if present so "Title" doesn't become "\xEF\xBB\xBFTitle".
-        $bom = fread($fh, 3);
+        $bom = fread($fh, 3); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fread
         if ($bom !== chr(0xEF) . chr(0xBB) . chr(0xBF)) {
             rewind($fh);
         }
@@ -237,7 +240,7 @@ class PeopleImportExportService
         while (($row = fgetcsv($fh)) !== false) {
             $rows[] = array_map(static fn($v) => (string)$v, $row);
         }
-        fclose($fh);
+        fclose($fh); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
 
         return $rows;
     }

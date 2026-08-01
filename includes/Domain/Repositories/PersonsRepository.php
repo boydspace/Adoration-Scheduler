@@ -28,7 +28,8 @@ class PersonsRepository {
         global $wpdb;
 
         $sql = $wpdb->prepare(
-            "SELECT * FROM {$this->table} WHERE id = %d LIMIT 1",
+            "SELECT * FROM %i WHERE id = %d LIMIT 1",
+            $this->table,
             $person_id
         );
 
@@ -43,7 +44,8 @@ class PersonsRepository {
         if ($email === '') return null;
 
         $sql = $wpdb->prepare(
-            "SELECT * FROM {$this->table} WHERE email = %s LIMIT 1",
+            "SELECT * FROM %i WHERE email = %s LIMIT 1",
+            $this->table,
             $email
         );
 
@@ -208,9 +210,13 @@ class PersonsRepository {
         global $wpdb;
         $signups = $wpdb->prefix . 'adoration_signups';
 
-        $sql = "SELECT COUNT(DISTINCT p.id)
-                FROM {$this->table} p
-                INNER JOIN {$signups} s ON s.person_id = p.id";
+        $sql = $wpdb->prepare(
+            "SELECT COUNT(DISTINCT p.id)
+                FROM %i p
+                INNER JOIN %i s ON s.person_id = p.id",
+            $this->table,
+            $signups
+        );
 
         return (int) $wpdb->get_var($sql);
     }
@@ -222,36 +228,29 @@ class PersonsRepository {
         global $wpdb;
         $signups = $wpdb->prefix . 'adoration_signups';
 
-        $where = "1=1";
-        $params = [];
-
         $search = trim($search);
-        if ($search !== '') {
-            $like = '%' . $wpdb->esc_like($search) . '%';
-            $where .= " AND (
-                p.first_name LIKE %s OR
-                p.last_name LIKE %s OR
-                p.email LIKE %s OR
-                p.phone LIKE %s
-            )";
-            $params[] = $like; $params[] = $like; $params[] = $like; $params[] = $like;
-        }
+        $like = '%' . $wpdb->esc_like($search) . '%';
 
-        $sql = "SELECT
+        // The (%s = '' OR ...) form lets the search filter stay optional
+        // without interpolating a conditional WHERE fragment.
+        $prepared = $wpdb->prepare(
+            "SELECT
                     p.*,
                     COUNT(s.id) AS signup_count,
                     MAX(s.created_at) AS last_signup_at
-                FROM {$this->table} p
-                INNER JOIN {$signups} s ON s.person_id = p.id
-                WHERE {$where}
+                FROM %i p
+                INNER JOIN %i s ON s.person_id = p.id
+                WHERE (%s = '' OR (
+                    p.first_name LIKE %s OR
+                    p.last_name LIKE %s OR
+                    p.email LIKE %s OR
+                    p.phone LIKE %s
+                ))
                 GROUP BY p.id
                 ORDER BY last_signup_at DESC
-                LIMIT %d OFFSET %d";
-
-        $params[] = $limit;
-        $params[] = $offset;
-
-        $prepared = $wpdb->prepare($sql, ...$params);
+                LIMIT %d OFFSET %d",
+            $this->table, $signups, $search, $like, $like, $like, $like, $limit, $offset
+        );
         return (array) $wpdb->get_results($prepared, ARRAY_A);
     }
 
@@ -261,29 +260,23 @@ class PersonsRepository {
     public function count_all_people(string $search = '', string $approval_status = ''): int {
         global $wpdb;
 
-        $where = "1=1";
-        $params = [];
-
         $approval_status = sanitize_key($approval_status);
-        if ($approval_status !== '') {
-            $where .= " AND approval_status = %s";
-            $params[] = $approval_status;
-        }
-
         $search = trim($search);
-        if ($search !== '') {
-            $like = '%' . $wpdb->esc_like($search) . '%';
-            $where .= " AND (
-                first_name LIKE %s OR
-                last_name LIKE %s OR
-                email LIKE %s OR
-                phone LIKE %s
-            )";
-            $params[] = $like; $params[] = $like; $params[] = $like; $params[] = $like;
-        }
+        $like = '%' . $wpdb->esc_like($search) . '%';
 
-        $sql = "SELECT COUNT(*) FROM {$this->table} WHERE {$where}";
-        $prepared = !empty($params) ? $wpdb->prepare($sql, ...$params) : $sql;
+        // The (%s = '' OR ...) form lets each filter stay optional without
+        // interpolating a conditional WHERE fragment.
+        $prepared = $wpdb->prepare(
+            "SELECT COUNT(*) FROM %i
+                WHERE (%s = '' OR approval_status = %s)
+                  AND (%s = '' OR (
+                    first_name LIKE %s OR
+                    last_name LIKE %s OR
+                    email LIKE %s OR
+                    phone LIKE %s
+                  ))",
+            $this->table, $approval_status, $approval_status, $search, $like, $like, $like, $like
+        );
 
         return (int) $wpdb->get_var($prepared);
     }
@@ -298,42 +291,31 @@ class PersonsRepository {
 
         $signups = $wpdb->prefix . 'adoration_signups';
 
-        $where = "1=1";
-        $params = [];
-
         $approval_status = sanitize_key($approval_status);
-        if ($approval_status !== '') {
-            $where .= " AND p.approval_status = %s";
-            $params[] = $approval_status;
-        }
-
         $search = trim($search);
-        if ($search !== '') {
-            $like = '%' . $wpdb->esc_like($search) . '%';
-            $where .= " AND (
-                p.first_name LIKE %s OR
-                p.last_name LIKE %s OR
-                p.email LIKE %s OR
-                p.phone LIKE %s
-            )";
-            $params[] = $like; $params[] = $like; $params[] = $like; $params[] = $like;
-        }
+        $like = '%' . $wpdb->esc_like($search) . '%';
 
-        $sql = "SELECT
+        // The (%s = '' OR ...) form lets each filter stay optional without
+        // interpolating a conditional WHERE fragment.
+        $prepared = $wpdb->prepare(
+            "SELECT
                     p.*,
                     COUNT(s.id) AS signup_count,
                     MAX(s.created_at) AS last_signup_at
-                FROM {$this->table} p
-                LEFT JOIN {$signups} s ON s.person_id = p.id
-                WHERE {$where}
+                FROM %i p
+                LEFT JOIN %i s ON s.person_id = p.id
+                WHERE (%s = '' OR p.approval_status = %s)
+                  AND (%s = '' OR (
+                    p.first_name LIKE %s OR
+                    p.last_name LIKE %s OR
+                    p.email LIKE %s OR
+                    p.phone LIKE %s
+                  ))
                 GROUP BY p.id
                 ORDER BY p.last_name ASC, p.first_name ASC
-                LIMIT %d OFFSET %d";
-
-        $params[] = $limit;
-        $params[] = $offset;
-
-        $prepared = $wpdb->prepare($sql, ...$params);
+                LIMIT %d OFFSET %d",
+            $this->table, $signups, $approval_status, $approval_status, $search, $like, $like, $like, $like, $limit, $offset
+        );
         return (array) $wpdb->get_results($prepared, ARRAY_A);
     }
 
@@ -358,23 +340,19 @@ class PersonsRepository {
 
         $like = '%' . $wpdb->esc_like($query) . '%';
 
-        $where = "p.approval_status = 'approved' AND (p.first_name LIKE %s OR p.last_name LIKE %s)";
-        $params = [$like, $like];
-
-        if ($exclude_person_id > 0) {
-            $where .= " AND p.id != %d";
-            $params[] = $exclude_person_id;
-        }
-
-        $params[] = $limit;
-
-        $sql = "SELECT p.id, p.first_name, p.last_name, p.title, p.parish
-                FROM {$this->table} p
-                WHERE {$where}
+        // The (%d = 0 OR ...) form lets the exclude-person filter stay
+        // optional (0 = no exclusion) without interpolating a conditional
+        // WHERE fragment.
+        $prepared = $wpdb->prepare(
+            "SELECT p.id, p.first_name, p.last_name, p.title, p.parish
+                FROM %i p
+                WHERE p.approval_status = 'approved'
+                  AND (p.first_name LIKE %s OR p.last_name LIKE %s)
+                  AND (%d = 0 OR p.id != %d)
                 ORDER BY p.last_name ASC, p.first_name ASC
-                LIMIT %d";
-
-        $prepared = $wpdb->prepare($sql, ...$params);
+                LIMIT %d",
+            $this->table, $like, $like, $exclude_person_id, $exclude_person_id, $limit
+        );
         $rows = $wpdb->get_results($prepared, ARRAY_A);
         return is_array($rows) ? $rows : [];
     }
@@ -390,7 +368,8 @@ class PersonsRepository {
         if ($email === '') return false;
 
         $sql = $wpdb->prepare(
-            "SELECT id FROM {$this->table} WHERE email = %s AND id != %d LIMIT 1",
+            "SELECT id FROM %i WHERE email = %s AND id != %d LIMIT 1",
+            $this->table,
             $email,
             $except_id
         );
@@ -485,17 +464,17 @@ class PersonsRepository {
         global $wpdb;
 
         $status = sanitize_key($status);
-        $where  = "approval_status = %s";
-        $params = [$status];
-
         $search = trim($search);
-        if ($search !== '') {
-            $like = '%' . $wpdb->esc_like($search) . '%';
-            $where .= " AND (first_name LIKE %s OR last_name LIKE %s OR email LIKE %s OR phone LIKE %s)";
-            $params[] = $like; $params[] = $like; $params[] = $like; $params[] = $like;
-        }
+        $like = '%' . $wpdb->esc_like($search) . '%';
 
-        $sql = $wpdb->prepare("SELECT COUNT(*) FROM {$this->table} WHERE {$where}", ...$params);
+        // The (%s = '' OR ...) form lets the search filter stay optional
+        // without interpolating a conditional WHERE fragment.
+        $sql = $wpdb->prepare(
+            "SELECT COUNT(*) FROM %i
+             WHERE approval_status = %s
+               AND (%s = '' OR (first_name LIKE %s OR last_name LIKE %s OR email LIKE %s OR phone LIKE %s))",
+            $this->table, $status, $search, $like, $like, $like, $like
+        );
         return (int) $wpdb->get_var($sql);
     }
 
@@ -503,22 +482,17 @@ class PersonsRepository {
         global $wpdb;
 
         $status = sanitize_key($status);
-        $where  = "approval_status = %s";
-        $params = [$status];
-
         $search = trim($search);
-        if ($search !== '') {
-            $like = '%' . $wpdb->esc_like($search) . '%';
-            $where .= " AND (first_name LIKE %s OR last_name LIKE %s OR email LIKE %s OR phone LIKE %s)";
-            $params[] = $like; $params[] = $like; $params[] = $like; $params[] = $like;
-        }
+        $like = '%' . $wpdb->esc_like($search) . '%';
 
-        $params[] = $limit;
-        $params[] = $offset;
-
+        // The (%s = '' OR ...) form lets the search filter stay optional
+        // without interpolating a conditional WHERE fragment.
         $sql = $wpdb->prepare(
-            "SELECT * FROM {$this->table} WHERE {$where} ORDER BY created_at DESC LIMIT %d OFFSET %d",
-            ...$params
+            "SELECT * FROM %i
+             WHERE approval_status = %s
+               AND (%s = '' OR (first_name LIKE %s OR last_name LIKE %s OR email LIKE %s OR phone LIKE %s))
+             ORDER BY created_at DESC LIMIT %d OFFSET %d",
+            $this->table, $status, $search, $like, $like, $like, $like, $limit, $offset
         );
 
         return (array) $wpdb->get_results($sql, ARRAY_A);
@@ -766,7 +740,8 @@ class PersonsRepository {
 
         $row = $wpdb->get_row(
             $wpdb->prepare(
-                "SELECT * FROM {$this->table} WHERE calendar_token = %s LIMIT 1",
+                "SELECT * FROM %i WHERE calendar_token = %s LIMIT 1",
+                $this->table,
                 $token
             ),
             ARRAY_A
@@ -863,9 +838,8 @@ class PersonsRepository {
     public function list_opted_in_substitute_emails(): array {
         global $wpdb;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
         $emails = (array) $wpdb->get_col(
-            "SELECT email FROM {$this->table} WHERE substitute_opt_in = 1 AND email != ''"
+            $wpdb->prepare("SELECT email FROM %i WHERE substitute_opt_in = 1 AND email != ''", $this->table)
         );
 
         return array_values(array_filter(array_map('sanitize_email', $emails)));
@@ -907,7 +881,8 @@ class PersonsRepository {
         $signups = $wpdb->prefix . 'adoration_signups';
 
         $sql = $wpdb->prepare(
-            "SELECT COUNT(*) FROM {$signups} WHERE person_id = %d",
+            "SELECT COUNT(*) FROM %i WHERE person_id = %d",
+            $signups,
             $person_id
         );
 

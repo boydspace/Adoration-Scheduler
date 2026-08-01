@@ -92,13 +92,13 @@ class SignupAuditRepository
 
         $table = $this->table_name();
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
         $sql = $wpdb->prepare(
             "SELECT id, signup_id, event_type, actor_user_id, actor_label, meta, created_at
-             FROM {$table}
+             FROM %i
              WHERE signup_id = %d
              ORDER BY created_at DESC, id DESC
              LIMIT %d OFFSET %d",
+            $table,
             $signup_id,
             $limit,
             $offset

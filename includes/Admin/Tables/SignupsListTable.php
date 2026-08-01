@@ -258,40 +258,32 @@ class SignupsListTable extends \WP_List_Table {
         $t_slots     = $wpdb->prefix . 'adoration_slots';
         $t_schedules = $wpdb->prefix . 'adoration_schedules';
 
-        $where = [];
-        $params = [];
+        $like = '%' . $wpdb->esc_like($search) . '%';
+        $has_schedule_filter = $filter_scheduleId > 0 ? 1 : 0;
 
-        if ($search !== '') {
-            $like = '%' . $wpdb->esc_like($search) . '%';
-            $where[] = "(p.email LIKE %s OR p.first_name LIKE %s OR p.last_name LIKE %s OR sc.name LIKE %s)";
-            array_push($params, $like, $like, $like, $like);
-        }
-
-        if ($filter_status !== '') {
-            $where[] = "su.status = %s";
-            $params[] = $filter_status;
-        }
-
-        if ($filter_scheduleId > 0) {
-            $where[] = "su.schedule_id = %d";
-            $params[] = $filter_scheduleId;
-        }
-
-        $where_sql = $where ? ('WHERE ' . implode(' AND ', $where)) : '';
-
-        // Count
-        $count_sql = "
+        // The (%s = '' OR ...) / (%d = 0 OR ...) form lets each filter stay
+        // optional without interpolating a conditional WHERE fragment.
+        $count_prepared = $wpdb->prepare(
+            "
             SELECT COUNT(*)
-            FROM {$t_signups} su
-            LEFT JOIN {$t_persons} p ON p.id = su.person_id
-            LEFT JOIN {$t_schedules} sc ON sc.id = su.schedule_id
-            {$where_sql}
-        ";
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $total = (int)$wpdb->get_var($wpdb->prepare($count_sql, $params));
+            FROM %i su
+            LEFT JOIN %i p ON p.id = su.person_id
+            LEFT JOIN %i sc ON sc.id = su.schedule_id
+            WHERE (%s = '' OR (p.email LIKE %s OR p.first_name LIKE %s OR p.last_name LIKE %s OR sc.name LIKE %s))
+              AND (%s = '' OR su.status = %s)
+              AND (%d = 0 OR su.schedule_id = %d)
+        ",
+            $t_signups, $t_persons, $t_schedules,
+            $search, $like, $like, $like, $like, $filter_status, $filter_status, $has_schedule_filter, $filter_scheduleId
+        );
+        $total = (int)$wpdb->get_var($count_prepared);
 
         // Items (slot_sort prefers start_at if exists; falls back to date+time)
-        $items_sql = "
+        // {$order_by_sql} is looked up from $allowed_orderby above and
+        // {$order} forced to ASC/DESC — neither is ever raw user input.
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        $items_prepared = $wpdb->prepare(
+            "
             SELECT
                 su.id,
                 su.status,
@@ -310,18 +302,21 @@ class SignupsListTable extends \WP_List_Table {
                         THEN sl.start_at
                     ELSE CONCAT(sl.date, ' ', sl.start_time)
                 END AS slot_sort
-            FROM {$t_signups} su
-            LEFT JOIN {$t_persons} p ON p.id = su.person_id
-            LEFT JOIN {$t_schedules} sc ON sc.id = su.schedule_id
-            LEFT JOIN {$t_slots} sl ON sl.id = su.slot_id
-            {$where_sql}
+            FROM %i su
+            LEFT JOIN %i p ON p.id = su.person_id
+            LEFT JOIN %i sc ON sc.id = su.schedule_id
+            LEFT JOIN %i sl ON sl.id = su.slot_id
+            WHERE (%s = '' OR (p.email LIKE %s OR p.first_name LIKE %s OR p.last_name LIKE %s OR sc.name LIKE %s))
+              AND (%s = '' OR su.status = %s)
+              AND (%d = 0 OR su.schedule_id = %d)
             ORDER BY {$order_by_sql} {$order}
             LIMIT %d OFFSET %d
-        ";
-        $items_params = array_merge($params, [$per_page, $offset]);
-
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $rows = (array)$wpdb->get_results($wpdb->prepare($items_sql, $items_params), ARRAY_A);
+        ",
+            $t_signups, $t_persons, $t_schedules, $t_slots,
+            $search, $like, $like, $like, $like, $filter_status, $filter_status, $has_schedule_filter, $filter_scheduleId,
+            $per_page, $offset
+        );
+        $rows = (array)$wpdb->get_results($items_prepared, ARRAY_A);
 
         $this->items = $rows;
 
@@ -447,8 +442,7 @@ class SignupsListTable extends \WP_List_Table {
         global $wpdb;
         $t = $wpdb->prefix . 'adoration_signups';
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $rows = (array)$wpdb->get_col("SELECT DISTINCT status FROM {$t} ORDER BY status ASC");
+        $rows = (array)$wpdb->get_col($wpdb->prepare("SELECT DISTINCT status FROM %i ORDER BY status ASC", $t));
 
         $out = [];
         foreach ($rows as $r) {
@@ -467,9 +461,8 @@ class SignupsListTable extends \WP_List_Table {
         global $wpdb;
         $t = $wpdb->prefix . 'adoration_schedules';
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
         return (array)$wpdb->get_results(
-            "SELECT id, name FROM {$t} ORDER BY name ASC",
+            $wpdb->prepare("SELECT id, name FROM %i ORDER BY name ASC", $t),
             ARRAY_A
         );
     }

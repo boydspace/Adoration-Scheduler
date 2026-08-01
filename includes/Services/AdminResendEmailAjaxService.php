@@ -121,7 +121,7 @@ class AdminResendEmailAjaxService
         for ($i = 0; $i < 6; $i++) {
             $selector = substr(bin2hex(random_bytes(12)), 0, 24); // 24 chars
             $exists = $wpdb->get_var(
-                $wpdb->prepare("SELECT id FROM {$table_name} WHERE selector = %s LIMIT 1", $selector)
+                $wpdb->prepare("SELECT id FROM %i WHERE selector = %s LIMIT 1", $table_name, $selector)
             );
             if (empty($exists)) {
                 return $selector;
@@ -158,7 +158,8 @@ class AdminResendEmailAjaxService
         $t_slots     = $wpdb->prefix . 'adoration_slots';
         $t_schedules = $wpdb->prefix . 'adoration_schedules';
 
-        $sql = "
+        $prepared = $wpdb->prepare(
+            "
             SELECT
                 su.id,
                 su.status,
@@ -181,16 +182,17 @@ class AdminResendEmailAjaxService
                         THEN DATE_FORMAT(sl.start_at, '%%Y-%%m-%%d %%H:%%i')
                     ELSE CONCAT(sl.date, ' ', LEFT(sl.start_time,5))
                 END AS slot_label
-            FROM {$t_signups} su
-            LEFT JOIN {$t_persons} p ON p.id = su.person_id
-            LEFT JOIN {$t_schedules} sc ON sc.id = su.schedule_id
-            LEFT JOIN {$t_slots} sl ON sl.id = su.slot_id
+            FROM %i su
+            LEFT JOIN %i p ON p.id = su.person_id
+            LEFT JOIN %i sc ON sc.id = su.schedule_id
+            LEFT JOIN %i sl ON sl.id = su.slot_id
             WHERE su.id = %d
             LIMIT 1
-        ";
+        ",
+            $t_signups, $t_persons, $t_schedules, $t_slots, $signup_id
+        );
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $row = $wpdb->get_row($wpdb->prepare($sql, $signup_id), ARRAY_A);
+        $row = $wpdb->get_row($prepared, ARRAY_A);
         if (!$row) {
             wp_send_json_error(['message' => 'Signup not found'], 404);
         }
@@ -265,9 +267,9 @@ class AdminResendEmailAjaxService
             if (is_string($ua) && strlen($ua) > 255) $ua = substr($ua, 0, 255);
 
             // Invalidate old unused links for this person (best-effort)
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             $wpdb->query($wpdb->prepare(
-                "UPDATE {$t_magic} SET used_at = %s WHERE person_id = %d AND used_at IS NULL",
+                "UPDATE %i SET used_at = %s WHERE person_id = %d AND used_at IS NULL",
+                $t_magic,
                 $now,
                 $person_id
             ));

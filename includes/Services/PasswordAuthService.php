@@ -88,9 +88,8 @@ class PasswordAuthService
         global $wpdb;
         $persons = $wpdb->prefix . 'adoration_persons';
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
         $person = $wpdb->get_row(
-            $wpdb->prepare("SELECT * FROM {$persons} WHERE email = %s LIMIT 1", $email),
+            $wpdb->prepare("SELECT * FROM %i WHERE email = %s LIMIT 1", $persons, $email),
             ARRAY_A
         );
 

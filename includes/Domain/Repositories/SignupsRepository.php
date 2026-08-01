@@ -83,61 +83,6 @@ class SignupsRepository {
     // Internal helpers (safe table/column detection)
     // -------------------------------------------------------------------------
 
-    private function slots_table_exists(): bool {
-        static $cached = null;
-        if ($cached !== null) return (bool) $cached;
-
-        global $wpdb;
-        try {
-            $found = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $this->slots_table));
-            $cached = !empty($found);
-        } catch (\Throwable $e) {
-            $cached = false;
-        }
-        return (bool) $cached;
-    }
-
-    /**
-     * Does slots table have canonical datetime columns start_at/end_at?
-     */
-    private function slots_has_start_at_columns(): bool {
-        static $cached = null;
-        if ($cached !== null) return (bool) $cached;
-
-        if (!$this->slots_table_exists()) {
-            $cached = false;
-            return false;
-        }
-
-        global $wpdb;
-        try {
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            $cols = (array) $wpdb->get_col("SHOW COLUMNS FROM {$this->slots_table}");
-            $have = array_flip(array_map('strtolower', $cols));
-            $cached = isset($have['start_at']) && isset($have['end_at']);
-        } catch (\Throwable $e) {
-            $cached = false;
-        }
-
-        return (bool) $cached;
-    }
-
-    /**
-     * ORDER BY for signups lists when joining slots.
-     * Uses canonical slot.start_at/end_at if present, NULL-safe.
-     */
-    private function order_by_slot_chrono_sql(string $slot_alias = 'sl'): string {
-        if ($this->slots_has_start_at_columns()) {
-            return "CASE WHEN {$slot_alias}.start_at IS NULL THEN 1 ELSE 0 END ASC,
-                    {$slot_alias}.start_at ASC,
-                    CASE WHEN {$slot_alias}.end_at IS NULL THEN 1 ELSE 0 END ASC,
-                    {$slot_alias}.end_at ASC";
-        }
-
-        // Legacy fallback (best-effort)
-        return "{$slot_alias}.`date` ASC, {$slot_alias}.start_time ASC";
-    }
-
     // -------------------------------------------------------------------------
     // Queries
     // -------------------------------------------------------------------------
@@ -151,9 +96,10 @@ class SignupsRepository {
 
         $sql = $wpdb->prepare(
             "SELECT slot_id, COUNT(*) AS c
-             FROM {$this->table}
+             FROM %i
              WHERE schedule_id = %d AND status = 'confirmed'
              GROUP BY slot_id",
+            $this->table,
             $schedule_id
         );
 
@@ -173,11 +119,9 @@ class SignupsRepository {
      * Coverage Report admin page — for stewardship recognition / year-end
      * reports, not for anything the plugin acts on automatically.
      *
-     * Prefers start_at/end_at (canonical, timezone-correct, handles
-     * overnight slots naturally) for duration; falls back to a
-     * mod-24h TIMEDIFF on start_time/end_time on older installs that
-     * don't have those columns yet, same fallback pattern used elsewhere
-     * in this repository (see list_for_person()).
+     * Uses the canonical start_at/end_at columns (timezone-correct,
+     * handles overnight slots naturally) for duration — guaranteed present
+     * by Installer.php on any installed/upgraded site.
      *
      * Returns rows: person_id, first_name, last_name, email,
      * signup_count, total_minutes (int).
@@ -190,32 +134,30 @@ class SignupsRepository {
         $to_ymd   = sanitize_text_field($to_ymd);
         if ($from_ymd === '' || $to_ymd === '') return [];
 
-        if (!$this->slots_table_exists()) return [];
-
-        $duration_expr = $this->slots_has_start_at_columns()
-            ? "TIMESTAMPDIFF(MINUTE, sl.start_at, sl.end_at)"
-            : "(MOD(TIME_TO_SEC(TIMEDIFF(sl.end_time, sl.start_time)) + 86400, 86400) / 60)";
-
-        $schedule_where = ($schedule_id > 0) ? "AND s.schedule_id = %d" : "";
-
-        $params = [$from_ymd, $to_ymd];
-        if ($schedule_id > 0) $params[] = $schedule_id;
-
+        // The (%d = 0 OR ...) form lets the schedule filter stay optional
+        // (0 = all schedules) without interpolating a conditional WHERE
+        // fragment.
         $sql = $wpdb->prepare(
             "SELECT
                 s.person_id,
                 p.title, p.first_name, p.last_name, p.email,
                 COUNT(*) AS signup_count,
-                SUM({$duration_expr}) AS total_minutes
-             FROM {$this->table} s
-             JOIN {$this->slots_table} sl ON sl.id = s.slot_id
-             JOIN {$this->persons_table} p ON p.id = s.person_id
+                SUM(TIMESTAMPDIFF(MINUTE, sl.start_at, sl.end_at)) AS total_minutes
+             FROM %i s
+             JOIN %i sl ON sl.id = s.slot_id
+             JOIN %i p ON p.id = s.person_id
              WHERE s.status = 'confirmed'
                AND s.date BETWEEN %s AND %s
-               {$schedule_where}
+               AND (%d = 0 OR s.schedule_id = %d)
              GROUP BY s.person_id, p.title, p.first_name, p.last_name, p.email
              ORDER BY total_minutes DESC",
-            $params
+            $this->table,
+            $this->slots_table,
+            $this->persons_table,
+            $from_ymd,
+            $to_ymd,
+            $schedule_id,
+            $schedule_id
         );
 
         $rows = (array) $wpdb->get_results($sql, ARRAY_A);
@@ -246,7 +188,8 @@ class SignupsRepository {
         $today = wp_date('Y-m-d');
 
         $sql = $wpdb->prepare(
-            "SELECT id FROM {$this->table} WHERE person_id = %d AND status = 'confirmed' AND date >= %s",
+            "SELECT id FROM %i WHERE person_id = %d AND status = 'confirmed' AND date >= %s",
+            $this->table,
             $person_id,
             $today
         );
@@ -257,12 +200,7 @@ class SignupsRepository {
 
     /**
      * ✅ List signups for a person (optionally only confirmed).
-     * Includes schedule_name/schedule_slug (if schedules table exists)
-     * AND slot timing fields (if slots table exists).
-     *
-     * Returned extra keys (may be NULL if tables missing):
-     *  - schedule_name, schedule_slug
-     *  - slot_date, slot_start_time, slot_end_time, slot_start_at, slot_end_at
+     * Includes schedule_name/schedule_slug and slot timing fields.
      */
     public function list_for_person(int $person_id, bool $confirmed_only = false): array {
         global $wpdb;
@@ -270,64 +208,33 @@ class SignupsRepository {
         $person_id = (int)$person_id;
         if ($person_id <= 0) return [];
 
-        $where_status = $confirmed_only ? " AND s.status = 'confirmed' " : "";
-
-        // Check schedules table exists (avoid hard SQL failure on some installs)
-        $has_schedules = false;
-        try {
-            $found = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $this->schedules_table));
-            $has_schedules = !empty($found);
-        } catch (\Throwable $e) {
-            $has_schedules = false;
-        }
-
-        $has_slots = $this->slots_table_exists();
-        $has_slot_dt = $this->slots_has_start_at_columns();
-
-        $select_schedule = $has_schedules
-            ? "sch.name AS schedule_name, sch.slug AS schedule_slug"
-            : "NULL AS schedule_name, NULL AS schedule_slug";
-
-        $select_slot = $has_slots
-            ? (
-                $has_slot_dt
-                    ? "sl.`date` AS slot_date,
-                       sl.start_time AS slot_start_time,
-                       sl.end_time AS slot_end_time,
-                       sl.start_at AS slot_start_at,
-                       sl.end_at AS slot_end_at"
-                    : "sl.`date` AS slot_date,
-                       sl.start_time AS slot_start_time,
-                       sl.end_time AS slot_end_time,
-                       NULL AS slot_start_at,
-                       NULL AS slot_end_at"
-            )
-            : "NULL AS slot_date, NULL AS slot_start_time, NULL AS slot_end_time, NULL AS slot_start_at, NULL AS slot_end_at";
-
-        $join_schedule = $has_schedules
-            ? "LEFT JOIN {$this->schedules_table} sch ON sch.id = s.schedule_id"
-            : "";
-
-        $join_slot = $has_slots
-            ? "LEFT JOIN {$this->slots_table} sl ON sl.id = s.slot_id"
-            : "";
-
-        // ✅ Prefer ordering by the actual slot time (canonical), then by signup date as a tie-breaker.
-        $order = $has_slots
-            ? ($this->order_by_slot_chrono_sql('sl') . ", s.date DESC, s.id ASC")
-            : "s.date DESC, s.schedule_id ASC, s.slot_id ASC, s.id ASC";
-
+        // The (%d = 0 OR ...) form lets "only confirmed" stay an optional
+        // filter without interpolating a conditional WHERE fragment.
         $sql = $wpdb->prepare(
             "SELECT
                 s.*,
-                {$select_schedule},
-                {$select_slot}
-             FROM {$this->table} s
-             {$join_schedule}
-             {$join_slot}
-             WHERE s.person_id = %d {$where_status}
-             ORDER BY {$order}",
-            $person_id
+                sch.name AS schedule_name, sch.slug AS schedule_slug,
+                sl.`date` AS slot_date,
+                sl.start_time AS slot_start_time,
+                sl.end_time AS slot_end_time,
+                sl.start_at AS slot_start_at,
+                sl.end_at AS slot_end_at
+             FROM %i s
+             LEFT JOIN %i sch ON sch.id = s.schedule_id
+             LEFT JOIN %i sl ON sl.id = s.slot_id
+             WHERE s.person_id = %d
+               AND (%d = 0 OR s.status = 'confirmed')
+             ORDER BY
+                CASE WHEN sl.start_at IS NULL THEN 1 ELSE 0 END ASC,
+                sl.start_at ASC,
+                CASE WHEN sl.end_at IS NULL THEN 1 ELSE 0 END ASC,
+                sl.end_at ASC,
+                s.date DESC, s.id ASC",
+            $this->table,
+            $this->schedules_table,
+            $this->slots_table,
+            $person_id,
+            $confirmed_only ? 1 : 0
         );
 
         return (array) $wpdb->get_results($sql, ARRAY_A);
@@ -349,21 +256,21 @@ class SignupsRepository {
         $person_id = (int)$person_id;
         if ($person_id <= 0) return 0;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
         $ids = $wpdb->get_col($wpdb->prepare(
-            "SELECT id FROM {$this->table}
+            "SELECT id FROM %i
              WHERE person_id = %d AND status <> 'cancelled' AND date >= %s",
+            $this->table,
             $person_id,
             $from_date
         ));
 
         if (empty($ids)) return 0;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
         $updated = $wpdb->query($wpdb->prepare(
-            "UPDATE {$this->table}
+            "UPDATE %i
              SET status = 'cancelled', is_active = 0
              WHERE person_id = %d AND status <> 'cancelled' AND date >= %s",
+            $this->table,
             $person_id,
             $from_date
         ));
@@ -416,13 +323,14 @@ class SignupsRepository {
             return [];
         }
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
         $rows = $wpdb->get_results($wpdb->prepare(
             "SELECT s.id, s.date
-             FROM {$this->table} s
-             JOIN {$this->slots_table} sl ON sl.id = s.slot_id
+             FROM %i s
+             JOIN %i sl ON sl.id = s.slot_id
              WHERE s.schedule_id = %d AND s.person_id = %d AND s.date >= %s
                AND s.status <> 'cancelled' AND sl.start_time = %s",
+            $this->table,
+            $this->slots_table,
             $schedule_id,
             $person_id,
             $from_date,
@@ -466,17 +374,17 @@ class SignupsRepository {
         $target_person_id = (int)$target_person_id;
         if ($target_person_id <= 0) return 0;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
         $ids = $wpdb->get_col($wpdb->prepare(
-            "SELECT id FROM {$this->table} WHERE replacement_target_person_id = %d",
+            "SELECT id FROM %i WHERE replacement_target_person_id = %d",
+            $this->table,
             $target_person_id
         ));
 
         if (empty($ids)) return 0;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
         $updated = $wpdb->query($wpdb->prepare(
-            "UPDATE {$this->table} SET replacement_target_person_id = NULL WHERE replacement_target_person_id = %d",
+            "UPDATE %i SET replacement_target_person_id = NULL WHERE replacement_target_person_id = %d",
+            $this->table,
             $target_person_id
         ));
 
@@ -497,26 +405,8 @@ class SignupsRepository {
     public function list_for_schedule(int $schedule_id, bool $confirmed_only = false): array {
         global $wpdb;
 
-        $where_status = $confirmed_only ? " AND s.status = 'confirmed' " : "";
-
-        $has_slots = $this->slots_table_exists();
-
-        $join_slot = $has_slots
-            ? "LEFT JOIN {$this->slots_table} sl ON sl.id = s.slot_id"
-            : "";
-
-        $select_slot = $has_slots
-            ? (
-                $this->slots_has_start_at_columns()
-                    ? ", sl.start_at AS slot_start_at, sl.end_at AS slot_end_at, sl.start_time AS slot_start_time, sl.end_time AS slot_end_time, sl.`date` AS slot_date"
-                    : ", NULL AS slot_start_at, NULL AS slot_end_at, sl.start_time AS slot_start_time, sl.end_time AS slot_end_time, sl.`date` AS slot_date"
-            )
-            : ", NULL AS slot_start_at, NULL AS slot_end_at, NULL AS slot_start_time, NULL AS slot_end_time, NULL AS slot_date";
-
-        $order = $has_slots
-            ? ($this->order_by_slot_chrono_sql('sl') . ", s.date ASC, s.id ASC")
-            : "s.slot_id ASC, s.date ASC, s.id ASC";
-
+        // The (%d = 0 OR ...) form lets "only confirmed" stay an optional
+        // filter without interpolating a conditional WHERE fragment.
         $sql = $wpdb->prepare(
             "SELECT
                 s.*,
@@ -524,14 +414,26 @@ class SignupsRepository {
                 p.first_name AS first_name,
                 p.last_name  AS last_name,
                 p.email      AS email,
-                p.phone      AS phone
-                {$select_slot}
-             FROM {$this->table} s
-             LEFT JOIN {$this->persons_table} p ON p.id = s.person_id
-             {$join_slot}
-             WHERE s.schedule_id = %d {$where_status}
-             ORDER BY {$order}",
-            $schedule_id
+                p.phone      AS phone,
+                sl.start_at AS slot_start_at, sl.end_at AS slot_end_at,
+                sl.start_time AS slot_start_time, sl.end_time AS slot_end_time,
+                sl.`date` AS slot_date
+             FROM %i s
+             LEFT JOIN %i p ON p.id = s.person_id
+             LEFT JOIN %i sl ON sl.id = s.slot_id
+             WHERE s.schedule_id = %d
+               AND (%d = 0 OR s.status = 'confirmed')
+             ORDER BY
+                CASE WHEN sl.start_at IS NULL THEN 1 ELSE 0 END ASC,
+                sl.start_at ASC,
+                CASE WHEN sl.end_at IS NULL THEN 1 ELSE 0 END ASC,
+                sl.end_at ASC,
+                s.date ASC, s.id ASC",
+            $this->table,
+            $this->persons_table,
+            $this->slots_table,
+            $schedule_id,
+            $confirmed_only ? 1 : 0
         );
 
         return (array) $wpdb->get_results($sql, ARRAY_A);
@@ -552,9 +454,10 @@ class SignupsRepository {
 
         $sql = $wpdb->prepare(
             "SELECT `date`, COUNT(DISTINCT slot_id) AS c
-             FROM {$this->table}
+             FROM %i
              WHERE schedule_id = %d AND status = 'confirmed' AND `date` BETWEEN %s AND %s
              GROUP BY `date`",
+            $this->table,
             $schedule_id,
             $start_ymd,
             $end_ymd
@@ -579,20 +482,17 @@ class SignupsRepository {
         $schedule_id = (int)$schedule_id;
         if ($schedule_id <= 0 || $ymd === '') return [];
 
-        $has_slots = $this->slots_table_exists();
-        $join_slot = $has_slots ? "LEFT JOIN {$this->slots_table} sl ON sl.id = s.slot_id" : "";
-        $select_slot = $has_slots
-            ? ", sl.start_time AS slot_start_time, sl.end_time AS slot_end_time"
-            : ", NULL AS slot_start_time, NULL AS slot_end_time";
-
         $sql = $wpdb->prepare(
-            "SELECT s.*, p.title AS title, p.first_name AS first_name, p.last_name AS last_name, p.email AS email, p.phone AS phone
-                {$select_slot}
-             FROM {$this->table} s
-             LEFT JOIN {$this->persons_table} p ON p.id = s.person_id
-             {$join_slot}
+            "SELECT s.*, p.title AS title, p.first_name AS first_name, p.last_name AS last_name, p.email AS email, p.phone AS phone,
+                sl.start_time AS slot_start_time, sl.end_time AS slot_end_time
+             FROM %i s
+             LEFT JOIN %i p ON p.id = s.person_id
+             LEFT JOIN %i sl ON sl.id = s.slot_id
              WHERE s.schedule_id = %d AND s.date = %s
              ORDER BY sl.start_time ASC, s.id ASC",
+            $this->table,
+            $this->persons_table,
+            $this->slots_table,
             $schedule_id,
             $ymd
         );
@@ -610,8 +510,8 @@ class SignupsRepository {
     public function list_for_slot(int $slot_id, bool $confirmed_only = false): array {
         global $wpdb;
 
-        $where_status = $confirmed_only ? " AND s.status = 'confirmed' " : "";
-
+        // The (%d = 0 OR ...) form lets "only confirmed" stay an optional
+        // filter without interpolating a conditional WHERE fragment.
         $sql = $wpdb->prepare(
             "SELECT
                 s.*,
@@ -620,11 +520,15 @@ class SignupsRepository {
                 p.last_name  AS last_name,
                 p.email      AS email,
                 p.phone      AS phone
-             FROM {$this->table} s
-             LEFT JOIN {$this->persons_table} p ON p.id = s.person_id
-             WHERE s.slot_id = %d {$where_status}
+             FROM %i s
+             LEFT JOIN %i p ON p.id = s.person_id
+             WHERE s.slot_id = %d
+               AND (%d = 0 OR s.status = 'confirmed')
              ORDER BY s.date ASC, s.id ASC",
-            $slot_id
+            $this->table,
+            $this->persons_table,
+            $slot_id,
+            $confirmed_only ? 1 : 0
         );
 
         return (array) $wpdb->get_results($sql, ARRAY_A);
@@ -642,12 +546,15 @@ class SignupsRepository {
         $slot_ids = array_values(array_filter(array_map('intval', $slot_ids)));
         if (empty($slot_ids)) return [];
 
+        // Dynamic-length IN-clause: the placeholder count varies with the
+        // number of slot IDs, so the arg list can't be individually enumerated.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
         $placeholders = implode(',', array_fill(0, count($slot_ids), '%d'));
         $sql = $wpdb->prepare(
-            "SELECT slot_id, COUNT(*) AS c FROM {$this->table}
+            "SELECT slot_id, COUNT(*) AS c FROM %i
              WHERE slot_id IN ($placeholders) AND status = 'confirmed'
              GROUP BY slot_id",
-            $slot_ids
+            ...array_merge([$this->table], $slot_ids)
         );
 
         $rows = (array) $wpdb->get_results($sql, ARRAY_A);
@@ -668,10 +575,13 @@ class SignupsRepository {
         $slot_ids = array_values(array_filter(array_map('intval', $slot_ids)));
         if (empty($slot_ids)) return [];
 
+        // Dynamic-length IN-clause: the placeholder count varies with the
+        // number of slot IDs, so the arg list can't be individually enumerated.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
         $placeholders = implode(',', array_fill(0, count($slot_ids), '%d'));
         $sql = $wpdb->prepare(
-            "SELECT id FROM {$this->table} WHERE slot_id IN ($placeholders) AND status = 'confirmed'",
-            $slot_ids
+            "SELECT id FROM %i WHERE slot_id IN ($placeholders) AND status = 'confirmed'",
+            ...array_merge([$this->table], $slot_ids)
         );
 
         $ids = (array) $wpdb->get_col($sql);
@@ -685,30 +595,24 @@ class SignupsRepository {
     public function find(int $signup_id): ?array {
         global $wpdb;
 
-        $has_slots = $this->slots_table_exists();
-        $join_slot = $has_slots ? "LEFT JOIN {$this->slots_table} sl ON sl.id = s.slot_id" : "";
-
-        $select_slot = $has_slots
-            ? (
-                $this->slots_has_start_at_columns()
-                    ? ", sl.start_at AS slot_start_at, sl.end_at AS slot_end_at, sl.start_time AS slot_start_time, sl.end_time AS slot_end_time, sl.`date` AS slot_date"
-                    : ", NULL AS slot_start_at, NULL AS slot_end_at, sl.start_time AS slot_start_time, sl.end_time AS slot_end_time, sl.`date` AS slot_date"
-            )
-            : ", NULL AS slot_start_at, NULL AS slot_end_at, NULL AS slot_start_time, NULL AS slot_end_time, NULL AS slot_date";
-
         $sql = $wpdb->prepare(
             "SELECT
                 s.*,
                 p.first_name AS first_name,
                 p.last_name  AS last_name,
                 p.email      AS email,
-                p.phone      AS phone
-                {$select_slot}
-             FROM {$this->table} s
-             LEFT JOIN {$this->persons_table} p ON p.id = s.person_id
-             {$join_slot}
+                p.phone      AS phone,
+                sl.start_at AS slot_start_at, sl.end_at AS slot_end_at,
+                sl.start_time AS slot_start_time, sl.end_time AS slot_end_time,
+                sl.`date` AS slot_date
+             FROM %i s
+             LEFT JOIN %i p ON p.id = s.person_id
+             LEFT JOIN %i sl ON sl.id = s.slot_id
              WHERE s.id = %d
              LIMIT 1",
+            $this->table,
+            $this->persons_table,
+            $this->slots_table,
             $signup_id
         );
 
@@ -733,9 +637,10 @@ class SignupsRepository {
         if ($status === null) {
             $sql = $wpdb->prepare(
                 "SELECT 1
-                 FROM {$this->table}
+                 FROM %i
                  WHERE slot_id = %d AND person_id = %d
                  LIMIT 1",
+                $this->table,
                 $slot_id,
                 $person_id
             );
@@ -743,9 +648,10 @@ class SignupsRepository {
             $status = sanitize_text_field($status);
             $sql = $wpdb->prepare(
                 "SELECT 1
-                 FROM {$this->table}
+                 FROM %i
                  WHERE slot_id = %d AND person_id = %d AND status = %s
                  LIMIT 1",
+                $this->table,
                 $slot_id,
                 $person_id,
                 $status
@@ -771,9 +677,10 @@ class SignupsRepository {
         if ($status === null) {
             $sql = $wpdb->prepare(
                 "SELECT 1
-                 FROM {$this->table}
+                 FROM %i
                  WHERE slot_id = %d AND person_id = %d AND date = %s
                  LIMIT 1",
+                $this->table,
                 $slot_id,
                 $person_id,
                 $date
@@ -782,9 +689,10 @@ class SignupsRepository {
             $status = sanitize_text_field($status);
             $sql = $wpdb->prepare(
                 "SELECT 1
-                 FROM {$this->table}
+                 FROM %i
                  WHERE slot_id = %d AND person_id = %d AND date = %s AND status = %s
                  LIMIT 1",
+                $this->table,
                 $slot_id,
                 $person_id,
                 $date,
@@ -821,11 +729,13 @@ class SignupsRepository {
 
         $sql = $wpdb->prepare(
             "SELECT 1
-             FROM {$this->table} s
-             JOIN {$this->slots_table} sl ON sl.id = s.slot_id
+             FROM %i s
+             JOIN %i sl ON sl.id = s.slot_id
              WHERE s.schedule_id = %d AND s.person_id = %d AND s.date = %s
                AND s.status = 'confirmed' AND sl.start_time = %s
              LIMIT 1",
+            $this->table,
+            $this->slots_table,
             $schedule_id,
             $person_id,
             $date,
@@ -928,9 +838,8 @@ class SignupsRepository {
         $person_id = (int)$person_id;
         if ($signup_id <= 0 || $person_id <= 0) return false;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
         $res = $wpdb->query($wpdb->prepare(
-            "UPDATE {$this->table}
+            "UPDATE %i
              SET needs_replacement = 0,
                  replacement_requested_at = NULL,
                  replacement_requested_by = NULL,
@@ -939,6 +848,7 @@ class SignupsRepository {
              WHERE id = %d
                AND person_id = %d
                AND replacement_claimed_by IS NULL",
+            $this->table,
             $signup_id,
             $person_id
         ));
@@ -966,14 +876,14 @@ class SignupsRepository {
         $person_id = (int)$person_id;
         if ($signup_id <= 0 || $person_id <= 0) return false;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
         $res = $wpdb->query($wpdb->prepare(
-            "UPDATE {$this->table}
+            "UPDATE %i
              SET replacement_target_person_id = NULL
              WHERE id = %d
                AND person_id = %d
                AND needs_replacement = 1
                AND replacement_claimed_by IS NULL",
+            $this->table,
             $signup_id,
             $person_id
         ));
@@ -1040,9 +950,8 @@ class SignupsRepository {
         // clicking "claim" close together, and against a targeted request
         // being claimed by anyone but the intended person. Same idiom as
         // MagicLinkService's one-time-token consume.
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
         $updated = $wpdb->query($wpdb->prepare(
-            "UPDATE {$this->table}
+            "UPDATE %i
              SET person_id = %d,
                  needs_replacement = 0,
                  replacement_claimed_by = %d,
@@ -1052,6 +961,7 @@ class SignupsRepository {
                AND replacement_claimed_by IS NULL
                AND (replacement_target_person_id IS NULL OR replacement_target_person_id = %d)
              LIMIT 1",
+            $this->table,
             $claiming_person_id,
             $claiming_person_id,
             $now,
@@ -1093,15 +1003,11 @@ class SignupsRepository {
         $sched   = $wpdb->prefix . 'adoration_schedules';
         $chapels = $wpdb->prefix . 'adoration_chapels';
 
-        $exclude_sql = '';
-        $params = [$today];
-        if ($exclude_person_id > 0) {
-            $exclude_sql = " AND s.person_id != %d";
-            $params[] = $exclude_person_id;
-        }
-        $params[] = $limit;
-
-        $sql = "
+        // The (%d = 0 OR ...) form lets the excluded-person filter stay
+        // optional (0 = no exclusion) without interpolating a conditional
+        // WHERE fragment.
+        $prepared = $wpdb->prepare(
+            "
             SELECT
                 s.id,
                 s.date,
@@ -1115,24 +1021,25 @@ class SignupsRepository {
                 p.first_name AS requester_first_name,
                 p.last_name  AS requester_last_name,
                 p.title      AS requester_title
-            FROM {$this->table} s
-            INNER JOIN {$slots} sl ON sl.id = s.slot_id
-            INNER JOIN {$sched} sc ON sc.id = s.schedule_id
-            INNER JOIN {$chapels} ch ON ch.id = sc.chapel_id
-            LEFT JOIN {$this->persons_table} p ON p.id = s.person_id
+            FROM %i s
+            INNER JOIN %i sl ON sl.id = s.slot_id
+            INNER JOIN %i sc ON sc.id = s.schedule_id
+            INNER JOIN %i ch ON ch.id = sc.chapel_id
+            LEFT JOIN %i p ON p.id = s.person_id
             WHERE s.needs_replacement = 1
               AND s.replacement_claimed_by IS NULL
               AND s.replacement_target_person_id IS NULL
               AND s.status = 'confirmed'
               AND s.is_active = 1
               AND s.date >= %s
-              {$exclude_sql}
+              AND (%d = 0 OR s.person_id != %d)
             ORDER BY s.date ASC, sl.start_time ASC
             LIMIT %d
-        ";
+        ",
+            $this->table, $slots, $sched, $chapels, $this->persons_table, $today, $exclude_person_id, $exclude_person_id, $limit
+        );
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
-        $rows = $wpdb->get_results($wpdb->prepare($sql, ...$params), ARRAY_A);
+        $rows = $wpdb->get_results($prepared, ARRAY_A);
         return is_array($rows) ? $rows : [];
     }
 
@@ -1169,11 +1076,11 @@ class SignupsRepository {
                 p.first_name AS requester_first_name,
                 p.last_name  AS requester_last_name,
                 p.title      AS requester_title
-            FROM {$this->table} s
-            INNER JOIN {$slots} sl ON sl.id = s.slot_id
-            INNER JOIN {$sched} sc ON sc.id = s.schedule_id
-            INNER JOIN {$chapels} ch ON ch.id = sc.chapel_id
-            LEFT JOIN {$this->persons_table} p ON p.id = s.person_id
+            FROM %i s
+            INNER JOIN %i sl ON sl.id = s.slot_id
+            INNER JOIN %i sc ON sc.id = s.schedule_id
+            INNER JOIN %i ch ON ch.id = sc.chapel_id
+            LEFT JOIN %i p ON p.id = s.person_id
             WHERE s.needs_replacement = 1
               AND s.replacement_claimed_by IS NULL
               AND s.replacement_target_person_id = %d
@@ -1182,9 +1089,8 @@ class SignupsRepository {
               AND s.date >= %s
             ORDER BY s.date ASC, sl.start_time ASC
             LIMIT %d
-        ", $person_id, $today, $limit);
+        ", $this->table, $slots, $sched, $chapels, $this->persons_table, $person_id, $today, $limit);
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
         $rows = $wpdb->get_results($sql, ARRAY_A);
         return is_array($rows) ? $rows : [];
     }
@@ -1217,18 +1123,17 @@ class SignupsRepository {
                 req.last_name  AS requester_last_name,
                 sub.first_name AS substitute_first_name,
                 sub.last_name  AS substitute_last_name
-            FROM {$this->table} s
-            INNER JOIN {$slots} sl ON sl.id = s.slot_id
-            INNER JOIN {$sched} sc ON sc.id = s.schedule_id
-            INNER JOIN {$chapels} ch ON ch.id = sc.chapel_id
-            LEFT JOIN {$persons} req ON req.id = s.replacement_requested_by
-            LEFT JOIN {$persons} sub ON sub.id = s.replacement_claimed_by
+            FROM %i s
+            INNER JOIN %i sl ON sl.id = s.slot_id
+            INNER JOIN %i sc ON sc.id = s.schedule_id
+            INNER JOIN %i ch ON ch.id = sc.chapel_id
+            LEFT JOIN %i req ON req.id = s.replacement_requested_by
+            LEFT JOIN %i sub ON sub.id = s.replacement_claimed_by
             WHERE s.replacement_claimed_by IS NOT NULL
             ORDER BY s.replacement_claimed_at DESC, s.id DESC
             LIMIT %d
-        ", $limit);
+        ", $this->table, $slots, $sched, $chapels, $persons, $persons, $limit);
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
         $rows = $wpdb->get_results($sql, ARRAY_A);
         return is_array($rows) ? $rows : [];
     }
@@ -1260,17 +1165,16 @@ class SignupsRepository {
                 sl.end_time   AS slot_end_time,
                 sc.name AS schedule_name,
                 ch.name AS chapel_name
-            FROM {$this->table} s
-            LEFT JOIN {$this->persons_table} p ON p.id = s.person_id
-            LEFT JOIN {$this->persons_table} tgt ON tgt.id = s.replacement_target_person_id
-            LEFT JOIN {$slots} sl ON sl.id = s.slot_id
-            LEFT JOIN {$sched} sc ON sc.id = s.schedule_id
-            LEFT JOIN {$chapels} ch ON ch.id = sc.chapel_id
+            FROM %i s
+            LEFT JOIN %i p ON p.id = s.person_id
+            LEFT JOIN %i tgt ON tgt.id = s.replacement_target_person_id
+            LEFT JOIN %i sl ON sl.id = s.slot_id
+            LEFT JOIN %i sc ON sc.id = s.schedule_id
+            LEFT JOIN %i ch ON ch.id = sc.chapel_id
             WHERE s.id = %d
             LIMIT 1
-        ", $signup_id);
+        ", $this->table, $this->persons_table, $this->persons_table, $slots, $sched, $chapels, $signup_id);
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
         $row = $wpdb->get_row($sql, ARRAY_A);
         return is_array($row) ? $row : null;
     }
@@ -1283,14 +1187,14 @@ class SignupsRepository {
 
         $today = current_time('Y-m-d');
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
         return (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT COUNT(*) FROM {$this->table}
+            "SELECT COUNT(*) FROM %i
              WHERE needs_replacement = 1
                AND replacement_claimed_by IS NULL
                AND status = 'confirmed'
                AND is_active = 1
                AND date >= %s",
+            $this->table,
             $today
         ));
     }
@@ -1326,8 +1230,9 @@ class SignupsRepository {
         $rows = (array) $wpdb->get_results(
             $wpdb->prepare(
                 "SELECT id, slot_id, date, status
-                 FROM {$this->table}
+                 FROM %i
                  WHERE person_id = %d",
+                $this->table,
                 $from_id
             ),
             ARRAY_A
@@ -1349,12 +1254,13 @@ class SignupsRepository {
             $exists = (int) $wpdb->get_var(
                 $wpdb->prepare(
                     "SELECT id
-                     FROM {$this->table}
+                     FROM %i
                      WHERE person_id = %d
                        AND slot_id = %d
                        AND date = %s
                        AND status = %s
                      LIMIT 1",
+                    $this->table,
                     $to_id,
                     $slot_id,
                     $date,
@@ -1601,7 +1507,7 @@ class SignupsRepository {
         if ($signup_id <= 0) return null;
 
         $existing = $wpdb->get_var(
-            $wpdb->prepare("SELECT checkin_token FROM {$this->table} WHERE id = %d LIMIT 1", $signup_id)
+            $wpdb->prepare("SELECT checkin_token FROM %i WHERE id = %d LIMIT 1", $this->table, $signup_id)
         );
         $existing = trim((string)$existing);
         if ($existing !== '') return $existing;
@@ -1632,7 +1538,7 @@ class SignupsRepository {
         if ($token === '') return null;
 
         $row = $wpdb->get_row(
-            $wpdb->prepare("SELECT * FROM {$this->table} WHERE checkin_token = %s LIMIT 1", $token),
+            $wpdb->prepare("SELECT * FROM %i WHERE checkin_token = %s LIMIT 1", $this->table, $token),
             ARRAY_A
         );
 
@@ -1654,7 +1560,7 @@ class SignupsRepository {
         $method = in_array($method, ['self', 'kiosk', 'admin'], true) ? $method : 'self';
 
         $already = $wpdb->get_var(
-            $wpdb->prepare("SELECT checked_in_at FROM {$this->table} WHERE id = %d LIMIT 1", $signup_id)
+            $wpdb->prepare("SELECT checked_in_at FROM %i WHERE id = %d LIMIT 1", $this->table, $signup_id)
         );
         if (!empty($already)) return true; // already checked in — not an error
 
@@ -1687,7 +1593,7 @@ class SignupsRepository {
         if ($signup_id <= 0) return false;
 
         $row = $wpdb->get_row(
-            $wpdb->prepare("SELECT checked_in_at, checked_out_at FROM {$this->table} WHERE id = %d LIMIT 1", $signup_id),
+            $wpdb->prepare("SELECT checked_in_at, checked_out_at FROM %i WHERE id = %d LIMIT 1", $this->table, $signup_id),
             ARRAY_A
         );
         if (!is_array($row) || empty($row['checked_in_at'])) return false;
@@ -1759,7 +1665,8 @@ class SignupsRepository {
         // see SlotsRepository/Installer's start_at/end_at columns).
         $cutoff = current_time('mysql');
 
-        $sql = "
+        $prepared = $wpdb->prepare(
+            "
             SELECT
                 s.id,
                 s.date,
@@ -1771,11 +1678,11 @@ class SignupsRepository {
                 ch.name AS chapel_name,
                 p.first_name AS person_first_name,
                 p.last_name  AS person_last_name
-            FROM {$this->table} s
-            INNER JOIN {$slots} sl ON sl.id = s.slot_id
-            INNER JOIN {$sched} sc ON sc.id = s.schedule_id
-            INNER JOIN {$chapels} ch ON ch.id = sc.chapel_id
-            LEFT JOIN {$this->persons_table} p ON p.id = s.person_id
+            FROM %i s
+            INNER JOIN %i sl ON sl.id = s.slot_id
+            INNER JOIN %i sc ON sc.id = s.schedule_id
+            INNER JOIN %i ch ON ch.id = sc.chapel_id
+            LEFT JOIN %i p ON p.id = s.person_id
             WHERE s.status = 'confirmed'
               AND s.is_active = 1
               AND s.checked_in_at IS NULL
@@ -1784,10 +1691,12 @@ class SignupsRepository {
               AND sl.start_at <= DATE_SUB(%s, INTERVAL %d MINUTE)
             ORDER BY sl.start_at ASC
             LIMIT %d
-        ";
+        ",
+            $this->table, $slots, $sched, $chapels, $this->persons_table,
+            $cutoff, $grace_minutes, $limit
+        );
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
-        $rows = $wpdb->get_results($wpdb->prepare($sql, $cutoff, $grace_minutes, $limit), ARRAY_A);
+        $rows = $wpdb->get_results($prepared, ARRAY_A);
         return is_array($rows) ? $rows : [];
     }
 
@@ -1801,11 +1710,16 @@ class SignupsRepository {
         $ids = array_values(array_unique(array_filter(array_map('intval', $signup_ids), fn($id) => $id > 0)));
         if (empty($ids)) return;
 
+        // Dynamic-length IN-clause: the placeholder count varies with the
+        // number of signup IDs, so the arg list can't be individually enumerated.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
         $placeholders = implode(',', array_fill(0, count($ids), '%d'));
-        $sql = "UPDATE {$this->table} SET no_show_alert_sent_at = %s WHERE id IN ({$placeholders})";
+        $prepared = $wpdb->prepare(
+            "UPDATE %i SET no_show_alert_sent_at = %s WHERE id IN ({$placeholders})",
+            ...array_merge([$this->table, current_time('mysql')], $ids)
+        );
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
-        $wpdb->query($wpdb->prepare($sql, current_time('mysql'), ...$ids));
+        $wpdb->query($prepared);
     }
 
     /**
@@ -1822,15 +1736,11 @@ class SignupsRepository {
 
         $limit = max(1, min(2000, (int)$limit));
 
-        $schedule_sql = '';
-        $params = [$date_from, $date_to];
-        if ($schedule_id > 0) {
-            $schedule_sql = " AND s.schedule_id = %d";
-            $params[] = $schedule_id;
-        }
-        $params[] = $limit;
-
-        $sql = "
+        // The (%d = 0 OR ...) form lets the schedule filter stay optional
+        // (0 = all schedules) without interpolating a conditional WHERE
+        // fragment.
+        $prepared = $wpdb->prepare(
+            "
             SELECT
                 s.id,
                 s.date,
@@ -1847,21 +1757,23 @@ class SignupsRepository {
                 p.title      AS person_title,
                 p.first_name AS person_first_name,
                 p.last_name  AS person_last_name
-            FROM {$this->table} s
-            INNER JOIN {$slots} sl ON sl.id = s.slot_id
-            INNER JOIN {$sched} sc ON sc.id = s.schedule_id
-            INNER JOIN {$chapels} ch ON ch.id = sc.chapel_id
-            LEFT JOIN {$this->persons_table} p ON p.id = s.person_id
+            FROM %i s
+            INNER JOIN %i sl ON sl.id = s.slot_id
+            INNER JOIN %i sc ON sc.id = s.schedule_id
+            INNER JOIN %i ch ON ch.id = sc.chapel_id
+            LEFT JOIN %i p ON p.id = s.person_id
             WHERE s.status = 'confirmed'
               AND s.is_active = 1
               AND s.date BETWEEN %s AND %s
-              {$schedule_sql}
+              AND (%d = 0 OR s.schedule_id = %d)
             ORDER BY s.date DESC, sl.start_time DESC
             LIMIT %d
-        ";
+        ",
+            $this->table, $slots, $sched, $chapels, $this->persons_table,
+            $date_from, $date_to, $schedule_id, $schedule_id, $limit
+        );
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
-        $rows = $wpdb->get_results($wpdb->prepare($sql, ...$params), ARRAY_A);
+        $rows = $wpdb->get_results($prepared, ARRAY_A);
         return is_array($rows) ? $rows : [];
     }
 
@@ -1882,7 +1794,8 @@ class SignupsRepository {
         $sched = $wpdb->prefix . 'adoration_schedules';
         $now   = current_time('mysql');
 
-        $sql = "
+        $prepared = $wpdb->prepare(
+            "
             SELECT
                 s.id,
                 s.checked_in_at,
@@ -1892,10 +1805,10 @@ class SignupsRepository {
                 sc.name AS schedule_name,
                 p.first_name AS person_first_name,
                 p.last_name  AS person_last_name
-            FROM {$this->table} s
-            INNER JOIN {$slots} sl ON sl.id = s.slot_id
-            INNER JOIN {$sched} sc ON sc.id = s.schedule_id
-            LEFT JOIN {$this->persons_table} p ON p.id = s.person_id
+            FROM %i s
+            INNER JOIN %i sl ON sl.id = s.slot_id
+            INNER JOIN %i sc ON sc.id = s.schedule_id
+            LEFT JOIN %i p ON p.id = s.person_id
             WHERE s.status = 'confirmed'
               AND s.is_active = 1
               AND sc.chapel_id = %d
@@ -1904,10 +1817,12 @@ class SignupsRepository {
               AND sl.start_at <= %s
               AND sl.end_at   >= %s
             ORDER BY sl.start_at ASC
-        ";
+        ",
+            $this->table, $slots, $sched, $this->persons_table,
+            $chapel_id, $now, $now
+        );
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
-        $rows = $wpdb->get_results($wpdb->prepare($sql, $chapel_id, $now, $now), ARRAY_A);
+        $rows = $wpdb->get_results($prepared, ARRAY_A);
         return is_array($rows) ? $rows : [];
     }
 }

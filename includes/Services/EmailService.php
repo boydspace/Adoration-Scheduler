@@ -95,7 +95,7 @@ class EmailService
 
         // Pull signup row
         $signup = $wpdb->get_row(
-            $wpdb->prepare("SELECT * FROM {$signups} WHERE id = %d LIMIT 1", $signup_id),
+            $wpdb->prepare("SELECT * FROM %i WHERE id = %d LIMIT 1", $signups, $signup_id),
             ARRAY_A
         );
         if (!is_array($signup)) {
@@ -114,7 +114,7 @@ class EmailService
 
         // Person
         $person = $wpdb->get_row(
-            $wpdb->prepare("SELECT * FROM {$persons} WHERE id = %d LIMIT 1", $person_id),
+            $wpdb->prepare("SELECT * FROM %i WHERE id = %d LIMIT 1", $persons, $person_id),
             ARRAY_A
         );
         if (!is_array($person)) {
@@ -126,7 +126,7 @@ class EmailService
         $schedule = null;
         if ($schedule_id > 0) {
             $schedule = $wpdb->get_row(
-                $wpdb->prepare("SELECT * FROM {$schedules} WHERE id = %d LIMIT 1", $schedule_id),
+                $wpdb->prepare("SELECT * FROM %i WHERE id = %d LIMIT 1", $schedules, $schedule_id),
                 ARRAY_A
             );
         }
@@ -135,7 +135,7 @@ class EmailService
         $slot = null;
         if ($slot_id > 0) {
             $slot = $wpdb->get_row(
-                $wpdb->prepare("SELECT * FROM {$slots} WHERE id = %d LIMIT 1", $slot_id),
+                $wpdb->prepare("SELECT * FROM %i WHERE id = %d LIMIT 1", $slots, $slot_id),
                 ARRAY_A
             );
         }

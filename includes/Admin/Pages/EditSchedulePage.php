@@ -328,9 +328,7 @@ class EditSchedulePage {
         global $wpdb;
         $table = $wpdb->prefix . 'adoration_signups';
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $sql = $wpdb->prepare("SELECT COUNT(*) FROM {$table} WHERE schedule_id = %d", $schedule_id);
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        $sql = $wpdb->prepare("SELECT COUNT(*) FROM %i WHERE schedule_id = %d", $table, $schedule_id);
         $n = (int) $wpdb->get_var($sql);
         return max(0, $n);
     }

@@ -416,22 +416,21 @@ class SignupHandler {
         $signup_id = 0;
 
         // Detect is_active column (for backwards compatibility)
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
         $has_is_active = (bool) $wpdb->get_var(
-            $wpdb->prepare("SHOW COLUMNS FROM {$signups_table} LIKE %s", 'is_active')
+            $wpdb->prepare("SHOW COLUMNS FROM %i LIKE %s", $signups_table, 'is_active')
         );
 
         // Start transaction
         $wpdb->query('START TRANSACTION');
 
         // Lock slot row
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
         $slot_row = $wpdb->get_row($wpdb->prepare(
             "SELECT id, max_adorers
-             FROM {$slots_table}
+             FROM %i
              WHERE id = %d
              LIMIT 1
              FOR UPDATE",
+            $slots_table,
             $slot_id
         ), ARRAY_A);
 
@@ -445,23 +444,23 @@ class SignupHandler {
         if ($max !== null) {
             // Lock + count confirmed actives (if column exists)
             if ($has_is_active) {
-                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
                 $confirmed = (int)$wpdb->get_var($wpdb->prepare(
                     "SELECT COUNT(*)
-                     FROM {$signups_table}
+                     FROM %i
                      WHERE slot_id = %d AND date = %s AND status = %s AND is_active = 1
                      FOR UPDATE",
+                    $signups_table,
                     $slot_id,
                     $signup_date,
                     'confirmed'
                 ));
             } else {
-                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
                 $confirmed = (int)$wpdb->get_var($wpdb->prepare(
                     "SELECT COUNT(*)
-                     FROM {$signups_table}
+                     FROM %i
                      WHERE slot_id = %d AND date = %s AND status = %s
                      FOR UPDATE",
+                    $signups_table,
                     $slot_id,
                     $signup_date,
                     'confirmed'
@@ -520,9 +519,12 @@ class SignupHandler {
          *
          * We check for ANY existing row for this person+slot and lock it.
          */
+        // The "is_active" column fragment is a fixed literal chosen above by
+        // a real schema check, never raw user input.
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
         $existing_sql = "
             SELECT id, status" . ($has_is_active ? ", is_active" : "") . "
-            FROM {$signups_table}
+            FROM %i
             WHERE person_id = %d
               AND slot_id = %d
             ORDER BY id DESC
@@ -530,9 +532,9 @@ class SignupHandler {
             FOR UPDATE
         ";
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
         $existing_row = $wpdb->get_row($wpdb->prepare(
             $existing_sql,
+            $signups_table,
             (int)$person_id,
             (int)$slot_id
         ), ARRAY_A);

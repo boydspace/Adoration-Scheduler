@@ -85,7 +85,7 @@ class CoverageReportService
             $hours = round(((int)($r['total_minutes'] ?? 0)) / 60, 1);
             fputcsv($out, SpreadsheetSafety::sanitize_row([$name, (string)($r['email'] ?? ''), (int)($r['signup_count'] ?? 0), $hours]));
         }
-        fclose($out);
+        fclose($out); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- closing a php://output stream, not a real file; WP_Filesystem has no equivalent.
         exit;
     }
 
@@ -119,7 +119,7 @@ class CoverageReportService
 
             fputcsv($out, SpreadsheetSafety::sanitize_row([$ym, $total_slots, $filled_slots, $fill_pct, $capacity, $confirmed, $capacity_pct]));
         }
-        fclose($out);
+        fclose($out); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- closing a php://output stream, not a real file; WP_Filesystem has no equivalent.
         exit;
     }
 }

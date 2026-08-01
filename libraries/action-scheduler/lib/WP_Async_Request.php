@@ -5,6 +5,8 @@
  * @package WP-Background-Processing
  */
 
+if ( ! defined( 'ABSPATH' ) ) exit;
+
 /*
 Library URI: https://github.com/deliciousbrains/wp-background-processing/blob/fbbc56f2480910d7959972ec9ec0819a13c6150a/classes/wp-async-request.php
 Author: Delicious Brains Inc.

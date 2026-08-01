@@ -206,7 +206,8 @@ trait PersonDashboardTrait
 
         $today = wp_date('Y-m-d'); // site timezone
 
-        $sql = "
+        $prepared = $wpdb->prepare(
+            "
             SELECT
                 su.id,
                 su.date,
@@ -221,18 +222,19 @@ trait PersonDashboardTrait
                 sl.end_at,
                 sc.name AS schedule_name,
                 ch.name AS chapel_name
-            FROM {$signups} su
-            INNER JOIN {$slots} sl ON sl.id = su.slot_id
-            INNER JOIN {$sched} sc ON sc.id = su.schedule_id
-            INNER JOIN {$chapels} ch ON ch.id = sc.chapel_id
+            FROM %i su
+            INNER JOIN %i sl ON sl.id = su.slot_id
+            INNER JOIN %i sc ON sc.id = su.schedule_id
+            INNER JOIN %i ch ON ch.id = sc.chapel_id
             WHERE su.person_id = %d
               AND su.status <> 'cancelled'
               AND su.date >= %s
             ORDER BY su.date ASC, sl.start_time ASC
-        ";
+        ",
+            $signups, $slots, $sched, $chapels, $person_id, $today
+        );
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
-        $rows = $wpdb->get_results($wpdb->prepare($sql, $person_id, $today), ARRAY_A);
+        $rows = $wpdb->get_results($prepared, ARRAY_A);
         return is_array($rows) ? $rows : [];
     }
 
@@ -306,7 +308,8 @@ trait PersonDashboardTrait
         $chapels = $wpdb->prefix . 'adoration_chapels';
         $persons = $wpdb->prefix . 'adoration_persons';
 
-        $sql = "
+        $prepared = $wpdb->prepare(
+            "
             SELECT
                 s.id,
                 s.date,
@@ -319,21 +322,22 @@ trait PersonDashboardTrait
                 ch.name AS chapel_name,
                 tgt.first_name AS target_first_name,
                 tgt.last_name  AS target_last_name
-            FROM {$signups} s
-            INNER JOIN {$slots} sl ON sl.id = s.slot_id
-            INNER JOIN {$sched} sc ON sc.id = s.schedule_id
-            INNER JOIN {$chapels} ch ON ch.id = sc.chapel_id
-            LEFT JOIN {$persons} tgt ON tgt.id = s.replacement_target_person_id
+            FROM %i s
+            INNER JOIN %i sl ON sl.id = s.slot_id
+            INNER JOIN %i sc ON sc.id = s.schedule_id
+            INNER JOIN %i ch ON ch.id = sc.chapel_id
+            LEFT JOIN %i tgt ON tgt.id = s.replacement_target_person_id
             WHERE s.person_id = %d
               AND s.needs_replacement = 1
               AND s.replacement_claimed_by IS NULL
               AND s.status = 'confirmed'
               AND s.is_active = 1
             ORDER BY s.date ASC, sl.start_time ASC
-        ";
+        ",
+            $signups, $slots, $sched, $chapels, $persons, $person_id
+        );
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
-        $rows = $wpdb->get_results($wpdb->prepare($sql, $person_id), ARRAY_A);
+        $rows = $wpdb->get_results($prepared, ARRAY_A);
         return is_array($rows) ? $rows : [];
     }
 
