@@ -39,6 +39,7 @@ class EditSchedulePage {
         ];
     }
 
+    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only GET display of a toast message the plugin itself generated and put in the URL after a prior nonce-verified action; nothing mutates here.
     private function toasts_from_query(): void {
         if (!isset($_GET['as_toast'])) return;
 
@@ -142,7 +143,7 @@ class EditSchedulePage {
     }
 
     private function is_basic_info_post(): bool {
-        if ( ($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST' ) return false;
+        if ( sanitize_text_field(wp_unslash($_SERVER['REQUEST_METHOD'] ?? '')) !== 'POST' ) return false;
         if ( empty($_POST['_wpnonce']) ) return false;
 
         $nonce = sanitize_text_field(wp_unslash($_POST['_wpnonce']));
@@ -363,9 +364,9 @@ class EditSchedulePage {
         // NOTE:
         // This page originally required schedule_id > 0 (edit-only).
         // ✅ We now support "create then edit" on the same page so defaults are saved immediately.
-        $schedule_id = (int) ($_GET['schedule_id'] ?? 0);
+        $schedule_id = absint(wp_unslash($_GET['schedule_id'] ?? 0));
 
-        $tab = sanitize_key($_GET['tab'] ?? 'overview');
+        $tab = sanitize_key(wp_unslash($_GET['tab'] ?? 'overview'));
         $allowed_tabs = ['overview','basic','dates','weekly_hours','commitments','coverage','monthly_occurrence','slots','signups','email'];
         if (!in_array($tab, $allowed_tabs, true)) {
             $tab = 'overview';
@@ -436,7 +437,7 @@ class EditSchedulePage {
         $signups_by_slot = [];
         $waitlist_by_slot = [];
 
-        $current_page_slug = sanitize_key($_GET['page'] ?? 'adoration_scheduler_schedules');
+        $current_page_slug = sanitize_key(wp_unslash($_GET['page'] ?? 'adoration_scheduler_schedules'));
         if ($current_page_slug === '') $current_page_slug = 'adoration_scheduler_schedules';
 
         $base_args = [
@@ -469,7 +470,7 @@ class EditSchedulePage {
             $end_date   = ($end_date !== '') ? $end_date : null;
 
             // ✅ NEW: Chapel selection
-            $chapel_id_raw = isset($_POST['chapel_id']) ? (int) wp_unslash($_POST['chapel_id']) : 0;
+            $chapel_id_raw = isset($_POST['chapel_id']) ? absint(wp_unslash($_POST['chapel_id'])) : 0;
             $chapel_id = $this->normalize_chapel_id_from_active_list($chapel_id_raw, $chapels_active, $default_chapel_id);
             if ($chapel_id !== (int)$chapel_id_raw && $chapel_id_raw > 0) {
                 $this->add_toast('Selected chapel is not available. Reverted to default chapel.', 'warning', false);
@@ -480,17 +481,17 @@ class EditSchedulePage {
 
             // ✅ Always read from POST first.
             $default_slot_length = isset($_POST['default_slot_length'])
-                ? (int) wp_unslash($_POST['default_slot_length'])
+                ? absint(wp_unslash($_POST['default_slot_length']))
                 : (int)($schedule['default_slot_length'] ?? 60);
             if ($default_slot_length <= 0) $default_slot_length = 60;
 
             $default_min_adorers = isset($_POST['default_min_adorers'])
-                ? (int) wp_unslash($_POST['default_min_adorers'])
+                ? absint(wp_unslash($_POST['default_min_adorers']))
                 : (int)($schedule['default_min_adorers'] ?? 1);
             if ($default_min_adorers < 0) $default_min_adorers = 0;
 
             $default_max_raw = isset($_POST['default_max_adorers'])
-                ? wp_unslash($_POST['default_max_adorers'])
+                ? sanitize_text_field(wp_unslash($_POST['default_max_adorers']))
                 : ($schedule['default_max_adorers'] ?? '');
             // IMPORTANT: blank => NULL
             $default_max_adorers = ($default_max_raw === '' || $default_max_raw === null) ? null : (int) $default_max_raw;
@@ -499,7 +500,7 @@ class EditSchedulePage {
             // ✅ Perpetual adoration: rolling window (only meaningful for type=perpetual,
             // but harmless to store either way).
             $rolling_window_days = isset($_POST['rolling_window_days'])
-                ? (int) wp_unslash($_POST['rolling_window_days'])
+                ? absint(wp_unslash($_POST['rolling_window_days']))
                 : (int)($schedule['rolling_window_days'] ?? 60);
             if ($rolling_window_days <= 0) $rolling_window_days = 60;
             if ($rolling_window_days > 366) $rolling_window_days = 366;
@@ -619,17 +620,17 @@ class EditSchedulePage {
         if ( !$is_create_mode && isset($_POST['adoration_update_slot']) ) {
             check_admin_referer('adoration_update_slot');
 
-            $slot_id = (int) ($_POST['slot_id'] ?? 0);
+            $slot_id = absint(wp_unslash($_POST['slot_id'] ?? 0));
 
             $slot = $slotsRepo->find($slot_id);
             if (!$slot || (int)($slot['schedule_id'] ?? 0) !== $schedule_id) {
                 $this->add_toast('Invalid slot.', 'error', false);
                 $tab = 'slots';
             } else {
-                $min_raw = isset($_POST['min_adorers']) ? wp_unslash($_POST['min_adorers']) : null;
+                $min_raw = isset($_POST['min_adorers']) ? sanitize_text_field(wp_unslash($_POST['min_adorers'])) : null;
                 $min_adorers = ($min_raw === '' || $min_raw === null) ? null : (int) $min_raw;
 
-                $max_raw = isset($_POST['max_adorers']) ? wp_unslash($_POST['max_adorers']) : null;
+                $max_raw = isset($_POST['max_adorers']) ? sanitize_text_field(wp_unslash($_POST['max_adorers'])) : null;
                 $max_adorers = ($max_raw === '' || $max_raw === null) ? null : (int) $max_raw;
 
                 $is_active = isset($_POST['is_active']) ? 1 : 0;
@@ -654,7 +655,7 @@ class EditSchedulePage {
             if (!in_array($add_signup_return_tab, $allowed_tabs, true)) $add_signup_return_tab = 'signups';
             $cal_redirect_date = isset($_POST['cal_date']) ? sanitize_text_field(wp_unslash($_POST['cal_date'])) : '';
 
-            $slot_id = (int) ($_POST['slot_id'] ?? 0);
+            $slot_id = absint(wp_unslash($_POST['slot_id'] ?? 0));
             if ($slot_id <= 0) {
                 $this->add_toast('Please click a time slot before adding a signup.', 'error', false);
                 $tab = $add_signup_return_tab;
@@ -670,7 +671,7 @@ class EditSchedulePage {
                     // skips name/email/phone entirely, most importantly for
                     // reusing an already-created no-email person instead of
                     // creating a duplicate.
-                    $existing_person_id = (int) ($_POST['person_id'] ?? 0);
+                    $existing_person_id = absint(wp_unslash($_POST['person_id'] ?? 0));
                     $person_id = 0;
                     $signup_validation_failed = false;
 
@@ -790,10 +791,10 @@ class EditSchedulePage {
 
         if ( !$is_create_mode && isset($_POST['adoration_add_segment']) ) {
             check_admin_referer('adoration_add_segment');
-            $date_pattern_id = (int) ($_POST['date_pattern_id'] ?? 0);
+            $date_pattern_id = absint(wp_unslash($_POST['date_pattern_id'] ?? 0));
             $start_time = sanitize_text_field(wp_unslash($_POST['start_time'] ?? ''));
             $end_time   = sanitize_text_field(wp_unslash($_POST['end_time'] ?? ''));
-            $slot_len   = (isset($_POST['slot_length']) && wp_unslash($_POST['slot_length']) !== '') ? (int) wp_unslash($_POST['slot_length']) : null;
+            $slot_len   = (isset($_POST['slot_length']) && wp_unslash($_POST['slot_length']) !== '') ? absint(wp_unslash($_POST['slot_length'])) : null;
 
             if (!$date_pattern_id || !$start_time || !$end_time) {
                 $this->add_toast('Date, start time, and end time are required.', 'error', false);
@@ -813,7 +814,7 @@ class EditSchedulePage {
         if ( !$is_create_mode && isset($_POST['adoration_clear_segments']) ) {
             check_admin_referer('adoration_clear_segments');
 
-            $date_pattern_id = (int) ($_POST['date_pattern_id'] ?? 0);
+            $date_pattern_id = absint(wp_unslash($_POST['date_pattern_id'] ?? 0));
             if ($date_pattern_id <= 0) {
                 $this->add_toast('Missing date pattern.', 'error', false);
                 $tab = 'dates';
@@ -842,8 +843,8 @@ class EditSchedulePage {
         if ( !$is_create_mode && isset($_POST['adoration_delete_segment']) ) {
             check_admin_referer('adoration_delete_segment');
 
-            $segment_id = (int) ($_POST['segment_id'] ?? 0);
-            $date_pattern_id = (int) ($_POST['date_pattern_id'] ?? 0);
+            $segment_id = absint(wp_unslash($_POST['segment_id'] ?? 0));
+            $date_pattern_id = absint(wp_unslash($_POST['date_pattern_id'] ?? 0));
 
             if ($segment_id <= 0) {
                 $this->add_toast('Missing segment.', 'error', false);
@@ -881,7 +882,7 @@ class EditSchedulePage {
         if ( !$is_create_mode && isset($_POST['adoration_add_weekday']) ) {
             check_admin_referer('adoration_add_weekday');
 
-            $day_of_week = isset($_POST['day_of_week']) ? (int) wp_unslash($_POST['day_of_week']) : -1;
+            $day_of_week = isset($_POST['day_of_week']) ? intval(wp_unslash($_POST['day_of_week'])) : -1;
 
             if ($day_of_week < 0 || $day_of_week > 6) {
                 $this->add_toast('Please choose a day of the week.', 'error', false);
@@ -922,7 +923,7 @@ class EditSchedulePage {
                 $end_time   = sanitize_text_field(wp_unslash($_POST['qs_end_time'] ?? ''));
             }
 
-            $slot_len_raw = isset($_POST['qs_slot_length']) ? wp_unslash($_POST['qs_slot_length']) : '';
+            $slot_len_raw = isset($_POST['qs_slot_length']) ? sanitize_text_field(wp_unslash($_POST['qs_slot_length'])) : '';
             $slot_len = ($slot_len_raw !== '' && $slot_len_raw !== null) ? (int) $slot_len_raw : null;
             if ($slot_len !== null && $slot_len <= 0) $slot_len = null;
 
@@ -1008,8 +1009,8 @@ class EditSchedulePage {
         if ( !$is_create_mode && isset($_POST['adoration_add_monthly_pattern']) ) {
             check_admin_referer('adoration_add_monthly_pattern');
 
-            $week_of_month = isset($_POST['week_of_month']) ? (int) wp_unslash($_POST['week_of_month']) : 0;
-            $day_of_week   = isset($_POST['day_of_week']) ? (int) wp_unslash($_POST['day_of_week']) : -1;
+            $week_of_month = isset($_POST['week_of_month']) ? intval(wp_unslash($_POST['week_of_month'])) : 0;
+            $day_of_week   = isset($_POST['day_of_week']) ? intval(wp_unslash($_POST['day_of_week'])) : -1;
 
             if ($day_of_week < 0 || $day_of_week > 6) {
                 $this->add_toast('Please choose a day of the week.', 'error', false);
@@ -1051,14 +1052,14 @@ class EditSchedulePage {
         if ( !$is_create_mode && isset($_POST['adoration_add_commitment']) ) {
             check_admin_referer('adoration_add_commitment');
 
-            $day_of_week = isset($_POST['day_of_week']) ? (int) wp_unslash($_POST['day_of_week']) : -1;
+            $day_of_week = isset($_POST['day_of_week']) ? intval(wp_unslash($_POST['day_of_week'])) : -1;
             $start_time  = sanitize_text_field(wp_unslash($_POST['start_time'] ?? ''));
             $end_time    = sanitize_text_field(wp_unslash($_POST['end_time'] ?? ''));
 
             // ✅ No-account adorers (2026-07-21): same "Existing person"
             // search vs. free-text new-person shape as the Add Signup
             // handler above — see that block's comment for the rationale.
-            $existing_person_id = (int) ($_POST['person_id'] ?? 0);
+            $existing_person_id = absint(wp_unslash($_POST['person_id'] ?? 0));
 
             $first = sanitize_text_field(wp_unslash($_POST['first_name'] ?? ''));
             $last  = sanitize_text_field(wp_unslash($_POST['last_name'] ?? ''));
@@ -1201,7 +1202,7 @@ class EditSchedulePage {
         if ( !$is_create_mode && isset($_POST['adoration_end_commitment']) ) {
             check_admin_referer('adoration_end_commitment');
 
-            $commitment_id = (int) ($_POST['commitment_id'] ?? 0);
+            $commitment_id = absint(wp_unslash($_POST['commitment_id'] ?? 0));
             $commitment = $commitment_id > 0 ? $commitmentsRepo->find($commitment_id) : null;
 
             if (!$commitment || (int)($commitment['schedule_id'] ?? 0) !== $schedule_id) {
@@ -1273,7 +1274,7 @@ class EditSchedulePage {
         if ( !$is_create_mode && isset($_POST['adoration_coverage_cancel_signup']) ) {
             check_admin_referer('adoration_coverage_cancel_signup');
 
-            $signup_id = (int) ($_POST['signup_id'] ?? 0);
+            $signup_id = absint(wp_unslash($_POST['signup_id'] ?? 0));
             $signup = $signup_id > 0 ? $signupsRepo->find($signup_id) : null;
 
             if (!$signup || (int)($signup['schedule_id'] ?? 0) !== $schedule_id) {
@@ -1368,7 +1369,7 @@ class EditSchedulePage {
         if ( !$is_create_mode && isset($_POST['adoration_remove_closure']) ) {
             check_admin_referer('adoration_remove_closure');
 
-            $closure_id = (int) ($_POST['closure_id'] ?? 0);
+            $closure_id = absint(wp_unslash($_POST['closure_id'] ?? 0));
             $closure = $closure_id > 0 ? $closuresRepo->find($closure_id) : null;
 
             if (!$closure || (int)($closure['schedule_id'] ?? 0) !== $schedule_id) {
@@ -1593,14 +1594,15 @@ class EditSchedulePage {
             $tz_cal = function_exists('wp_timezone') ? wp_timezone() : new \DateTimeZone('UTC');
             $today_cal = new \DateTime('today', $tz_cal);
 
-            $cal_year  = isset($_GET['cal_year'])  ? (int) $_GET['cal_year']  : (int)$today_cal->format('Y');
-            $cal_month = isset($_GET['cal_month']) ? (int) $_GET['cal_month'] : (int)$today_cal->format('n');
+            // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only calendar-view navigation (year/month/date), no mutation.
+            $cal_year  = isset($_GET['cal_year'])  ? intval(wp_unslash($_GET['cal_year']))  : (int)$today_cal->format('Y');
+            $cal_month = isset($_GET['cal_month']) ? intval(wp_unslash($_GET['cal_month'])) : (int)$today_cal->format('n');
             if ($cal_month < 1 || $cal_month > 12) $cal_month = (int)$today_cal->format('n');
 
             // Selected date: prefer a just-completed POST action's date, else GET, else none.
             $cal_date = isset($cal_redirect_date) && $cal_redirect_date !== ''
                 ? $cal_redirect_date
-                : sanitize_text_field((string)($_GET['cal_date'] ?? ''));
+                : sanitize_text_field(wp_unslash($_GET['cal_date'] ?? ''));
             if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $cal_date)) $cal_date = '';
 
             $month_start = sprintf('%04d-%02d-01', $cal_year, $cal_month);
