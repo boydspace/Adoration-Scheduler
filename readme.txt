@@ -4,7 +4,7 @@ Tags: adoration, eucharistic adoration, scheduling, church, parish
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.0.7
+Stable tag: 1.0.8
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -145,6 +145,9 @@ Cloudflare Terms of Service: https://www.cloudflare.com/website-terms/
 Cloudflare Privacy Policy: https://www.cloudflare.com/privacypolicy/
 
 == Changelog ==
+
+= 1.0.8 =
+* WordPress.org submission readiness: fixed the plugin's remaining direct-database-query Plugin Check findings — every raw table-name interpolation in a SQL query now goes through `$wpdb::prepare()`'s `%i` identifier placeholder, and optional search/status/date-range filters that used to be appended to a query conditionally are now always-present, fully parameterized conditions instead. No functional or behavioral change; all 76 unit tests continue to pass.
 
 = 1.0.7 =
 * WordPress.org submission readiness: fixed a regression from 1.0.6 where a few inline script/style registrations used `false` for their version argument (satisfies one Plugin Check rule but trips another, stricter one); now use an explicit version constant instead.
