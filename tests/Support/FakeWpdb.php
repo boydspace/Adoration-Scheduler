@@ -100,7 +100,7 @@ class FakeWpdb
         }
 
         $i = 0;
-        $sql = preg_replace_callback('/%[dsf%]/', function ($m) use (&$i, $args) {
+        $sql = preg_replace_callback('/%[dsfi%]/', function ($m) use (&$i, $args) {
             if ($m[0] === '%%') return '%';
 
             $val = $args[$i] ?? null;
@@ -111,6 +111,9 @@ class FakeWpdb
                     return (string) (int) $val;
                 case '%f':
                     return (string) (float) $val;
+                case '%i':
+                    // Mirrors core $wpdb::prepare()'s %i handling: backtick-quoted identifier.
+                    return '`' . str_replace('`', '``', (string) $val) . '`';
                 case '%s':
                 default:
                     return "'" . addslashes((string) $val) . "'";

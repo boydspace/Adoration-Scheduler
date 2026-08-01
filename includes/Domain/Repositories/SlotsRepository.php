@@ -19,22 +19,13 @@ class SlotsRepository {
 
     /**
      * Insert a slot row.
-     *
-     * IMPORTANT:
-     * wpdb->insert() DOES NOT ignore unknown columns.
-     * So if the DB table does not yet have start_at/end_at, we MUST strip them.
      */
     public function insert(array $row): int {
         global $wpdb;
 
-        // If the DB doesn't have canonical datetime columns, don't try to insert them.
-        if (!$this->has_start_at_columns()) {
-            unset($row['start_at'], $row['end_at']);
-        } else {
-            // Normalize empty strings to NULL so ordering is clean
-            if (array_key_exists('start_at', $row) && $row['start_at'] === '') $row['start_at'] = null;
-            if (array_key_exists('end_at', $row) && $row['end_at'] === '') $row['end_at'] = null;
-        }
+        // Normalize empty strings to NULL so ordering is clean
+        if (array_key_exists('start_at', $row) && $row['start_at'] === '') $row['start_at'] = null;
+        if (array_key_exists('end_at', $row) && $row['end_at'] === '') $row['end_at'] = null;
 
         $ok = $wpdb->insert($this->table, $row);
 
@@ -54,10 +45,6 @@ class SlotsRepository {
 
         $slot_id = (int)$slot_id;
         if ($slot_id <= 0) return false;
-
-        if (!$this->has_start_at_columns()) {
-            return false;
-        }
 
         $start_at = is_string($start_at) ? trim($start_at) : null;
         $end_at   = is_string($end_at) ? trim($end_at) : null;
@@ -108,7 +95,8 @@ class SlotsRepository {
     public function count_by_schedule(int $schedule_id): int {
         global $wpdb;
         $sql = $wpdb->prepare(
-            "SELECT COUNT(*) FROM {$this->table} WHERE schedule_id = %d",
+            "SELECT COUNT(*) FROM %i WHERE schedule_id = %d",
+            $this->table,
             $schedule_id
         );
         return (int) $wpdb->get_var($sql);
@@ -117,7 +105,8 @@ class SlotsRepository {
     public function count_active_by_schedule(int $schedule_id): int {
         global $wpdb;
         $sql = $wpdb->prepare(
-            "SELECT COUNT(*) FROM {$this->table} WHERE schedule_id = %d AND is_active = 1",
+            "SELECT COUNT(*) FROM %i WHERE schedule_id = %d AND is_active = 1",
+            $this->table,
             $schedule_id
         );
         return (int) $wpdb->get_var($sql);
@@ -126,7 +115,8 @@ class SlotsRepository {
     public function count_inactive_by_schedule(int $schedule_id): int {
         global $wpdb;
         $sql = $wpdb->prepare(
-            "SELECT COUNT(*) FROM {$this->table} WHERE schedule_id = %d AND is_active = 0",
+            "SELECT COUNT(*) FROM %i WHERE schedule_id = %d AND is_active = 0",
+            $this->table,
             $schedule_id
         );
         return (int) $wpdb->get_var($sql);
@@ -143,9 +133,10 @@ class SlotsRepository {
 
         $sql = $wpdb->prepare(
             "SELECT *
-             FROM {$this->table}
+             FROM %i
              WHERE id = %d
              LIMIT 1",
+            $this->table,
             $slot_id
         );
 
@@ -215,46 +206,17 @@ class SlotsRepository {
     }
 
     /**
-     * Does the table have canonical datetime columns start_at/end_at?
-     */
-    private function has_start_at_columns(): bool {
-        static $cached = null;
-        if ($cached !== null) return (bool) $cached;
-
-        global $wpdb;
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $cols = (array) $wpdb->get_col("SHOW COLUMNS FROM {$this->table}");
-        $have = array_flip(array_map('strtolower', $cols));
-
-        $cached = isset($have['start_at']) && isset($have['end_at']);
-        return (bool) $cached;
-    }
-
-    /**
-     * ORDER BY used for list queries (true chronological if start_at exists).
-     * NULL-safe so legacy/bad rows don't float to the top.
-     */
-    private function order_by_sql(): string {
-        if ($this->has_start_at_columns()) {
-            // ✅ Canonical: handles overnight correctly + NULL-safe
-            return "CASE WHEN start_at IS NULL THEN 1 ELSE 0 END ASC,
-                    start_at ASC,
-                    CASE WHEN end_at IS NULL THEN 1 ELSE 0 END ASC,
-                    end_at ASC,
-                    id ASC";
-        }
-
-        // ✅ Legacy: best-effort (does NOT solve overnight)
-        return "`date` ASC, TIME(start_time) ASC, id ASC";
-    }
-
-    /**
      * Run a list query with a fallback ORDER BY in case TIME() causes issues.
+     *
+     * $sql/$fallback_sql are always the output of $wpdb->prepare() at each
+     * call site below, never raw text — this shared helper just can't be
+     * traced back to that by a static analyzer across the function boundary.
      */
     private function run_list_query(string $sql, string $fallback_sql): array {
         global $wpdb;
 
         $wpdb->last_error = '';
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
         $rows = $wpdb->get_results($sql, ARRAY_A);
 
         if (!empty($wpdb->last_error)) {
@@ -276,28 +238,28 @@ class SlotsRepository {
     public function list_for_schedule(int $schedule_id): array {
         global $wpdb;
 
-        $order  = $this->order_by_sql();
-        $has_dt = $this->has_start_at_columns();
-
-        $select = $has_dt
-            ? "id, schedule_id, chapel_id, `date`, start_time, end_time, start_at, end_at,
-               min_adorers, max_adorers, segment_id, is_active, public_note"
-            : "id, schedule_id, chapel_id, `date`, start_time, end_time,
-               min_adorers, max_adorers, segment_id, is_active, public_note";
-
         $sql_primary = $wpdb->prepare(
-            "SELECT {$select}
-             FROM {$this->table}
+            "SELECT id, schedule_id, chapel_id, `date`, start_time, end_time, start_at, end_at,
+                    min_adorers, max_adorers, segment_id, is_active, public_note
+             FROM %i
              WHERE schedule_id = %d
-             ORDER BY {$order}",
+             ORDER BY
+                CASE WHEN start_at IS NULL THEN 1 ELSE 0 END ASC,
+                start_at ASC,
+                CASE WHEN end_at IS NULL THEN 1 ELSE 0 END ASC,
+                end_at ASC,
+                id ASC",
+            $this->table,
             $schedule_id
         );
 
         $sql_fallback = $wpdb->prepare(
-            "SELECT {$select}
-             FROM {$this->table}
+            "SELECT id, schedule_id, chapel_id, `date`, start_time, end_time,
+                    min_adorers, max_adorers, segment_id, is_active, public_note
+             FROM %i
              WHERE schedule_id = %d
              ORDER BY `date` ASC, start_time ASC, id ASC",
+            $this->table,
             $schedule_id
         );
 
@@ -326,54 +288,31 @@ class SlotsRepository {
         $chapels_table = $wpdb->prefix . 'adoration_chapels';
         $signups_table = $wpdb->prefix . 'adoration_signups';
 
-        $has_dt = $this->has_start_at_columns();
+        $tz  = function_exists('wp_timezone') ? wp_timezone() : new \DateTimeZone('UTC');
+        $now = new \DateTimeImmutable('now', $tz);
 
-        if ($has_dt) {
-            $tz  = function_exists('wp_timezone') ? wp_timezone() : new \DateTimeZone('UTC');
-            $now = new \DateTimeImmutable('now', $tz);
+        $window_start = $now->format('Y-m-d H:i:s');
+        $window_end   = $now->modify('+' . $days_ahead . ' days')->format('Y-m-d H:i:s');
 
-            $window_start = $now->format('Y-m-d H:i:s');
-            $window_end   = $now->modify('+' . $days_ahead . ' days')->format('Y-m-d H:i:s');
-
-            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            $sql = $wpdb->prepare(
-                "SELECT s.id, s.`date`, s.start_time, s.end_time, s.start_at, s.end_at,
-                        s.min_adorers, s.max_adorers, ch.name AS chapel_name,
-                        (SELECT COUNT(*) FROM {$signups_table} sig
-                          WHERE sig.slot_id = s.id AND sig.status = 'confirmed') AS confirmed_count
-                 FROM {$this->table} s
-                 LEFT JOIN {$chapels_table} ch ON ch.id = s.chapel_id
-                 WHERE s.schedule_id = %d
-                   AND s.is_active = 1
-                   AND s.start_at >= %s
-                   AND s.start_at <  %s
-                 ORDER BY s.start_at ASC",
-                $schedule_id,
-                $window_start,
-                $window_end
-            );
-        } else {
-            $today = current_time('Y-m-d');
-            $until = gmdate('Y-m-d', strtotime($today . ' +' . $days_ahead . ' days'));
-
-            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            $sql = $wpdb->prepare(
-                "SELECT s.id, s.`date`, s.start_time, s.end_time, NULL AS start_at, NULL AS end_at,
-                        s.min_adorers, s.max_adorers, ch.name AS chapel_name,
-                        (SELECT COUNT(*) FROM {$signups_table} sig
-                          WHERE sig.slot_id = s.id AND sig.status = 'confirmed') AS confirmed_count
-                 FROM {$this->table} s
-                 LEFT JOIN {$chapels_table} ch ON ch.id = s.chapel_id
-                 WHERE s.schedule_id = %d
-                   AND s.is_active = 1
-                   AND s.`date` >= %s
-                   AND s.`date` <= %s
-                 ORDER BY s.`date` ASC, s.start_time ASC",
-                $schedule_id,
-                $today,
-                $until
-            );
-        }
+        $sql = $wpdb->prepare(
+            "SELECT s.id, s.`date`, s.start_time, s.end_time, s.start_at, s.end_at,
+                    s.min_adorers, s.max_adorers, ch.name AS chapel_name,
+                    (SELECT COUNT(*) FROM %i sig
+                      WHERE sig.slot_id = s.id AND sig.status = 'confirmed') AS confirmed_count
+             FROM %i s
+             LEFT JOIN %i ch ON ch.id = s.chapel_id
+             WHERE s.schedule_id = %d
+               AND s.is_active = 1
+               AND s.start_at >= %s
+               AND s.start_at <  %s
+             ORDER BY s.start_at ASC",
+            $signups_table,
+            $this->table,
+            $chapels_table,
+            $schedule_id,
+            $window_start,
+            $window_end
+        );
 
         $rows = (array) $wpdb->get_results($sql, ARRAY_A);
 
@@ -406,40 +345,25 @@ class SlotsRepository {
         if ($schedule_id <= 0 || $from_ymd === '' || $to_ymd === '') return [];
 
         $chapels_table = $wpdb->prefix . 'adoration_chapels';
-        $has_dt = $this->has_start_at_columns();
 
-        if ($has_dt) {
-            $sql = $wpdb->prepare(
-                "SELECT s.id, s.`date`, s.start_time, s.end_time, s.start_at, s.end_at,
-                        s.min_adorers, s.max_adorers, ch.name AS chapel_name
-                 FROM {$this->table} s
-                 LEFT JOIN {$chapels_table} ch ON ch.id = s.chapel_id
-                 WHERE s.schedule_id = %d
-                   AND s.is_active = 1
-                   AND s.`date` BETWEEN %s AND %s
-                 ORDER BY
-                   CASE WHEN s.start_at IS NULL THEN 1 ELSE 0 END ASC,
-                   s.start_at ASC,
-                   s.id ASC",
-                $schedule_id,
-                $from_ymd,
-                $to_ymd
-            );
-        } else {
-            $sql = $wpdb->prepare(
-                "SELECT s.id, s.`date`, s.start_time, s.end_time, NULL AS start_at, NULL AS end_at,
-                        s.min_adorers, s.max_adorers, ch.name AS chapel_name
-                 FROM {$this->table} s
-                 LEFT JOIN {$chapels_table} ch ON ch.id = s.chapel_id
-                 WHERE s.schedule_id = %d
-                   AND s.is_active = 1
-                   AND s.`date` BETWEEN %s AND %s
-                 ORDER BY s.`date` ASC, s.start_time ASC, s.id ASC",
-                $schedule_id,
-                $from_ymd,
-                $to_ymd
-            );
-        }
+        $sql = $wpdb->prepare(
+            "SELECT s.id, s.`date`, s.start_time, s.end_time, s.start_at, s.end_at,
+                    s.min_adorers, s.max_adorers, ch.name AS chapel_name
+             FROM %i s
+             LEFT JOIN %i ch ON ch.id = s.chapel_id
+             WHERE s.schedule_id = %d
+               AND s.is_active = 1
+               AND s.`date` BETWEEN %s AND %s
+             ORDER BY
+               CASE WHEN s.start_at IS NULL THEN 1 ELSE 0 END ASC,
+               s.start_at ASC,
+               s.id ASC",
+            $this->table,
+            $chapels_table,
+            $schedule_id,
+            $from_ymd,
+            $to_ymd
+        );
 
         $rows = (array) $wpdb->get_results($sql, ARRAY_A);
         return $rows;
@@ -466,11 +390,9 @@ class SlotsRepository {
 
         $signups_table = $wpdb->prefix . 'adoration_signups';
 
-        $schedule_where = ($schedule_id > 0) ? "AND s.schedule_id = %d" : "";
-
-        $params = [$from_ymd, $to_ymd];
-        if ($schedule_id > 0) $params[] = $schedule_id;
-
+        // The (%d = 0 OR ...) form lets the schedule filter stay optional
+        // (0 = all schedules) without interpolating a conditional WHERE
+        // fragment.
         $sql = $wpdb->prepare(
             "SELECT
                 DATE_FORMAT(s.`date`, '%%Y-%%m') AS ym,
@@ -478,19 +400,24 @@ class SlotsRepository {
                 SUM(CASE WHEN COALESCE(c.confirmed_count, 0) > 0 THEN 1 ELSE 0 END) AS filled_slots,
                 SUM(COALESCE(s.max_adorers, 0)) AS total_capacity,
                 SUM(COALESCE(c.confirmed_count, 0)) AS total_confirmed
-             FROM {$this->table} s
+             FROM %i s
              LEFT JOIN (
                 SELECT slot_id, COUNT(*) AS confirmed_count
-                FROM {$signups_table}
+                FROM %i
                 WHERE status = 'confirmed'
                 GROUP BY slot_id
              ) c ON c.slot_id = s.id
              WHERE s.is_active = 1
                AND s.`date` BETWEEN %s AND %s
-               {$schedule_where}
+               AND (%d = 0 OR s.schedule_id = %d)
              GROUP BY ym
              ORDER BY ym ASC",
-            $params
+            $this->table,
+            $signups_table,
+            $from_ymd,
+            $to_ymd,
+            $schedule_id,
+            $schedule_id
         );
 
         $rows = (array) $wpdb->get_results($sql, ARRAY_A);
@@ -516,21 +443,26 @@ class SlotsRepository {
     public function list_active_for_schedule(int $schedule_id): array {
         global $wpdb;
 
-        $order = $this->order_by_sql();
-
         $sql_primary = $wpdb->prepare(
             "SELECT *
-             FROM {$this->table}
+             FROM %i
              WHERE schedule_id = %d AND is_active = 1
-             ORDER BY {$order}",
+             ORDER BY
+                CASE WHEN start_at IS NULL THEN 1 ELSE 0 END ASC,
+                start_at ASC,
+                CASE WHEN end_at IS NULL THEN 1 ELSE 0 END ASC,
+                end_at ASC,
+                id ASC",
+            $this->table,
             $schedule_id
         );
 
         $sql_fallback = $wpdb->prepare(
             "SELECT *
-             FROM {$this->table}
+             FROM %i
              WHERE schedule_id = %d AND is_active = 1
              ORDER BY `date` ASC, start_time ASC, id ASC",
+            $this->table,
             $schedule_id
         );
 
@@ -543,32 +475,33 @@ class SlotsRepository {
     public function list_for_schedule_limited(int $schedule_id, int $limit = 100): array {
         global $wpdb;
 
-        $limit  = max(1, min(500, (int) $limit));
-        $order  = $this->order_by_sql();
-        $has_dt = $this->has_start_at_columns();
-
-        $select = $has_dt
-            ? "id, schedule_id, chapel_id, `date`, start_time, end_time, start_at, end_at,
-               min_adorers, max_adorers, segment_id, is_active, public_note"
-            : "id, schedule_id, chapel_id, `date`, start_time, end_time,
-               min_adorers, max_adorers, segment_id, is_active, public_note";
+        $limit = max(1, min(500, (int) $limit));
 
         $sql_primary = $wpdb->prepare(
-            "SELECT {$select}
-             FROM {$this->table}
+            "SELECT id, schedule_id, chapel_id, `date`, start_time, end_time, start_at, end_at,
+                    min_adorers, max_adorers, segment_id, is_active, public_note
+             FROM %i
              WHERE schedule_id = %d
-             ORDER BY {$order}
+             ORDER BY
+                CASE WHEN start_at IS NULL THEN 1 ELSE 0 END ASC,
+                start_at ASC,
+                CASE WHEN end_at IS NULL THEN 1 ELSE 0 END ASC,
+                end_at ASC,
+                id ASC
              LIMIT %d",
+            $this->table,
             $schedule_id,
             $limit
         );
 
         $sql_fallback = $wpdb->prepare(
-            "SELECT {$select}
-             FROM {$this->table}
+            "SELECT id, schedule_id, chapel_id, `date`, start_time, end_time,
+                    min_adorers, max_adorers, segment_id, is_active, public_note
+             FROM %i
              WHERE schedule_id = %d
              ORDER BY `date` ASC, start_time ASC, id ASC
              LIMIT %d",
+            $this->table,
             $schedule_id,
             $limit
         );
@@ -578,73 +511,31 @@ class SlotsRepository {
 
     /**
      * ✅ Canonical list for Signups tab.
-     * We try start_at ordering first (best). If columns don't exist, fall back to legacy.
      */
     public function list_for_signups_tab(int $schedule_id, int $limit = 2000): array {
         global $wpdb;
 
         $limit = max(1, min(2000, (int) $limit));
 
-        // Best-case: start_at/end_at exists.
-        if ($this->has_start_at_columns()) {
-            $sql = $wpdb->prepare(
-                "SELECT id, schedule_id, chapel_id, `date`, start_time, end_time, start_at, end_at,
-                        min_adorers, max_adorers, segment_id, is_active, public_note
-                 FROM {$this->table}
-                 WHERE schedule_id = %d
-                 ORDER BY
-                   CASE WHEN start_at IS NULL THEN 1 ELSE 0 END ASC,
-                   start_at ASC,
-                   CASE WHEN end_at IS NULL THEN 1 ELSE 0 END ASC,
-                   end_at ASC,
-                   id ASC
-                 LIMIT %d",
-                $schedule_id,
-                $limit
-            );
-
-            $rows = $wpdb->get_results($sql, ARRAY_A);
-            return is_array($rows) ? $rows : [];
-        }
-
-        // Legacy fallback: robust datetime sort key (handles weird start_time formats).
-        $sql_fallback = $wpdb->prepare(
-            "SELECT id, schedule_id, chapel_id, `date`, start_time, end_time,
+        $sql = $wpdb->prepare(
+            "SELECT id, schedule_id, chapel_id, `date`, start_time, end_time, start_at, end_at,
                     min_adorers, max_adorers, segment_id, is_active, public_note
-             FROM {$this->table}
+             FROM %i
              WHERE schedule_id = %d
              ORDER BY
-               STR_TO_DATE(
-                 CONCAT(
-                   `date`, ' ',
-                   CASE
-                     WHEN start_time REGEXP '^[0-9]{1,2}:[0-9]{2}$'
-                       THEN CONCAT(LPAD(SUBSTRING_INDEX(start_time,':',1),2,'0'), ':', SUBSTRING_INDEX(start_time,':',-1), ':00')
-                     WHEN start_time REGEXP '^[0-9]{1,2}:[0-9]{2}:[0-9]{2}$'
-                       THEN CONCAT(
-                              LPAD(SUBSTRING_INDEX(start_time,':',1),2,'0'), ':',
-                              SUBSTRING_INDEX(SUBSTRING_INDEX(start_time,':',2),':',-1), ':',
-                              SUBSTRING_INDEX(start_time,':',-1)
-                            )
-                     ELSE start_time
-                   END
-                 ),
-                 '%Y-%m-%d %H:%i:%s'
-               ) ASC,
+               CASE WHEN start_at IS NULL THEN 1 ELSE 0 END ASC,
+               start_at ASC,
+               CASE WHEN end_at IS NULL THEN 1 ELSE 0 END ASC,
+               end_at ASC,
                id ASC
              LIMIT %d",
+            $this->table,
             $schedule_id,
             $limit
         );
 
-        $rows2 = $wpdb->get_results($sql_fallback, ARRAY_A);
-
-        if (!empty($wpdb->last_error)) {
-            error_log('[AdorationScheduler] SignupsTab legacy ordering failed: ' . $wpdb->last_error);
-            return [];
-        }
-
-        return is_array($rows2) ? $rows2 : [];
+        $rows = $wpdb->get_results($sql, ARRAY_A);
+        return is_array($rows) ? $rows : [];
     }
 
     /**
@@ -659,9 +550,10 @@ class SlotsRepository {
 
         $sql = $wpdb->prepare(
             "SELECT `date`, COUNT(*) AS c
-             FROM {$this->table}
+             FROM %i
              WHERE schedule_id = %d AND is_active = 1 AND `date` BETWEEN %s AND %s
              GROUP BY `date`",
+            $this->table,
             $schedule_id,
             $start_ymd,
             $end_ymd
@@ -697,13 +589,14 @@ class SlotsRepository {
         }
 
         $sql = $wpdb->prepare(
-            "SELECT * FROM {$this->table}
+            "SELECT * FROM %i
              WHERE schedule_id = %d AND is_active = 1
                AND start_time = %s
                AND `date` >= %s
                AND (DAYOFWEEK(`date`) - 1) = %d
              ORDER BY `date` ASC
              LIMIT %d",
+            $this->table,
             $schedule_id,
             $start_time,
             $from_ymd,
@@ -723,12 +616,16 @@ class SlotsRepository {
         $schedule_id = (int)$schedule_id;
         if ($schedule_id <= 0 || $ymd === '') return [];
 
-        $order = $this->order_by_sql();
-
         $sql = $wpdb->prepare(
-            "SELECT * FROM {$this->table}
+            "SELECT * FROM %i
              WHERE schedule_id = %d AND `date` = %s AND is_active = 1
-             ORDER BY {$order}",
+             ORDER BY
+                CASE WHEN start_at IS NULL THEN 1 ELSE 0 END ASC,
+                start_at ASC,
+                CASE WHEN end_at IS NULL THEN 1 ELSE 0 END ASC,
+                end_at ASC,
+                id ASC",
+            $this->table,
             $schedule_id,
             $ymd
         );
@@ -739,9 +636,7 @@ class SlotsRepository {
     /**
      * ✅ Closures: all ACTIVE slots for a schedule whose time window overlaps
      * [start_at, end_at) — standard interval-overlap test using the canonical
-     * start_at/end_at columns (falls back to date+start_time/end_time if the
-     * canonical columns aren't present, best-effort / no overnight support in
-     * that fallback case).
+     * start_at/end_at columns.
      */
     public function list_active_overlapping(int $schedule_id, string $start_at, string $end_at): array {
         global $wpdb;
@@ -749,26 +644,12 @@ class SlotsRepository {
         $schedule_id = (int)$schedule_id;
         if ($schedule_id <= 0 || $start_at === '' || $end_at === '') return [];
 
-        if ($this->has_start_at_columns()) {
-            $sql = $wpdb->prepare(
-                "SELECT * FROM {$this->table}
-                 WHERE schedule_id = %d AND is_active = 1
-                   AND start_at < %s AND end_at > %s
-                 ORDER BY start_at ASC",
-                $schedule_id,
-                $end_at,
-                $start_at
-            );
-            return (array) $wpdb->get_results($sql, ARRAY_A);
-        }
-
-        // Legacy fallback: best-effort, does not correctly handle overnight slots.
         $sql = $wpdb->prepare(
-            "SELECT * FROM {$this->table}
+            "SELECT * FROM %i
              WHERE schedule_id = %d AND is_active = 1
-               AND TIMESTAMP(`date`, start_time) < %s
-               AND TIMESTAMP(`date`, end_time) > %s
-             ORDER BY `date` ASC, start_time ASC",
+               AND start_at < %s AND end_at > %s
+             ORDER BY start_at ASC",
+            $this->table,
             $schedule_id,
             $end_at,
             $start_at
@@ -787,25 +668,12 @@ class SlotsRepository {
         $schedule_id = (int)$schedule_id;
         if ($schedule_id <= 0 || $start_at === '' || $end_at === '') return [];
 
-        if ($this->has_start_at_columns()) {
-            $sql = $wpdb->prepare(
-                "SELECT * FROM {$this->table}
-                 WHERE schedule_id = %d AND is_active = 0
-                   AND start_at < %s AND end_at > %s
-                 ORDER BY start_at ASC",
-                $schedule_id,
-                $end_at,
-                $start_at
-            );
-            return (array) $wpdb->get_results($sql, ARRAY_A);
-        }
-
         $sql = $wpdb->prepare(
-            "SELECT * FROM {$this->table}
+            "SELECT * FROM %i
              WHERE schedule_id = %d AND is_active = 0
-               AND TIMESTAMP(`date`, start_time) < %s
-               AND TIMESTAMP(`date`, end_time) > %s
-             ORDER BY `date` ASC, start_time ASC",
+               AND start_at < %s AND end_at > %s
+             ORDER BY start_at ASC",
+            $this->table,
             $schedule_id,
             $end_at,
             $start_at
@@ -826,8 +694,8 @@ class SlotsRepository {
 
         $placeholders = implode(',', array_fill(0, count($ids), '%d'));
         $sql = $wpdb->prepare(
-            "UPDATE {$this->table} SET is_active = 1 WHERE id IN ($placeholders)",
-            $ids
+            "UPDATE %i SET is_active = 1 WHERE id IN ($placeholders)",
+            array_merge([$this->table], $ids)
         );
         $result = $wpdb->query($sql);
         return ($result === false) ? 0 : (int) $result;
@@ -844,8 +712,8 @@ class SlotsRepository {
 
         $placeholders = implode(',', array_fill(0, count($ids), '%d'));
         $sql = $wpdb->prepare(
-            "UPDATE {$this->table} SET is_active = 0 WHERE id IN ($placeholders)",
-            $ids
+            "UPDATE %i SET is_active = 0 WHERE id IN ($placeholders)",
+            array_merge([$this->table], $ids)
         );
         $result = $wpdb->query($sql);
         return ($result === false) ? 0 : (int) $result;
@@ -862,7 +730,8 @@ class SlotsRepository {
 
         if (empty($keep_ids)) {
             $sql = $wpdb->prepare(
-                "UPDATE {$this->table} SET is_active = 0 WHERE schedule_id = %d",
+                "UPDATE %i SET is_active = 0 WHERE schedule_id = %d",
+                $this->table,
                 $schedule_id
             );
             $result = $wpdb->query($sql);
@@ -870,10 +739,10 @@ class SlotsRepository {
         }
 
         $placeholders = implode(',', array_fill(0, count($keep_ids), '%d'));
-        $params = array_merge([$schedule_id], $keep_ids);
+        $params = array_merge([$this->table, $schedule_id], $keep_ids);
 
         $sql = $wpdb->prepare(
-            "UPDATE {$this->table}
+            "UPDATE %i
              SET is_active = 0
              WHERE schedule_id = %d
                AND id NOT IN ($placeholders)",
@@ -907,12 +776,6 @@ class SlotsRepository {
         $chapels_table   = $wpdb->prefix . 'adoration_chapels';
         $signups_table   = $wpdb->prefix . 'adoration_signups';
 
-        if (!$this->has_start_at_columns()) {
-            // Canonical datetime columns not present yet (very old/unmigrated
-            // install) — bail rather than guess with a less reliable query.
-            return [];
-        }
-
         // start_at/end_at are stored as site-LOCAL wall-clock datetimes (see
         // SlotGenerator, which builds them from a wp_timezone() DateTime
         // cursor, not UTC) — so the window bounds must be computed the same
@@ -924,26 +787,30 @@ class SlotsRepository {
         $window_start = $now->format('Y-m-d H:i:s');
         $window_end   = $now->modify('+' . $within_hours . ' hours')->format('Y-m-d H:i:s');
 
-        $alerted_clause = $only_unalerted ? "AND s.coverage_alert_sent_at IS NULL" : "";
-
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        // The (%d = 0 OR ...) form lets "only unalerted" stay an optional
+        // filter without interpolating a conditional WHERE fragment.
         $sql = $wpdb->prepare(
             "SELECT s.*, sch.name AS schedule_name, sch.type AS schedule_type, ch.name AS chapel_name
-             FROM {$this->table} s
-             INNER JOIN {$schedules_table} sch ON sch.id = s.schedule_id
-             LEFT JOIN {$chapels_table} ch ON ch.id = s.chapel_id
+             FROM %i s
+             INNER JOIN %i sch ON sch.id = s.schedule_id
+             LEFT JOIN %i ch ON ch.id = s.chapel_id
              WHERE s.is_active = 1
                AND sch.status = 'active'
                AND s.start_at >= %s
                AND s.start_at <  %s
                AND NOT EXISTS (
-                   SELECT 1 FROM {$signups_table} sig
+                   SELECT 1 FROM %i sig
                    WHERE sig.slot_id = s.id AND sig.status = 'confirmed'
                )
-               {$alerted_clause}
+               AND (%d = 0 OR s.coverage_alert_sent_at IS NULL)
              ORDER BY s.start_at ASC",
+            $this->table,
+            $schedules_table,
+            $chapels_table,
             $window_start,
-            $window_end
+            $window_end,
+            $signups_table,
+            $only_unalerted ? 1 : 0
         );
 
         return (array) $wpdb->get_results($sql, ARRAY_A);
@@ -966,8 +833,8 @@ class SlotsRepository {
         // column is only ever compared to itself (IS NULL check), never to
         // start_at, so it doesn't need to be in "site local" time.
         $sql = $wpdb->prepare(
-            "UPDATE {$this->table} SET coverage_alert_sent_at = NOW() WHERE id IN ($placeholders)",
-            $ids
+            "UPDATE %i SET coverage_alert_sent_at = NOW() WHERE id IN ($placeholders)",
+            array_merge([$this->table], $ids)
         );
         $result = $wpdb->query($sql);
         return ($result === false) ? 0 : (int) $result;

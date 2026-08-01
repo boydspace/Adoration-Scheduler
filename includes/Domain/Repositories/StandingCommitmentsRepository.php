@@ -69,18 +69,20 @@ class StandingCommitmentsRepository {
 
         if ($schedule_id <= 0 || $person_id <= 0 || $start_time === '') return null;
 
-        $active_sql = $active_only ? " AND is_active = 1 " : "";
-
+        // The (%d = 0 OR ...) form lets "active only" stay an optional
+        // filter without interpolating a conditional WHERE fragment.
         $sql = $wpdb->prepare(
-            "SELECT * FROM {$this->table}
+            "SELECT * FROM %i
              WHERE schedule_id = %d AND person_id = %d AND day_of_week = %d AND start_time = %s
-             {$active_sql}
+               AND (%d = 0 OR is_active = 1)
              ORDER BY is_active DESC, id DESC
              LIMIT 1",
+            $this->table,
             $schedule_id,
             $person_id,
             $day_of_week,
-            $start_time
+            $start_time,
+            $active_only ? 1 : 0
         );
 
         $row = $wpdb->get_row($sql, ARRAY_A);
@@ -145,7 +147,7 @@ class StandingCommitmentsRepository {
         $id = (int)$id;
         if ($id <= 0) return null;
 
-        $sql = $wpdb->prepare("SELECT * FROM {$this->table} WHERE id = %d LIMIT 1", $id);
+        $sql = $wpdb->prepare("SELECT * FROM %i WHERE id = %d LIMIT 1", $this->table, $id);
         $row = $wpdb->get_row($sql, ARRAY_A);
         return $row ? (array)$row : null;
     }
@@ -159,15 +161,18 @@ class StandingCommitmentsRepository {
         $schedule_id = (int)$schedule_id;
         if ($schedule_id <= 0) return [];
 
-        $active_sql = $active_only ? " AND c.is_active = 1 " : "";
-
+        // The (%d = 0 OR ...) form lets "active only" stay an optional
+        // filter without interpolating a conditional WHERE fragment.
         $sql = $wpdb->prepare(
             "SELECT c.*, p.title AS title, p.first_name AS first_name, p.last_name AS last_name, p.email AS email, p.phone AS phone
-             FROM {$this->table} c
-             LEFT JOIN {$this->persons_table} p ON p.id = c.person_id
-             WHERE c.schedule_id = %d {$active_sql}
+             FROM %i c
+             LEFT JOIN %i p ON p.id = c.person_id
+             WHERE c.schedule_id = %d AND (%d = 0 OR c.is_active = 1)
              ORDER BY c.day_of_week ASC, c.start_time ASC",
-            $schedule_id
+            $this->table,
+            $this->persons_table,
+            $schedule_id,
+            $active_only ? 1 : 0
         );
 
         return (array)$wpdb->get_results($sql, ARRAY_A);
@@ -188,10 +193,12 @@ class StandingCommitmentsRepository {
 
         $sql = $wpdb->prepare(
             "SELECT c.*, p.first_name AS first_name, p.last_name AS last_name, p.email AS email, p.phone AS phone
-             FROM {$this->table} c
-             LEFT JOIN {$this->persons_table} p ON p.id = c.person_id
+             FROM %i c
+             LEFT JOIN %i p ON p.id = c.person_id
              WHERE c.schedule_id = %d AND c.day_of_week = %d AND c.start_time = %s AND c.is_active = 1
              ORDER BY c.id ASC",
+            $this->table,
+            $this->persons_table,
             $schedule_id,
             $day_of_week,
             $start_time
@@ -210,8 +217,9 @@ class StandingCommitmentsRepository {
         if ($schedule_id <= 0 || $start_time === '') return 0;
 
         $sql = $wpdb->prepare(
-            "SELECT COUNT(*) FROM {$this->table}
+            "SELECT COUNT(*) FROM %i
              WHERE schedule_id = %d AND day_of_week = %d AND start_time = %s AND is_active = 1",
+            $this->table,
             $schedule_id,
             $day_of_week,
             $start_time
@@ -249,15 +257,18 @@ class StandingCommitmentsRepository {
         $person_id = (int)$person_id;
         if ($person_id <= 0) return [];
 
-        $active_sql = $active_only ? " AND c.is_active = 1 " : "";
-
+        // The (%d = 0 OR ...) form lets "active only" stay an optional
+        // filter without interpolating a conditional WHERE fragment.
         $sql = $wpdb->prepare(
             "SELECT c.*, sc.name AS schedule_name
-             FROM {$this->table} c
-             LEFT JOIN {$this->schedules_table} sc ON sc.id = c.schedule_id
-             WHERE c.person_id = %d {$active_sql}
+             FROM %i c
+             LEFT JOIN %i sc ON sc.id = c.schedule_id
+             WHERE c.person_id = %d AND (%d = 0 OR c.is_active = 1)
              ORDER BY c.day_of_week ASC, c.start_time ASC",
-            $person_id
+            $this->table,
+            $this->schedules_table,
+            $person_id,
+            $active_only ? 1 : 0
         );
 
         return (array)$wpdb->get_results($sql, ARRAY_A);

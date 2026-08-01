@@ -63,7 +63,7 @@ class XlsxWriter
         $zip->close();
 
         $bytes = (string) file_get_contents($tmp);
-        @unlink($tmp);
+        wp_delete_file($tmp);
 
         return $bytes;
     }

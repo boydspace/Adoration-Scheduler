@@ -1,4 +1,5 @@
 <?php
+if ( ! defined( 'ABSPATH' ) ) exit;
 /**
  * Plugin Name: Action Scheduler
  * Plugin URI: https://actionscheduler.org

@@ -60,9 +60,14 @@ class ScheduleShortcode {
         $turnstile_enabled  = !empty($antispam_opts['turnstile_enabled']);
         $turnstile_site_key = trim((string)($antispam_opts['turnstile_site_key'] ?? ''));
 
-        // Only enqueue Turnstile when enabled + key set
+        // Only enqueue Turnstile when enabled + key set. This is an
+        // admin-opt-in anti-spam integration (disclosed in readme.txt's
+        // "External Services" section) whose script must be served live
+        // from Cloudflare — self-hosting it would break verification and
+        // violates Cloudflare's terms, the same constraint as Google
+        // reCAPTCHA/hCaptcha/Stripe.js.
         if ($turnstile_enabled && $turnstile_site_key !== '') {
-            wp_enqueue_script(
+            wp_enqueue_script( // phpcs:ignore PluginCheck.CodeAnalysis.EnqueuedResourceOffloading.OffloadedContent -- required third-party anti-spam script, must load live from Cloudflare; admin opt-in, disclosed in readme.
                 'cf-turnstile',
                 'https://challenges.cloudflare.com/turnstile/v0/api.js',
                 [],

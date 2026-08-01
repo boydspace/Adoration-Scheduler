@@ -364,8 +364,7 @@ class SlotGenerator
         $table = $wpdb->prefix . 'adoration_slots';
 
         try {
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            $cols = (array) $wpdb->get_col("SHOW COLUMNS FROM {$table}");
+            $cols = (array) $wpdb->get_col($wpdb->prepare("SHOW COLUMNS FROM %i", $table));
             $have = array_flip(array_map('strtolower', $cols));
             $this->has_start_end_cols = isset($have['start_at']) && isset($have['end_at']);
         } catch (\Throwable $e) {

@@ -217,7 +217,8 @@ class AdminSignupActionsService
         $t_slots     = $wpdb->prefix . 'adoration_slots';
         $t_schedules = $wpdb->prefix . 'adoration_schedules';
 
-        $sql = "
+        $prepared = $wpdb->prepare(
+            "
             SELECT
                 su.id,
                 su.person_id,
@@ -232,16 +233,17 @@ class AdminSignupActionsService
                 sl.date AS slot_date,
                 sl.start_time AS slot_start,
                 sl.end_time AS slot_end
-            FROM {$t_signups} su
-            LEFT JOIN {$t_persons} p ON p.id = su.person_id
-            LEFT JOIN {$t_schedules} sc ON sc.id = su.schedule_id
-            LEFT JOIN {$t_slots} sl ON sl.id = su.slot_id
+            FROM %i su
+            LEFT JOIN %i p ON p.id = su.person_id
+            LEFT JOIN %i sc ON sc.id = su.schedule_id
+            LEFT JOIN %i sl ON sl.id = su.slot_id
             WHERE su.id = %d
             LIMIT 1
-        ";
+        ",
+            $t_signups, $t_persons, $t_schedules, $t_slots, $signup_id
+        );
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $row = $wpdb->get_row($wpdb->prepare($sql, $signup_id), ARRAY_A);
+        $row = $wpdb->get_row($prepared, ARRAY_A);
         if (!$row) return null;
 
         $to = trim((string)($row['person_email'] ?? ''));
@@ -305,13 +307,16 @@ class AdminSignupActionsService
         $has_updated_at = self::table_has_column($table, 'updated_at');
 
         // Load row (need person_id + slot_id for the unique-index cleanup)
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
+        // The "is_active" column fragment is a fixed literal chosen above by
+        // a real schema check, never raw user input.
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
         $row = $wpdb->get_row(
             $wpdb->prepare(
                 "SELECT id, person_id, slot_id, status" . ($has_is_active ? ", is_active" : "") . "
-                 FROM {$table}
+                 FROM %i
                  WHERE id = %d
                  LIMIT 1",
+                $table,
                 $signup_id
             ),
             ARRAY_A
@@ -334,13 +339,13 @@ class AdminSignupActionsService
          */
         if ($has_is_active && $person_id > 0 && $slot_id > 0) {
             try {
-                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
                 $wpdb->query($wpdb->prepare(
-                    "DELETE FROM {$table}
+                    "DELETE FROM %i
                      WHERE person_id = %d
                        AND slot_id = %d
                        AND is_active = 0
                        AND id <> %d",
+                    $table,
                     $person_id,
                     $slot_id,
                     $signup_id
@@ -431,9 +436,8 @@ class AdminSignupActionsService
         // Capture slot_id + status BEFORE deleting so we know whether this
         // removal actually freed a confirmed seat worth offering to the
         // waitlist (deleting an already-cancelled row frees nothing new).
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
         $row = $wpdb->get_row(
-            $wpdb->prepare("SELECT slot_id, status FROM {$table} WHERE id = %d LIMIT 1", $signup_id),
+            $wpdb->prepare("SELECT slot_id, status FROM %i WHERE id = %d LIMIT 1", $table, $signup_id),
             ARRAY_A
         );
         $slot_id     = is_array($row) ? (int)($row['slot_id'] ?? 0) : 0;
@@ -591,9 +595,8 @@ class AdminSignupActionsService
 
         try {
             $like = $wpdb->esc_like($column);
-            $sql  = "SHOW COLUMNS FROM `{$table}` LIKE %s";
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
-            $found = $wpdb->get_var($wpdb->prepare($sql, $like));
+            $prepared = $wpdb->prepare("SHOW COLUMNS FROM %i LIKE %s", $table, $like);
+            $found = $wpdb->get_var($prepared);
             return !empty($found);
         } catch (\Throwable $e) {
             return false;

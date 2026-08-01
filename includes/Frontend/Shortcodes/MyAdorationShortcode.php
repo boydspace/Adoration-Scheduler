@@ -1139,7 +1139,8 @@ class MyAdorationShortcode
 
         $today = wp_date('Y-m-d'); // site timezone
 
-        $sql = "
+        $prepared = $wpdb->prepare(
+            "
             SELECT
                 su.id,
                 su.date,
@@ -1150,18 +1151,19 @@ class MyAdorationShortcode
                 sl.end_time,
                 sc.name AS schedule_name,
                 ch.name AS chapel_name
-            FROM {$signups} su
-            INNER JOIN {$slots} sl ON sl.id = su.slot_id
-            INNER JOIN {$sched} sc ON sc.id = su.schedule_id
-            INNER JOIN {$chapels} ch ON ch.id = sc.chapel_id
+            FROM %i su
+            INNER JOIN %i sl ON sl.id = su.slot_id
+            INNER JOIN %i sc ON sc.id = su.schedule_id
+            INNER JOIN %i ch ON ch.id = sc.chapel_id
             WHERE su.person_id = %d
               AND su.status <> 'cancelled'
               AND su.date >= %s
             ORDER BY su.date ASC, sl.start_time ASC
-        ";
+        ",
+            $signups, $slots, $sched, $chapels, $person_id, $today
+        );
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.NotPrepared
-        $rows = $wpdb->get_results($wpdb->prepare($sql, $person_id, $today), ARRAY_A);
+        $rows = $wpdb->get_results($prepared, ARRAY_A);
         return is_array($rows) ? $rows : [];
     }
 

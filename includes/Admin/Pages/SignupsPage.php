@@ -345,7 +345,8 @@ class SignupsPage {
         $t_slots     = $wpdb->prefix . 'adoration_slots';
         $t_schedules = $wpdb->prefix . 'adoration_schedules';
 
-        $sql = "
+        $prepared = $wpdb->prepare(
+            "
             SELECT
                 su.id,
                 su.status,
@@ -368,16 +369,17 @@ class SignupsPage {
                 sl.date AS slot_date,
                 sl.start_time AS slot_start,
                 sl.end_time AS slot_end
-            FROM {$t_signups} su
-            LEFT JOIN {$t_persons} p ON p.id = su.person_id
-            LEFT JOIN {$t_schedules} sc ON sc.id = su.schedule_id
-            LEFT JOIN {$t_slots} sl ON sl.id = su.slot_id
+            FROM %i su
+            LEFT JOIN %i p ON p.id = su.person_id
+            LEFT JOIN %i sc ON sc.id = su.schedule_id
+            LEFT JOIN %i sl ON sl.id = su.slot_id
             WHERE su.id = %d
             LIMIT 1
-        ";
+        ",
+            $t_signups, $t_persons, $t_schedules, $t_slots, $signup_id
+        );
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $row = $wpdb->get_row($wpdb->prepare($sql, $signup_id), ARRAY_A);
+        $row = $wpdb->get_row($prepared, ARRAY_A);
         if (!$row) {
             wp_send_json_error(['message' => 'Signup not found'], 404);
         }
@@ -589,7 +591,7 @@ class SignupsPage {
         // Old status for audit (best-effort)
         $old_status = '';
         try {
-            $old_status = (string) $wpdb->get_var($wpdb->prepare("SELECT status FROM {$t} WHERE id = %d", $signup_id));
+            $old_status = (string) $wpdb->get_var($wpdb->prepare("SELECT status FROM %i WHERE id = %d", $t, $signup_id));
         } catch (\Throwable $e) {
             $old_status = '';
         }

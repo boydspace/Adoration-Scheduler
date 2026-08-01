@@ -17,8 +17,7 @@ class ChapelsRepository {
      */
     public function list_active(): array {
         global $wpdb;
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $sql = "SELECT * FROM {$this->table} WHERE is_active = 1 ORDER BY name ASC";
+        $sql = $wpdb->prepare("SELECT * FROM %i WHERE is_active = 1 ORDER BY name ASC", $this->table);
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
         return (array) $wpdb->get_results($sql, ARRAY_A);
     }
@@ -28,8 +27,7 @@ class ChapelsRepository {
      */
     public function list_all(): array {
         global $wpdb;
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $sql = "SELECT * FROM {$this->table} ORDER BY name ASC";
+        $sql = $wpdb->prepare("SELECT * FROM %i ORDER BY name ASC", $this->table);
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
         return (array) $wpdb->get_results($sql, ARRAY_A);
     }
@@ -47,13 +45,12 @@ class ChapelsRepository {
         // 1) Prefer main-chapel slug if present
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
         $id = (int) $wpdb->get_var(
-            $wpdb->prepare("SELECT id FROM {$this->table} WHERE slug = %s LIMIT 1", 'main-chapel')
+            $wpdb->prepare("SELECT id FROM %i WHERE slug = %s LIMIT 1", $this->table, 'main-chapel')
         );
         if ($id > 0) return $id;
 
         // 2) Fallback: lowest id
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $id = (int) $wpdb->get_var("SELECT id FROM {$this->table} ORDER BY id ASC LIMIT 1");
+        $id = (int) $wpdb->get_var($wpdb->prepare("SELECT id FROM %i ORDER BY id ASC LIMIT 1", $this->table));
         return $id > 0 ? $id : 0;
     }
 
@@ -87,8 +84,7 @@ class ChapelsRepository {
 
     public function count_active(): int {
         global $wpdb;
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        return (int) $wpdb->get_var("SELECT COUNT(*) FROM {$this->table} WHERE is_active = 1");
+        return (int) $wpdb->get_var($wpdb->prepare("SELECT COUNT(*) FROM %i WHERE is_active = 1", $this->table));
     }
 
     public function find(int $id): ?array {
@@ -98,7 +94,7 @@ class ChapelsRepository {
 
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
         $row = $wpdb->get_row(
-            $wpdb->prepare("SELECT * FROM {$this->table} WHERE id = %d", $id),
+            $wpdb->prepare("SELECT * FROM %i WHERE id = %d", $this->table, $id),
             ARRAY_A
         );
 
@@ -164,14 +160,13 @@ class ChapelsRepository {
         // Schedules referencing chapel_id
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
         $sch = (int) $wpdb->get_var(
-            $wpdb->prepare("SELECT COUNT(*) FROM {$schedules_table} WHERE chapel_id = %d", $chapel_id)
+            $wpdb->prepare("SELECT COUNT(*) FROM %i WHERE chapel_id = %d", $schedules_table, $chapel_id)
         );
         if ($sch > 0) return true;
 
         // Slots referencing chapel_id
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
         $sl = (int) $wpdb->get_var(
-            $wpdb->prepare("SELECT COUNT(*) FROM {$slots_table} WHERE chapel_id = %d", $chapel_id)
+            $wpdb->prepare("SELECT COUNT(*) FROM %i WHERE chapel_id = %d", $slots_table, $chapel_id)
         );
         return $sl > 0;
     }
@@ -244,9 +239,8 @@ class ChapelsRepository {
         $token = trim($token);
         if ($token === '') return null;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
         $row = $wpdb->get_row(
-            $wpdb->prepare("SELECT * FROM {$this->table} WHERE kiosk_token = %s LIMIT 1", $token),
+            $wpdb->prepare("SELECT * FROM %i WHERE kiosk_token = %s LIMIT 1", $this->table, $token),
             ARRAY_A
         );
 

@@ -92,9 +92,10 @@ class PersonsPage {
 
         $sql = $wpdb->prepare(
             "SELECT *
-             FROM {$signups_table}
+             FROM %i
              WHERE person_id = %d
              ORDER BY date DESC, schedule_id ASC, slot_id ASC, id ASC",
+            $signups_table,
             $person_id
         );
 
@@ -120,7 +121,7 @@ class PersonsPage {
 
         try {
             $row = $wpdb->get_row(
-                $wpdb->prepare("SELECT * FROM {$table} WHERE id = %d LIMIT 1", $schedule_id),
+                $wpdb->prepare("SELECT * FROM %i WHERE id = %d LIMIT 1", $table, $schedule_id),
                 ARRAY_A
             );
 
@@ -164,7 +165,7 @@ class PersonsPage {
 
         try {
             $row = $wpdb->get_row(
-                $wpdb->prepare("SELECT * FROM {$table} WHERE id = %d LIMIT 1", $slot_id),
+                $wpdb->prepare("SELECT * FROM %i WHERE id = %d LIMIT 1", $table, $slot_id),
                 ARRAY_A
             );
 

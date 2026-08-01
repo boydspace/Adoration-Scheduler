@@ -589,8 +589,7 @@ class Installer {
         $column = preg_replace('/[^A-Za-z0-9_]/', '', (string)$column);
         if ($column === '') return false;
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-        $row = $wpdb->get_row($wpdb->prepare("SHOW COLUMNS FROM {$table} LIKE %s", $column), ARRAY_A);
+        $row = $wpdb->get_row($wpdb->prepare("SHOW COLUMNS FROM %i LIKE %s", $table, $column), ARRAY_A);
         return is_array($row) && !empty($row['Field']);
     }
 
@@ -1055,7 +1054,7 @@ class Installer {
         if ($exists !== $table) return;
 
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $cols = (array) $wpdb->get_results("SHOW COLUMNS FROM {$table}", ARRAY_A);
+        $cols = (array) $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM %i", $table), ARRAY_A);
         $have = [];
         foreach ($cols as $c) {
             $have[strtolower($c['Field'] ?? '')] = true;
@@ -1080,8 +1079,11 @@ class Installer {
         if (!isset($have['kiosk_token'])) $alters[] = "ADD COLUMN kiosk_token CHAR(64) NULL";
 
         if (!empty($alters)) {
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            $wpdb->query("ALTER TABLE {$table} " . implode(', ', $alters));
+            // $alters is built entirely from hardcoded ADD COLUMN fragments
+            // above, conditionally included based on schema introspection —
+            // never raw user input; only the table name is parameterized.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $wpdb->query($wpdb->prepare("ALTER TABLE %i " . implode(', ', $alters), $table));
         }
 
         self::ensure_unique_index($table, 'slug', ['slug']);
@@ -1104,9 +1106,9 @@ class Installer {
         $name = 'Main Chapel';
 
         // 1) Try by slug
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
         $id = (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT id FROM {$chapels_table} WHERE slug = %s LIMIT 1",
+            "SELECT id FROM %i WHERE slug = %s LIMIT 1",
+            $chapels_table,
             $slug
         ));
         if ($id > 0) {
@@ -1116,9 +1118,9 @@ class Installer {
         }
 
         // 2) Try by name
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
         $id = (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT id FROM {$chapels_table} WHERE name = %s LIMIT 1",
+            "SELECT id FROM %i WHERE name = %s LIMIT 1",
+            $chapels_table,
             $name
         ));
         if ($id > 0) {
@@ -1161,12 +1163,12 @@ class Installer {
         if (!self::table_exists($schedules_table)) return;
         if (!self::column_exists($schedules_table, 'chapel_id')) return;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
         $wpdb->query(
             $wpdb->prepare(
-                "UPDATE {$schedules_table}
+                "UPDATE %i
                     SET chapel_id = %d
                   WHERE chapel_id IS NULL OR chapel_id = 0",
+                $schedules_table,
                 $main_chapel_id
             )
         );
@@ -1182,15 +1184,14 @@ class Installer {
         if (!self::column_exists($slots_table, 'schedule_id')) return;
         if (!self::column_exists($schedules_table, 'chapel_id')) return;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $wpdb->query("
-            UPDATE {$slots_table} s
-            INNER JOIN {$schedules_table} sch ON sch.id = s.schedule_id
+        $wpdb->query($wpdb->prepare("
+            UPDATE %i s
+            INNER JOIN %i sch ON sch.id = s.schedule_id
             SET s.chapel_id = sch.chapel_id
             WHERE s.chapel_id IS NULL
                OR s.chapel_id = 0
                OR s.chapel_id <> sch.chapel_id
-        ");
+        ", $slots_table, $schedules_table));
     }
 
     private static function ensure_signup_audit_schema(string $table): void {
@@ -1200,7 +1201,7 @@ class Installer {
         if ($exists !== $table) return;
 
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $cols = (array) $wpdb->get_results("SHOW COLUMNS FROM {$table}", ARRAY_A);
+        $cols = (array) $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM %i", $table), ARRAY_A);
         $have = [];
         foreach ($cols as $c) {
             $have[strtolower($c['Field'] ?? '')] = true;
@@ -1216,8 +1217,11 @@ class Installer {
         if (!isset($have['created_at']))    $alters[] = "ADD COLUMN created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP";
 
         if (!empty($alters)) {
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            $wpdb->query("ALTER TABLE {$table} " . implode(', ', $alters));
+            // $alters is built entirely from hardcoded ADD COLUMN fragments
+            // above, conditionally included based on schema introspection —
+            // never raw user input; only the table name is parameterized.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $wpdb->query($wpdb->prepare("ALTER TABLE %i " . implode(', ', $alters), $table));
         }
 
         self::maybe_add_index($table, 'idx_signup_id', 'signup_id');
@@ -1232,7 +1236,7 @@ class Installer {
         if ($exists !== $table) return;
 
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $cols = (array) $wpdb->get_results("SHOW COLUMNS FROM {$table}", ARRAY_A);
+        $cols = (array) $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM %i", $table), ARRAY_A);
         $have = [];
         foreach ($cols as $c) {
             $have[strtolower($c['Field'] ?? '')] = true;
@@ -1252,8 +1256,11 @@ class Installer {
         }
 
         if (!empty($alters)) {
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            $wpdb->query("ALTER TABLE {$table} " . implode(', ', $alters));
+            // $alters is built entirely from hardcoded ADD COLUMN fragments
+            // above, conditionally included based on schema introspection —
+            // never raw user input; only the table name is parameterized.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $wpdb->query($wpdb->prepare("ALTER TABLE %i " . implode(', ', $alters), $table));
         }
 
         self::maybe_add_index($table, 'idx_chapel_id', 'chapel_id');
@@ -1276,29 +1283,26 @@ class Installer {
         if ($exists !== $table) return;
 
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $cols = (array) $wpdb->get_results("SHOW COLUMNS FROM {$table}", ARRAY_A);
+        $cols = (array) $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM %i", $table), ARRAY_A);
         $have = [];
         foreach ($cols as $c) {
             $have[strtolower($c['Field'] ?? '')] = $c;
         }
 
         if (!isset($have['day_of_week'])) {
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            $wpdb->query("ALTER TABLE {$table} ADD COLUMN day_of_week TINYINT UNSIGNED NULL");
+            $wpdb->query($wpdb->prepare("ALTER TABLE %i ADD COLUMN day_of_week TINYINT UNSIGNED NULL", $table));
         }
 
         // ✅ Monthly recurrence (2026-07-16): 1-5 = nth occurrence, 6 = "last".
         // Only set alongside day_of_week (date NULL) — see the CREATE TABLE comment.
         if (!isset($have['week_of_month'])) {
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            $wpdb->query("ALTER TABLE {$table} ADD COLUMN week_of_month TINYINT UNSIGNED NULL");
+            $wpdb->query($wpdb->prepare("ALTER TABLE %i ADD COLUMN week_of_month TINYINT UNSIGNED NULL", $table));
         }
 
         // If `date` is still NOT NULL (pre-existing installs), loosen it so weekday
         // template rows (date IS NULL) can be inserted.
         if (isset($have['date']) && stripos((string)($have['date']['Null'] ?? 'YES'), 'NO') === 0) {
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            $wpdb->query("ALTER TABLE {$table} MODIFY COLUMN date DATE NULL");
+            $wpdb->query($wpdb->prepare("ALTER TABLE %i MODIFY COLUMN date DATE NULL", $table));
         }
 
         self::maybe_add_index($table, 'idx_day_of_week', 'day_of_week');
@@ -1335,9 +1339,8 @@ class Installer {
         if (!self::column_exists($slots_table, 'start_at')) return;
         if (!self::column_exists($slots_table, 'end_at')) return;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $wpdb->query("
-            UPDATE {$slots_table}
+        $wpdb->query($wpdb->prepare("
+            UPDATE %i
             SET
                 start_at = IF(
                     start_at IS NULL OR start_at = '0000-00-00 00:00:00',
@@ -1354,7 +1357,7 @@ class Installer {
                     end_at
                 )
             WHERE `date` IS NOT NULL
-        ");
+        ", $slots_table));
     }
 
     private static function backfill_signups_is_active(string $signups_table): void {
@@ -1364,10 +1367,8 @@ class Installer {
         if (!self::column_exists($signups_table, 'is_active')) return;
         if (!self::column_exists($signups_table, 'status')) return;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $wpdb->query("UPDATE {$signups_table} SET is_active = 0 WHERE LOWER(status) = 'cancelled'");
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $wpdb->query("UPDATE {$signups_table} SET is_active = 1 WHERE status IS NULL OR LOWER(status) <> 'cancelled'");
+        $wpdb->query($wpdb->prepare("UPDATE %i SET is_active = 0 WHERE LOWER(status) = 'cancelled'", $signups_table));
+        $wpdb->query($wpdb->prepare("UPDATE %i SET is_active = 1 WHERE status IS NULL OR LOWER(status) <> 'cancelled'", $signups_table));
     }
 
     private static function maybe_drop_index(string $table, string $index_name): void {
@@ -1393,8 +1394,8 @@ class Installer {
 
         if (!$exists) return;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $wpdb->query("ALTER TABLE {$table} DROP INDEX `{$index_name}`");
+        // $index_name is stripped to [A-Za-z0-9_] above, never raw user input.
+        $wpdb->query($wpdb->prepare("ALTER TABLE %i DROP INDEX %i", $table, $index_name));
     }
 
     private static function ensure_email_log_columns(string $table): void {
@@ -1404,7 +1405,7 @@ class Installer {
         if ($exists !== $table) return;
 
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $cols = (array) $wpdb->get_results("SHOW COLUMNS FROM {$table}", ARRAY_A);
+        $cols = (array) $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM %i", $table), ARRAY_A);
         $have = [];
         foreach ($cols as $c) {
             $have[strtolower($c['Field'] ?? '')] = true;
@@ -1424,8 +1425,11 @@ class Installer {
         if (!isset($have['error_message'])) $alters[] = "ADD COLUMN error_message TEXT NOT NULL";
 
         if (!empty($alters)) {
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            $wpdb->query("ALTER TABLE {$table} " . implode(', ', $alters));
+            // $alters is built entirely from hardcoded ADD COLUMN fragments
+            // above, conditionally included based on schema introspection —
+            // never raw user input; only the table name is parameterized.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $wpdb->query($wpdb->prepare("ALTER TABLE %i " . implode(', ', $alters), $table));
         }
 
         self::maybe_add_index($table, 'idx_created_at', 'created_at');
@@ -1443,7 +1447,7 @@ class Installer {
         if ($exists !== $table) return;
 
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $cols = (array) $wpdb->get_results("SHOW COLUMNS FROM {$table}", ARRAY_A);
+        $cols = (array) $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM %i", $table), ARRAY_A);
         $have = [];
         foreach ($cols as $c) {
             $have[strtolower($c['Field'] ?? '')] = true;
@@ -1463,8 +1467,11 @@ class Installer {
         if (!isset($have['request_ip'])) $alters[] = "ADD COLUMN request_ip VARCHAR(45) NULL";
 
         if (!empty($alters)) {
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            $wpdb->query("ALTER TABLE {$table} " . implode(', ', $alters));
+            // $alters is built entirely from hardcoded ADD COLUMN fragments
+            // above, conditionally included based on schema introspection —
+            // never raw user input; only the table name is parameterized.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $wpdb->query($wpdb->prepare("ALTER TABLE %i " . implode(', ', $alters), $table));
         }
     }
 
@@ -1475,7 +1482,7 @@ class Installer {
         if ($exists !== $table) return;
 
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $cols = (array) $wpdb->get_results("SHOW COLUMNS FROM {$table}", ARRAY_A);
+        $cols = (array) $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM %i", $table), ARRAY_A);
         $have = [];
         foreach ($cols as $c) {
             $have[strtolower($c['Field'] ?? '')] = true;
@@ -1498,8 +1505,11 @@ class Installer {
         if (!isset($have['revoked_at']))         $alters[] = "ADD COLUMN revoked_at DATETIME NULL";
 
         if (!empty($alters)) {
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            $wpdb->query("ALTER TABLE {$table} " . implode(', ', $alters));
+            // $alters is built entirely from hardcoded ADD COLUMN fragments
+            // above, conditionally included based on schema introspection —
+            // never raw user input; only the table name is parameterized.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $wpdb->query($wpdb->prepare("ALTER TABLE %i " . implode(', ', $alters), $table));
         }
 
         self::maybe_add_index($table, 'idx_session_token_hash', 'session_token_hash');
@@ -1514,15 +1524,14 @@ class Installer {
         if (!self::column_exists($sessions_table, 'session_token')) return;
         if (!self::column_exists($sessions_table, 'session_token_hash')) return;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $rows = (array) $wpdb->get_results("
+        $rows = (array) $wpdb->get_results($wpdb->prepare("
             SELECT id, session_token
-            FROM {$sessions_table}
+            FROM %i
             WHERE session_token_hash IS NULL
               AND session_token IS NOT NULL
               AND session_token <> ''
             LIMIT 500
-        ", ARRAY_A);
+        ", $sessions_table), ARRAY_A);
 
         if (empty($rows)) return;
 
@@ -1551,7 +1560,7 @@ class Installer {
         if ($exists !== $table) return;
 
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $cols = (array) $wpdb->get_results("SHOW COLUMNS FROM {$table}", ARRAY_A);
+        $cols = (array) $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM %i", $table), ARRAY_A);
         $have = [];
         foreach ($cols as $c) {
             $have[strtolower($c['Field'] ?? '')] = true;
@@ -1640,8 +1649,11 @@ class Installer {
         }
 
         if (!empty($alters)) {
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            $wpdb->query("ALTER TABLE {$table} " . implode(', ', $alters));
+            // $alters is built entirely from hardcoded ADD COLUMN fragments
+            // above, conditionally included based on schema introspection —
+            // never raw user input; only the table name is parameterized.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $wpdb->query($wpdb->prepare("ALTER TABLE %i " . implode(', ', $alters), $table));
         }
 
         // ✅ One-time migration (2026-07-16): the field was briefly called
@@ -1650,10 +1662,8 @@ class Installer {
         // already ran that version gets its data carried over to the new
         // `parish` column, then the old column is dropped.
         if (isset($have['parish_role'])) {
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            $wpdb->query("UPDATE {$table} SET parish = parish_role WHERE (parish IS NULL OR parish = '') AND parish_role IS NOT NULL AND parish_role != ''");
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            $wpdb->query("ALTER TABLE {$table} DROP COLUMN parish_role");
+            $wpdb->query($wpdb->prepare("UPDATE %i SET parish = parish_role WHERE (parish IS NULL OR parish = '') AND parish_role IS NOT NULL AND parish_role != ''", $table));
+            $wpdb->query($wpdb->prepare("ALTER TABLE %i DROP COLUMN parish_role", $table));
         }
 
         self::maybe_add_index($table, 'idx_wp_user_id', 'wp_user_id');
@@ -1668,7 +1678,7 @@ class Installer {
         if ($exists !== $table) return;
 
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $cols = (array) $wpdb->get_results("SHOW COLUMNS FROM {$table}", ARRAY_A);
+        $cols = (array) $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM %i", $table), ARRAY_A);
         $have = [];
         foreach ($cols as $c) {
             $have[strtolower($c['Field'] ?? '')] = true;
@@ -1718,8 +1728,11 @@ class Installer {
         if (!isset($have['no_show_alert_sent_at'])) $alters[] = "ADD COLUMN no_show_alert_sent_at DATETIME NULL";
 
         if (!empty($alters)) {
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            $wpdb->query("ALTER TABLE {$table} " . implode(', ', $alters));
+            // $alters is built entirely from hardcoded ADD COLUMN fragments
+            // above, conditionally included based on schema introspection —
+            // never raw user input; only the table name is parameterized.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $wpdb->query($wpdb->prepare("ALTER TABLE %i " . implode(', ', $alters), $table));
         }
 
         self::maybe_add_index($table, 'idx_schedule_id', 'schedule_id');
@@ -1740,7 +1753,7 @@ class Installer {
         if ($exists !== $table) return;
 
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $cols = (array) $wpdb->get_results("SHOW COLUMNS FROM {$table}", ARRAY_A);
+        $cols = (array) $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM %i", $table), ARRAY_A);
         $have = [];
         foreach ($cols as $c) {
             $have[strtolower($c['Field'] ?? '')] = true;
@@ -1755,8 +1768,11 @@ class Installer {
         if (!isset($have['coverage_alert_sent_at'])) $alters[] = "ADD COLUMN coverage_alert_sent_at DATETIME NULL";
 
         if (!empty($alters)) {
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            $wpdb->query("ALTER TABLE {$table} " . implode(', ', $alters));
+            // $alters is built entirely from hardcoded ADD COLUMN fragments
+            // above, conditionally included based on schema introspection —
+            // never raw user input; only the table name is parameterized.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $wpdb->query($wpdb->prepare("ALTER TABLE %i " . implode(', ', $alters), $table));
         }
 
         self::maybe_add_index($table, 'idx_chapel_id', 'chapel_id');
@@ -1777,7 +1793,7 @@ class Installer {
         if ($exists !== $table) return;
 
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $cols = (array) $wpdb->get_results("SHOW COLUMNS FROM {$table}", ARRAY_A);
+        $cols = (array) $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM %i", $table), ARRAY_A);
         $have = [];
         foreach ($cols as $c) {
             $have[strtolower($c['Field'] ?? '')] = true;
@@ -1804,8 +1820,11 @@ class Installer {
         if ($needed_sort_order_backfill) $alters[] = "ADD COLUMN sort_order INT NOT NULL DEFAULT 0";
 
         if (!empty($alters)) {
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            $wpdb->query("ALTER TABLE {$table} " . implode(', ', $alters));
+            // $alters is built entirely from hardcoded ADD COLUMN fragments
+            // above, conditionally included based on schema introspection —
+            // never raw user input; only the table name is parameterized.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $wpdb->query($wpdb->prepare("ALTER TABLE %i " . implode(', ', $alters), $table));
         }
 
         self::maybe_add_index($table, 'idx_show_public', 'show_public');
@@ -1817,8 +1836,7 @@ class Installer {
         // suddenly tying at sort_order = 0) — admins can then reorder from
         // there. Only runs the moment the column is first added.
         if ($needed_sort_order_backfill) {
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            $ids = (array) $wpdb->get_col("SELECT id FROM {$table} ORDER BY created_at DESC, id DESC");
+            $ids = (array) $wpdb->get_col($wpdb->prepare("SELECT id FROM %i ORDER BY created_at DESC, id DESC", $table));
             $order = 0;
             foreach ($ids as $row_id) {
                 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
@@ -1834,11 +1852,9 @@ class Installer {
         $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $persons_table));
         if ($exists !== $persons_table) return;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $wpdb->query("UPDATE {$persons_table} SET email = LOWER(TRIM(email)) WHERE email IS NOT NULL");
+        $wpdb->query($wpdb->prepare("UPDATE %i SET email = LOWER(TRIM(email)) WHERE email IS NOT NULL", $persons_table));
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $blank_ids = (array) $wpdb->get_col("SELECT id FROM {$persons_table} WHERE email IS NULL OR email = ''");
+        $blank_ids = (array) $wpdb->get_col($wpdb->prepare("SELECT id FROM %i WHERE email IS NULL OR email = ''", $persons_table));
         foreach ($blank_ids as $pid) {
             $pid = (int) $pid;
             $placeholder = "missing+{$pid}@invalid.local";
@@ -1846,21 +1862,19 @@ class Installer {
             $wpdb->update($persons_table, ['email' => $placeholder], ['id' => $pid], ['%s'], ['%d']);
         }
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $dupes = (array) $wpdb->get_results("
+        $dupes = (array) $wpdb->get_results($wpdb->prepare("
             SELECT email, COUNT(*) AS c
-            FROM {$persons_table}
+            FROM %i
             GROUP BY email
             HAVING c > 1
-        ", ARRAY_A);
+        ", $persons_table), ARRAY_A);
 
         foreach ($dupes as $d) {
             $email = (string)($d['email'] ?? '');
             if ($email === '') continue;
 
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             $ids = (array) $wpdb->get_col(
-                $wpdb->prepare("SELECT id FROM {$persons_table} WHERE email = %s ORDER BY id ASC", $email)
+                $wpdb->prepare("SELECT id FROM %i WHERE email = %s ORDER BY id ASC", $persons_table, $email)
             );
             if (count($ids) <= 1) continue;
 
@@ -1882,8 +1896,7 @@ class Installer {
             }
         }
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $wpdb->query("ALTER TABLE {$persons_table} MODIFY email VARCHAR(190) NOT NULL");
+        $wpdb->query($wpdb->prepare("ALTER TABLE %i MODIFY email VARCHAR(190) NOT NULL", $persons_table));
         self::ensure_unique_index($persons_table, 'email', ['email']);
     }
 
@@ -1917,8 +1930,9 @@ class Installer {
 
         if ($exists) return;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $r = $wpdb->query("ALTER TABLE {$table} ADD INDEX `{$index_name}` (`{$column}`)");
+        // $index_name/$column are stripped to [A-Za-z0-9_] above, never raw
+        // user input.
+        $r = $wpdb->query($wpdb->prepare("ALTER TABLE %i ADD INDEX %i (%i)", $table, $index_name, $column));
         if ($r === false && !empty($wpdb->last_error)) {
             if (stripos($wpdb->last_error, 'Duplicate key name') !== false) return;
             error_log('[AdorationScheduler] maybe_add_index failed: ' . $wpdb->last_error);
@@ -1959,10 +1973,13 @@ class Installer {
 
         if ($exists) return;
 
+        // Each column name is stripped to [A-Za-z0-9_] above and individually
+        // backtick-quoted, never raw user input — %i can't express a
+        // multi-column list, so this stays a hand-built identifier list.
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
         $cols_sql = implode(',', array_map(fn($c) => "`{$c}`", $cols));
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $r = $wpdb->query("ALTER TABLE {$table} ADD INDEX `{$index_name}` ({$cols_sql})");
+        $r = $wpdb->query($wpdb->prepare("ALTER TABLE %i ADD INDEX %i ({$cols_sql})", $table, $index_name));
         if ($r === false && !empty($wpdb->last_error)) {
             if (stripos($wpdb->last_error, 'Duplicate key name') !== false) return;
             error_log('[AdorationScheduler] ensure_index failed: ' . $wpdb->last_error);
@@ -1997,21 +2014,22 @@ class Installer {
             $index_name
         ));
 
+        // Each column name is stripped to [A-Za-z0-9_] above and individually
+        // backtick-quoted, never raw user input — %i can't express a
+        // multi-column list, so this stays a hand-built identifier list.
+        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
         $cols_sql = implode(',', array_map(fn($c) => "`{$c}`", $cols));
 
         if ($non_unique === null) {
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            $wpdb->query("ALTER TABLE {$table} ADD UNIQUE KEY `{$index_name}` ({$cols_sql})");
+            $wpdb->query($wpdb->prepare("ALTER TABLE %i ADD UNIQUE KEY %i ({$cols_sql})", $table, $index_name));
             return;
         }
 
         $non_unique = (int)$non_unique;
         if ($non_unique === 0) return;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $wpdb->query("ALTER TABLE {$table} DROP INDEX `{$index_name}`");
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        $wpdb->query("ALTER TABLE {$table} ADD UNIQUE KEY `{$index_name}` ({$cols_sql})");
+        $wpdb->query($wpdb->prepare("ALTER TABLE %i DROP INDEX %i", $table, $index_name));
+        $wpdb->query($wpdb->prepare("ALTER TABLE %i ADD UNIQUE KEY %i ({$cols_sql})", $table, $index_name));
     }
 
     private static function get_db_name(): string {

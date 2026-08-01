@@ -31,7 +31,8 @@ class DatePatternsRepository {
     public function list_for_schedule(int $schedule_id): array {
         global $wpdb;
         $sql = $wpdb->prepare(
-            "SELECT * FROM {$this->table} WHERE schedule_id = %d AND date IS NOT NULL ORDER BY date ASC",
+            "SELECT * FROM %i WHERE schedule_id = %d AND date IS NOT NULL ORDER BY date ASC",
+            $this->table,
             $schedule_id
         );
         return (array)$wpdb->get_results($sql, ARRAY_A);
@@ -55,7 +56,8 @@ class DatePatternsRepository {
         if ($schedule_id <= 0 || $day_of_week < 0 || $day_of_week > 6) return 0;
 
         $existing_id = (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT id FROM {$this->table} WHERE schedule_id = %d AND day_of_week = %d AND week_of_month IS NULL LIMIT 1",
+            "SELECT id FROM %i WHERE schedule_id = %d AND day_of_week = %d AND week_of_month IS NULL LIMIT 1",
+            $this->table,
             $schedule_id,
             $day_of_week
         ));
@@ -83,9 +85,10 @@ class DatePatternsRepository {
         if ($schedule_id <= 0) return [];
 
         $sql = $wpdb->prepare(
-            "SELECT * FROM {$this->table}
+            "SELECT * FROM %i
              WHERE schedule_id = %d AND day_of_week IS NOT NULL AND week_of_month IS NULL
              ORDER BY day_of_week ASC",
+            $this->table,
             $schedule_id
         );
 
@@ -104,9 +107,10 @@ class DatePatternsRepository {
         if ($schedule_id <= 0 || $day_of_week < 0 || $day_of_week > 6) return null;
 
         $sql = $wpdb->prepare(
-            "SELECT * FROM {$this->table}
+            "SELECT * FROM %i
              WHERE schedule_id = %d AND day_of_week = %d AND week_of_month IS NULL
              LIMIT 1",
+            $this->table,
             $schedule_id,
             $day_of_week
         );
@@ -137,9 +141,10 @@ class DatePatternsRepository {
         if ($week_of_month < 1 || $week_of_month > 6) return 0; // 1-5 nth, 6 = last
 
         $existing_id = (int) $wpdb->get_var($wpdb->prepare(
-            "SELECT id FROM {$this->table}
+            "SELECT id FROM %i
              WHERE schedule_id = %d AND day_of_week = %d AND week_of_month = %d
              LIMIT 1",
+            $this->table,
             $schedule_id,
             $day_of_week,
             $week_of_month
@@ -168,9 +173,10 @@ class DatePatternsRepository {
         if ($schedule_id <= 0) return [];
 
         $sql = $wpdb->prepare(
-            "SELECT * FROM {$this->table}
+            "SELECT * FROM %i
              WHERE schedule_id = %d AND week_of_month IS NOT NULL
              ORDER BY week_of_month ASC, day_of_week ASC",
+            $this->table,
             $schedule_id
         );
 
@@ -191,9 +197,10 @@ class DatePatternsRepository {
         }
 
         $sql = $wpdb->prepare(
-            "SELECT * FROM {$this->table}
+            "SELECT * FROM %i
              WHERE schedule_id = %d AND day_of_week = %d AND week_of_month = %d
              LIMIT 1",
+            $this->table,
             $schedule_id,
             $day_of_week,
             $week_of_month

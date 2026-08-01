@@ -296,11 +296,12 @@ class AuthCleanupService
         $deleted_total = 0;
 
         for ($i = 0; $i < $max_batches; $i++) {
-            $sql = "DELETE FROM {$table} WHERE {$where_sql} LIMIT " . (int)$batch_limit;
+            // $where_sql is always a hardcoded literal passed by this
+            // class's own private callers above, never raw user input.
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            $sql = "DELETE FROM %i WHERE {$where_sql} LIMIT " . (int)$batch_limit;
 
-            $prepared = !empty($where_params)
-                ? $wpdb->prepare($sql, ...$where_params)
-                : $sql;
+            $prepared = $wpdb->prepare($sql, ...array_merge([$table], $where_params));
 
             $deleted = $wpdb->query($prepared);
 

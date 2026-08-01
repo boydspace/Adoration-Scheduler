@@ -278,9 +278,9 @@ class PerpetualSlotGenerator
                 }
 
                 if ($max_adorers !== null) {
-                    // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
                     $current = (int) $wpdb->get_var($wpdb->prepare(
-                        "SELECT COUNT(*) FROM {$signups_table} WHERE slot_id = %d AND status = 'confirmed'",
+                        "SELECT COUNT(*) FROM %i WHERE slot_id = %d AND status = 'confirmed'",
+                        $signups_table,
                         $slot_id
                     ));
                     if ($current >= $max_adorers) {
