@@ -507,106 +507,106 @@ class EditSchedulePage {
             if ($start_date && $end_date && $end_date < $start_date) {
                 $this->add_toast('End Date cannot be before Start Date.', 'error', false);
                 $tab = 'basic';
-                goto adoration_basic_info_done;
-            }
-
-            $allowed_status = ['draft', 'active'];
-            if (!in_array($status, $allowed_status, true)) $status = 'draft';
-
-            $allowed_privacy = ['counts_only', 'first_name_only', 'first_last_initial', 'names'];
-            if (!in_array($privacy_mode, $allowed_privacy, true)) $privacy_mode = 'counts_only';
-
-            if ($name === '') {
-                $this->add_toast('Name is required.', 'error', false);
-                $tab = 'basic';
             } else {
 
-                if ($slug === '') $slug = sanitize_title($name);
+                $allowed_status = ['draft', 'active'];
+                if (!in_array($status, $allowed_status, true)) $status = 'draft';
 
-                // Slug uniqueness check for edit-only
-                if (!$is_create_mode && method_exists($schedulesRepo, 'exists_slug_except_id')
-                    && $schedulesRepo->exists_slug_except_id($slug, $schedule_id) ) {
+                $allowed_privacy = ['counts_only', 'first_name_only', 'first_last_initial', 'names'];
+                if (!in_array($privacy_mode, $allowed_privacy, true)) $privacy_mode = 'counts_only';
 
-                    $base = $slug;
-                    $i = 2;
-                    while ( $schedulesRepo->exists_slug_except_id($slug, $schedule_id) ) {
-                        $slug = $base . '-' . $i;
-                        $i++;
-                    }
-                    $this->add_toast('Slug was already used. Updated to: ' . $slug, 'warning', false);
-                }
-
-                $payload = [
-                    'chapel_id'           => $chapel_id, // ✅ NEW
-                    'name'                => $name,
-                    'slug'                => $slug,
-                    'status'              => $status,
-                    'privacy_mode'        => $privacy_mode,
-                    'start_date'          => $start_date,
-                    'end_date'            => $end_date,
-                    'default_slot_length' => $default_slot_length,
-                    'default_min_adorers' => $default_min_adorers,
-                    'default_max_adorers' => $default_max_adorers,
-                    'is_overnight'        => $is_overnight,
-                    'rolling_window_days' => $rolling_window_days,
-                ];
-
-                if ($is_create_mode) {
-                    // ✅ CREATE PATH
-                    $new_id = 0;
-
-                    if (method_exists($schedulesRepo, 'create_basic_info')) {
-                        $new_id = (int) $schedulesRepo->create_basic_info($payload);
-                    } elseif (method_exists($schedulesRepo, 'create')) {
-                        $new_id = (int) $schedulesRepo->create($payload);
-                    } else {
-                        $this->add_toast('Cannot create: SchedulesRepository::create_basic_info() / ::create() is missing.', 'error', true);
-                        $tab = 'basic';
-                        goto adoration_basic_info_done;
-                    }
-
-                    if ($new_id > 0) {
-                        // ✅ Step 1: persist overnight flag now that we have an ID
-                        $this->set_schedule_flag($new_id, 'is_overnight', $is_overnight);
-
-                        $edit_url = add_query_arg([
-                            'page'        => $current_page_slug,
-                            'action'      => 'edit',
-                            'schedule_id' => $new_id,
-                            'tab'         => 'basic',
-                        ], admin_url('admin.php'));
-
-                        $this->redirect_with_toast($edit_url, 'Schedule created.', 'success', false);
-                    } else {
-                        $this->add_toast('Failed to create schedule.', 'error', false);
-                        $tab = 'basic';
-                    }
-                } else {
-                    // ✅ UPDATE PATH
-                    if ( ! method_exists($schedulesRepo, 'update_basic_info') ) {
-                        $this->add_toast('Cannot save: SchedulesRepository::update_basic_info() is missing.', 'error', true);
-                        $tab = 'basic';
-                        goto adoration_basic_info_done;
-                    }
-
-                    $ok = $schedulesRepo->update_basic_info($schedule_id, $payload);
-
-                    $this->set_schedule_flag($schedule_id, 'is_overnight', $is_overnight);
-
-                    $this->add_toast($ok ? 'Basic info saved.' : 'Failed to save basic info.', $ok ? 'success' : 'error', false);
-
-                    $schedule = $schedulesRepo->find($schedule_id) ?: $schedule;
-
-                    // keep chapel_id + overnight in-memory for immediate render
-                    $schedule['chapel_id'] = $chapel_id;
-                    $schedule['is_overnight'] = (int) $this->get_schedule_flag($schedule_id, 'is_overnight', $is_overnight);
-
+                if ($name === '') {
+                    $this->add_toast('Name is required.', 'error', false);
                     $tab = 'basic';
+                } else {
+
+                    if ($slug === '') $slug = sanitize_title($name);
+
+                    // Slug uniqueness check for edit-only
+                    if (!$is_create_mode && method_exists($schedulesRepo, 'exists_slug_except_id')
+                        && $schedulesRepo->exists_slug_except_id($slug, $schedule_id) ) {
+
+                        $base = $slug;
+                        $i = 2;
+                        while ( $schedulesRepo->exists_slug_except_id($slug, $schedule_id) ) {
+                            $slug = $base . '-' . $i;
+                            $i++;
+                        }
+                        $this->add_toast('Slug was already used. Updated to: ' . $slug, 'warning', false);
+                    }
+
+                    $payload = [
+                        'chapel_id'           => $chapel_id, // ✅ NEW
+                        'name'                => $name,
+                        'slug'                => $slug,
+                        'status'              => $status,
+                        'privacy_mode'        => $privacy_mode,
+                        'start_date'          => $start_date,
+                        'end_date'            => $end_date,
+                        'default_slot_length' => $default_slot_length,
+                        'default_min_adorers' => $default_min_adorers,
+                        'default_max_adorers' => $default_max_adorers,
+                        'is_overnight'        => $is_overnight,
+                        'rolling_window_days' => $rolling_window_days,
+                    ];
+
+                    if ($is_create_mode) {
+                        // ✅ CREATE PATH
+                        $new_id = 0;
+                        $create_method_missing = false;
+
+                        if (method_exists($schedulesRepo, 'create_basic_info')) {
+                            $new_id = (int) $schedulesRepo->create_basic_info($payload);
+                        } elseif (method_exists($schedulesRepo, 'create')) {
+                            $new_id = (int) $schedulesRepo->create($payload);
+                        } else {
+                            $this->add_toast('Cannot create: SchedulesRepository::create_basic_info() / ::create() is missing.', 'error', true);
+                            $tab = 'basic';
+                            $create_method_missing = true;
+                        }
+
+                        if (!$create_method_missing) {
+                            if ($new_id > 0) {
+                                // ✅ Step 1: persist overnight flag now that we have an ID
+                                $this->set_schedule_flag($new_id, 'is_overnight', $is_overnight);
+
+                                $edit_url = add_query_arg([
+                                    'page'        => $current_page_slug,
+                                    'action'      => 'edit',
+                                    'schedule_id' => $new_id,
+                                    'tab'         => 'basic',
+                                ], admin_url('admin.php'));
+
+                                $this->redirect_with_toast($edit_url, 'Schedule created.', 'success', false);
+                            } else {
+                                $this->add_toast('Failed to create schedule.', 'error', false);
+                                $tab = 'basic';
+                            }
+                        }
+                    } else {
+                        // ✅ UPDATE PATH
+                        if ( ! method_exists($schedulesRepo, 'update_basic_info') ) {
+                            $this->add_toast('Cannot save: SchedulesRepository::update_basic_info() is missing.', 'error', true);
+                            $tab = 'basic';
+                        } else {
+                            $ok = $schedulesRepo->update_basic_info($schedule_id, $payload);
+
+                            $this->set_schedule_flag($schedule_id, 'is_overnight', $is_overnight);
+
+                            $this->add_toast($ok ? 'Basic info saved.' : 'Failed to save basic info.', $ok ? 'success' : 'error', false);
+
+                            $schedule = $schedulesRepo->find($schedule_id) ?: $schedule;
+
+                            // keep chapel_id + overnight in-memory for immediate render
+                            $schedule['chapel_id'] = $chapel_id;
+                            $schedule['is_overnight'] = (int) $this->get_schedule_flag($schedule_id, 'is_overnight', $is_overnight);
+
+                            $tab = 'basic';
+                        }
+                    }
                 }
             }
         }
-
-        adoration_basic_info_done:
 
         // If we're still in create mode after POST (or on GET), we can only show the Basic tab safely.
         if ($is_create_mode) {
@@ -672,15 +672,17 @@ class EditSchedulePage {
                     // creating a duplicate.
                     $existing_person_id = (int) ($_POST['person_id'] ?? 0);
                     $person_id = 0;
+                    $signup_validation_failed = false;
 
                     if ($existing_person_id > 0) {
                         $picked = $personsRepo->find($existing_person_id);
                         if (!$picked) {
                             $this->add_toast('That person could not be found. Please search again.', 'error', false);
                             $tab = $add_signup_return_tab;
-                            goto adoration_admin_add_signup_done;
+                            $signup_validation_failed = true;
+                        } else {
+                            $person_id = $existing_person_id;
                         }
-                        $person_id = $existing_person_id;
                     } else {
                         $first = sanitize_text_field(wp_unslash($_POST['first_name'] ?? ''));
                         $last  = sanitize_text_field(wp_unslash($_POST['last_name'] ?? ''));
@@ -694,82 +696,82 @@ class EditSchedulePage {
                         if ($first === '' || $last === '') {
                             $this->add_toast('First and last name are required.', 'error', false);
                             $tab = $add_signup_return_tab;
-                            goto adoration_admin_add_signup_done;
-                        }
-                        if ($email !== '' && !is_email($email)) {
+                            $signup_validation_failed = true;
+                        } elseif ($email !== '' && !is_email($email)) {
                             $this->add_toast('Please enter a valid email address, or leave it blank.', 'error', false);
                             $tab = $add_signup_return_tab;
-                            goto adoration_admin_add_signup_done;
-                        }
-                        if ($phone_raw !== '' && $phone === null) {
+                            $signup_validation_failed = true;
+                        } elseif ($phone_raw !== '' && $phone === null) {
                             $this->add_toast('Please enter a valid US phone number (10 digits), or leave it blank.', 'error', false);
                             $tab = $add_signup_return_tab;
-                            goto adoration_admin_add_signup_done;
-                        }
+                            $signup_validation_failed = true;
+                        } else {
+                            $email_norm = ($email !== '') ? strtolower(trim($email)) : '';
 
-                        $email_norm = ($email !== '') ? strtolower(trim($email)) : '';
+                            if ($email_norm !== '') {
+                                $existing_person = $personsRepo->find_by_email($email_norm);
+                                if ($existing_person) {
+                                    $ex_first = trim((string)($existing_person['first_name'] ?? ''));
+                                    $ex_last  = trim((string)($existing_person['last_name'] ?? ''));
 
-                        if ($email_norm !== '') {
-                            $existing_person = $personsRepo->find_by_email($email_norm);
-                            if ($existing_person) {
-                                $ex_first = trim((string)($existing_person['first_name'] ?? ''));
-                                $ex_last  = trim((string)($existing_person['last_name'] ?? ''));
+                                    $first_conflict = ($ex_first !== '' && $first !== '' && strcasecmp($ex_first, $first) !== 0);
+                                    $last_conflict  = ($ex_last  !== '' && $last  !== '' && strcasecmp($ex_last,  $last)  !== 0);
 
-                                $first_conflict = ($ex_first !== '' && $first !== '' && strcasecmp($ex_first, $first) !== 0);
-                                $last_conflict  = ($ex_last  !== '' && $last  !== '' && strcasecmp($ex_last,  $last)  !== 0);
+                                    if ($first_conflict || $last_conflict) {
+                                        $display = trim($ex_first . ($ex_last !== '' ? ' ' . $ex_last : ''));
+                                        if ($display === '') $display = 'an existing adorer';
 
-                                if ($first_conflict || $last_conflict) {
-                                    $display = trim($ex_first . ($ex_last !== '' ? ' ' . $ex_last : ''));
-                                    if ($display === '') $display = 'an existing adorer';
-
-                                    $this->add_toast('That email address is already used by ' . $display . '.', 'error', false);
-                                    $tab = $add_signup_return_tab;
-                                    goto adoration_admin_add_signup_done;
+                                        $this->add_toast('That email address is already used by ' . $display . '.', 'error', false);
+                                        $tab = $add_signup_return_tab;
+                                        $signup_validation_failed = true;
+                                    }
                                 }
                             }
-                        }
 
-                        $person_id = $personsRepo->upsert_by_email([
-                            'first_name' => $first,
-                            'last_name'  => $last,
-                            'email'      => $email_norm,
-                            'phone'      => ($phone !== null ? $phone : ''),
-                        ]);
-                    }
-
-                    if ($person_id <= 0) {
-                        $this->add_toast('Failed to save person record.', 'error', false);
-                        $tab = $add_signup_return_tab;
-                    } else {
-                        $signup_date = $this->slot_true_ymd($slot);
-
-                        $insert_id = $signupsRepo->create([
-                            'person_id'   => $person_id,
-                            'schedule_id' => $schedule_id,
-                            'slot_id'     => $slot_id,
-                            'date'        => $signup_date,
-                            'status'      => 'confirmed',
-                            'type'        => 'one_time',
-                            'created_via' => 'admin',
-                        ]);
-
-                        global $wpdb;
-                        if ($insert_id) {
-                            $this->add_toast('Signup added.', 'success', false);
-                        } else {
-                            $this->add_toast('Failed to add signup (duplicate or DB error).', 'error', false);
-                            if (!empty($wpdb->last_error)) {
-                                error_log('[AdorationScheduler] Admin add signup failed: ' . $wpdb->last_error);
+                            if (!$signup_validation_failed) {
+                                $person_id = $personsRepo->upsert_by_email([
+                                    'first_name' => $first,
+                                    'last_name'  => $last,
+                                    'email'      => $email_norm,
+                                    'phone'      => ($phone !== null ? $phone : ''),
+                                ]);
                             }
                         }
+                    }
 
-                        $tab = $add_signup_return_tab;
+                    if (!$signup_validation_failed) {
+                        if ($person_id <= 0) {
+                            $this->add_toast('Failed to save person record.', 'error', false);
+                            $tab = $add_signup_return_tab;
+                        } else {
+                            $signup_date = $this->slot_true_ymd($slot);
+
+                            $insert_id = $signupsRepo->create([
+                                'person_id'   => $person_id,
+                                'schedule_id' => $schedule_id,
+                                'slot_id'     => $slot_id,
+                                'date'        => $signup_date,
+                                'status'      => 'confirmed',
+                                'type'        => 'one_time',
+                                'created_via' => 'admin',
+                            ]);
+
+                            global $wpdb;
+                            if ($insert_id) {
+                                $this->add_toast('Signup added.', 'success', false);
+                            } else {
+                                $this->add_toast('Failed to add signup (duplicate or DB error).', 'error', false);
+                                if (!empty($wpdb->last_error)) {
+                                    error_log('[AdorationScheduler] Admin add signup failed: ' . $wpdb->last_error);
+                                }
+                            }
+
+                            $tab = $add_signup_return_tab;
+                        }
                     }
                 }
             }
         }
-
-        adoration_admin_add_signup_done:
 
         /**
          * DATES / SEGMENTS actions

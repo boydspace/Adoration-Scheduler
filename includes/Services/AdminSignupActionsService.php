@@ -533,6 +533,7 @@ class AdminSignupActionsService
         return ($count <= self::RL_MAX_ATTEMPTS);
     }
 
+    // phpcs:ignore WordPress.Security.NonceVerification.Missing -- only builds an error-redirect target; every caller (handle_cancel/handle_delete/handle_resend_confirm/handle_send_reminder) verifies its own nonce before the actual mutation runs.
     private static function get_return_url(): string
     {
         $return = isset($_POST['return']) ? (string) wp_unslash($_POST['return']) : '';

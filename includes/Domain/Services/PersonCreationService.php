@@ -296,6 +296,7 @@ class PersonCreationService {
         }
     }
 
+    // phpcs:ignore WordPress.Security.NonceVerification.Missing -- only called from handle_create_person(), after that method's own check_admin_referer('adoration_create_person') has already passed; this just preserves list display state (search/paged/sort) for the redirect.
     private static function preserved_args_from_post(): array {
         $out = [];
         $keys = ['s','paged','orderby','order'];

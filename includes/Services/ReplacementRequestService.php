@@ -115,6 +115,7 @@ class ReplacementRequestService
             self::redirect_with_toast($return, 'Invalid signup.', 'error');
         }
 
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- this line reads the token; wp_verify_nonce() on the next line is the actual check, and nothing mutates before it succeeds.
         $nonce = isset($_POST['_wpnonce']) ? (string) $_POST['_wpnonce'] : '';
         if (!wp_verify_nonce($nonce, 'adoration_request_replacement_' . $signup_id)) {
             self::redirect_with_toast($return, 'Security check failed. Please try again.', 'error');
@@ -173,6 +174,7 @@ class ReplacementRequestService
             self::redirect_with_toast($return, 'Invalid signup.', 'error');
         }
 
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- this line reads the token; wp_verify_nonce() on the next line is the actual check, and nothing mutates before it succeeds.
         $nonce = isset($_POST['_wpnonce']) ? (string) $_POST['_wpnonce'] : '';
         if (!wp_verify_nonce($nonce, 'adoration_replacement_open_to_everyone_' . $signup_id)) {
             self::redirect_with_toast($return, 'Security check failed. Please try again.', 'error');
@@ -206,6 +208,7 @@ class ReplacementRequestService
             self::redirect_with_toast($return, 'Invalid signup.', 'error');
         }
 
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- this line reads the token; wp_verify_nonce() on the next line is the actual check, and nothing mutates before it succeeds.
         $nonce = isset($_POST['_wpnonce']) ? (string) $_POST['_wpnonce'] : '';
         if (!wp_verify_nonce($nonce, 'adoration_claim_replacement_' . $signup_id)) {
             self::redirect_with_toast($return, 'Security check failed. Please try again.', 'error');
@@ -253,6 +256,7 @@ class ReplacementRequestService
             self::redirect_with_toast($return, 'Invalid signup.', 'error');
         }
 
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- this line reads the token; wp_verify_nonce() on the next line is the actual check, and nothing mutates before it succeeds.
         $nonce = isset($_POST['_wpnonce']) ? (string) $_POST['_wpnonce'] : '';
         if (!wp_verify_nonce($nonce, 'adoration_cancel_replacement_' . $signup_id)) {
             self::redirect_with_toast($return, 'Security check failed. Please try again.', 'error');

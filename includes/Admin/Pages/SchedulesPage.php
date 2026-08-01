@@ -201,6 +201,7 @@ class SchedulesPage {
      * - Only run on POST with schedule_ids[] present.
      * - Only run on our schedules admin page.
      */
+    // phpcs:ignore WordPress.Security.NonceVerification.Missing -- these reads only decide whether to delegate to SchedulesListTable::process_bulk_action(), which itself calls check_admin_referer('bulk-schedules') before any mutation.
     public static function handle_bulk_actions_early(): void {
 
         if ( ! is_admin() ) return;

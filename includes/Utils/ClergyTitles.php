@@ -104,6 +104,7 @@ class ClergyTitles
     /**
      * Resolves a title field rendered by render_field_html() from $_POST.
      */
+    // phpcs:ignore WordPress.Security.NonceVerification.Missing -- shared helper; every real call site (PersonCreationService, PeopleAdminActionsService, UpdateContactInfoHandler, StandingSignupHandler, AccessRequestHandler, SignupHandler) verifies its own nonce before calling this.
     public static function resolve_from_post(string $name = 'title'): string
     {
         return isset($_POST[$name]) ? sanitize_text_field(wp_unslash($_POST[$name])) : '';

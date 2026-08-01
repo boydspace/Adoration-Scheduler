@@ -527,6 +527,7 @@ class Plugin {
              * EARLY BULK ACTIONS HANDLER: SCHEDULES
              * (Uses granular cap + fallback instead of manage_options)
              */
+            // phpcs:ignore WordPress.Security.NonceVerification.Missing -- these reads only decide whether to delegate to SchedulesListTable::process_bulk_action(), which itself calls check_admin_referer() before any mutation.
             add_action('admin_init', function () use ($includes_dir) {
 
                 if ( ! Plugin::current_user_can_with_fallback(Plugin::CAP_MANAGE_SCHEDULES) ) return;
@@ -566,6 +567,7 @@ class Plugin {
              * Note: You don’t yet have a dedicated "manage_people" cap; using manage_signups is a safe operational stand-in.
              * (Still falls back to manage_options.)
              */
+            // phpcs:ignore WordPress.Security.NonceVerification.Missing -- these reads only decide whether to delegate to PersonsListTable::process_bulk_action(), which itself calls check_admin_referer() before any mutation.
             add_action('admin_init', function () use ($includes_dir) {
 
                 if ( ! Plugin::current_user_can_with_fallback(Plugin::CAP_MANAGE_SIGNUPS) ) return;
@@ -615,6 +617,7 @@ class Plugin {
              * SCHEDULES and PEOPLE handlers directly above: process the
              * bulk action here, on admin_init, before any output starts.
              */
+            // phpcs:ignore WordPress.Security.NonceVerification.Missing -- these reads only decide whether to delegate to SignupsListTable::process_bulk_action(), which itself calls check_admin_referer() before any mutation.
             add_action('admin_init', function () use ($includes_dir) {
 
                 if ( ! Plugin::current_user_can_with_fallback(Plugin::CAP_MANAGE_SIGNUPS) ) return;

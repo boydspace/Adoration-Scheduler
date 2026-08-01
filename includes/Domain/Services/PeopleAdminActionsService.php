@@ -162,6 +162,7 @@ class PeopleAdminActionsService {
         $page_slug = sanitize_key((string) wp_unslash($_POST['page'] ?? 'adoration_scheduler_people'));
 
         // Preserve list state (search/paged/sort) from POST (if present)
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- only builds the error-redirect target; check_admin_referer() below gates the actual delete_person() call.
         $redirect = self::base_people_url($page_slug, $_POST);
 
         $pid = (int) wp_unslash($_POST['person_id'] ?? 0);
@@ -347,6 +348,7 @@ class PeopleAdminActionsService {
         }
 
         $page_slug = sanitize_key((string) wp_unslash($_POST['page'] ?? 'adoration_scheduler_people'));
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- only builds the error-redirect target; check_admin_referer() below gates the actual set_approval_status() call.
         $redirect  = self::base_people_url($page_slug, $_POST);
 
         $pid    = (int) wp_unslash($_POST['person_id'] ?? 0);

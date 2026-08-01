@@ -77,6 +77,7 @@ class SignupHandler {
      * Honeypot + timing defense.
      * Must match fields included in ScheduleShortcode.php form.
      */
+    // phpcs:ignore WordPress.Security.NonceVerification.Missing -- this is an additional anti-spam layer (honeypot + timing), not the security gate; it's only ever called from handle_signup() after that method's own nonce check (see 'adoration_public_signup' verification) has already passed.
     public static function validate_honeypot(): void {
         $hp_name = 'as_website';
         $ts_name = 'as_form_ts';
@@ -103,6 +104,7 @@ class SignupHandler {
     /**
      * Turnstile token extraction (future-proof).
      */
+    // phpcs:ignore WordPress.Security.NonceVerification.Missing -- only called from handle_signup() after its own nonce check has already passed; this just extracts a token value, it doesn't gate anything itself.
     private static function get_turnstile_token(): string {
         $keys = [
             'cf-turnstile-response', // standard

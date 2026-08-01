@@ -252,6 +252,7 @@ class CalendarFeedService
             self::redirect_with_toast($return, 'Please sign in again to manage your calendar link.', 'error');
         }
 
+        // phpcs:ignore WordPress.Security.NonceVerification.Missing -- this line reads the token; wp_verify_nonce() on the next line is the actual check, and nothing mutates before it succeeds.
         $nonce = isset($_POST['_wpnonce']) ? (string) $_POST['_wpnonce'] : '';
         if (!wp_verify_nonce($nonce, self::ACTION_REGENERATE . '_' . $person_id)) {
             self::redirect_with_toast($return, 'Security check failed. Please try again.', 'error');

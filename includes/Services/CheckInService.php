@@ -288,6 +288,7 @@ class CheckInService
         exit;
     }
 
+    // phpcs:ignore WordPress.Security.NonceVerification.Missing -- deliberately unauthenticated by design (see class docblock): this is a nopriv kiosk-device endpoint with no WP session to tie a nonce to. The per-chapel kiosk_token (printed as a QR code) is the authorization, same trust model as a paper sign-in sheet; the tapped signup is re-validated against the live "current" list before being recorded. Accepted risk: knowing a chapel's token plus an active signup_id lets someone remotely flip an attendance flag — low impact (no PII/financial/account exposure).
     public static function handle_kiosk_checkin(): void
     {
         $action = isset($_REQUEST['action']) ? (string) $_REQUEST['action'] : '';

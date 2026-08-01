@@ -306,9 +306,7 @@ class AuthCleanupService
             $deleted = $wpdb->query($prepared);
 
             if ($deleted === false) {
-                if (defined('WP_DEBUG') && WP_DEBUG) {
-                    error_log('[AdorationScheduler] AuthCleanupService delete failed table=' . $table . ' err=' . $wpdb->last_error);
-                }
+                error_log('[AdorationScheduler] AuthCleanupService delete failed table=' . $table . ' err=' . $wpdb->last_error);
                 break;
             }
 
