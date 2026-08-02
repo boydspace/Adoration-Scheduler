@@ -230,7 +230,7 @@ class ChapelsPage {
         echo '<p>';
         echo '<a class="button" href="' . esc_url($kiosk_url) . '" target="_blank" rel="noopener">' . esc_html__('Open kiosk page', 'adoration-scheduler') . '</a> ';
         echo '<a class="button" href="' . esc_url($regen_url) . '" onclick="return confirm(' . esc_attr(wp_json_encode(__('Reset this link? Any printed QR code will stop working.', 'adoration-scheduler'))) . ');">' . esc_html__('Reset link', 'adoration-scheduler') . '</a> ';
-        echo '<button type="button" class="button" onclick="window.print();">' . esc_html__('Print QR code', 'adoration-scheduler') . '</button>';
+        echo '<button type="button" class="button" id="adoration-print-kiosk-qr" disabled>' . esc_html__('Print QR code', 'adoration-scheduler') . '</button>';
         echo '</p>';
 
         echo '<div id="adoration-kiosk-qr" data-kiosk-url="' . esc_attr($kiosk_url) . '" style="margin-top:12px;"><p class="description">' . esc_html__('Generating QR code…', 'adoration-scheduler') . '</p></div>';
@@ -252,6 +252,10 @@ class ChapelsPage {
         $lib_js = file_exists($lib_path) ? (string) file_get_contents($lib_path) : '';
         if ($lib_js === '') return;
 
+        $popup_blocked_message = wp_json_encode(
+            __('The QR-code print window was blocked. Please allow pop-ups for this site and try again.', 'adoration-scheduler')
+        );
+
         wp_register_script('adoration-scheduler-kiosk-qr', '', [], null, true);
         wp_enqueue_script('adoration-scheduler-kiosk-qr');
         wp_add_inline_script('adoration-scheduler-kiosk-qr', $lib_js);
@@ -259,6 +263,7 @@ class ChapelsPage {
         $wire_js = <<<JS
 (function(){
     var el = document.getElementById('adoration-kiosk-qr');
+    var printButton = document.getElementById('adoration-print-kiosk-qr');
     if (!el || !window.AdorationQR) return;
     var url = el.getAttribute('data-kiosk-url') || '';
     if (!url) return;
@@ -276,6 +281,35 @@ class ChapelsPage {
             svgEl.style.borderRadius = '8px';
             svgEl.style.padding = '12px';
             svgEl.style.background = '#fff';
+
+            if (printButton) {
+                printButton.disabled = false;
+                printButton.addEventListener('click', function(){
+                    var printWindow = window.open('', '_blank', 'width=700,height=800');
+                    if (!printWindow) {
+                        window.alert({$popup_blocked_message});
+                        return;
+                    }
+
+                    var printDocument = printWindow.document;
+                    printDocument.title = 'Kiosk QR Code';
+
+                    var viewport = printDocument.createElement('meta');
+                    viewport.name = 'viewport';
+                    viewport.content = 'width=device-width, initial-scale=1';
+                    printDocument.head.appendChild(viewport);
+
+                    var styles = printDocument.createElement('style');
+                    styles.textContent = '@page { margin: 0.5in; } html, body { margin: 0; padding: 0; } body { min-height: 9in; display: flex; align-items: center; justify-content: center; } svg { display: block; width: 5in; height: 5in; max-width: 100%; }';
+                    printDocument.head.appendChild(styles);
+                    var printedSvg = svgEl.cloneNode(true);
+                    printedSvg.removeAttribute('style');
+                    printDocument.body.appendChild(printedSvg);
+
+                    printWindow.focus();
+                    window.setTimeout(function(){ printWindow.print(); }, 100);
+                });
+            }
         }
     } catch (e) {
         el.textContent = '';
