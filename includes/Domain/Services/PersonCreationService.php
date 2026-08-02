@@ -33,7 +33,7 @@ class PersonCreationService {
         }
 
         // sanitize_email() may yield '' for invalid email; also handle user typed something.
-        $email_raw = (string) wp_unslash($_POST['email'] ?? '');
+        $email_raw = isset($_POST['email']) ? sanitize_text_field(wp_unslash($_POST['email'])) : '';
         if (trim($email_raw) !== '' && $email === '') {
             self::redirect_back_to_add($preserve, 'bad_email');
         }
@@ -185,7 +185,7 @@ class PersonCreationService {
             $table = $wpdb->prefix . ltrim($table, '_');
         }
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $ok = $wpdb->insert(
             $table,
             [
@@ -305,7 +305,7 @@ class PersonCreationService {
             if (!isset($_POST[$k])) continue;
             if (is_array($_POST[$k])) continue;
 
-            $v = wp_unslash($_POST[$k]);
+            $v = sanitize_text_field(wp_unslash($_POST[$k]));
 
             if ($k === 'paged') {
                 $v = (string) max(1, (int) $v);

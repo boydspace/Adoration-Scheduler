@@ -1,4 +1,6 @@
 <?php
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals -- View variables are scoped by the including controller method.
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals -- View variables are scoped by the including controller method.
 /**
  * Tab: Basic Info
  *

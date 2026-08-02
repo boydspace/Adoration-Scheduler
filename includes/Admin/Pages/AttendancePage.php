@@ -36,7 +36,7 @@ class AttendancePage {
         check_admin_referer('adoration_set_attendance');
 
         $signup_id = isset($_POST['signup_id']) ? (int)$_POST['signup_id'] : 0;
-        $present   = isset($_POST['present']) ? sanitize_text_field((string)$_POST['present']) : '';
+        $present = isset($_POST['present']) ? sanitize_text_field(wp_unslash($_POST['present'])) : '';
 
         if ($signup_id > 0 && ($present === '1' || $present === '0')) {
             $repo = new SignupsRepository();
@@ -56,6 +56,7 @@ class AttendancePage {
     }
 
     public function render(): void {
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only report filters and post-redirect notice.
         if ( ! current_user_can(self::CAP_MANAGE_SETTINGS) && ! current_user_can('manage_options') ) {
             wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
@@ -199,6 +200,7 @@ class AttendancePage {
             <?php endif; ?>
         </div>
         <?php
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
     }
 
     /**
@@ -206,7 +208,7 @@ class AttendancePage {
      * last 7 days through today, since attendance review is mostly about
      * "did anyone miss their hour recently," not a long historical window.
      */
-    // phpcs:disable WordPress.Security.NonceVerification.Missing -- these are display-filter reads only. When called from handle_request() the actual mutation (set_attendance_admin()) is gated by check_admin_referer('adoration_set_attendance'); when called from render() it's a plain GET view with no mutation.
+    // phpcs:disable WordPress.Security.NonceVerification.Missing,WordPress.Security.NonceVerification.Recommended -- These are display-filter reads only. Mutations are gated by check_admin_referer('adoration_set_attendance').
     private static function resolve_filters(): array {
         $schedule_id = absint(wp_unslash($_GET['schedule_id'] ?? ($_POST['schedule_id'] ?? 0)));
 
@@ -225,5 +227,5 @@ class AttendancePage {
 
         return [$schedule_id, $from, $to];
     }
-    // phpcs:enable WordPress.Security.NonceVerification.Missing
+    // phpcs:enable WordPress.Security.NonceVerification.Missing,WordPress.Security.NonceVerification.Recommended
 }

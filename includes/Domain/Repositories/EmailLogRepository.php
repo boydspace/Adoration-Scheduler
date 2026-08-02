@@ -1,6 +1,9 @@
 <?php
 namespace AdorationScheduler\Domain\Repositories;
 
+// phpcs:disable WordPress.DB.DirectDatabaseQuery -- Repository is the persistence boundary for email delivery logs.
+// phpcs:disable PluginCheck.Security.DirectDB.UnescapedDBParameter -- Queries are prepared from placeholders and fixed allowlisted ordering.
+
 if ( ! defined('ABSPATH') ) exit;
 
 class EmailLogRepository {
@@ -60,7 +63,7 @@ class EmailLogRepository {
         if ($id <= 0) return null;
 
         $sql = $wpdb->prepare("SELECT * FROM %i WHERE id = %d LIMIT 1", $this->table, $id);
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $row = $wpdb->get_row($sql, ARRAY_A);
 
         return $row ? (array)$row : null;
@@ -106,22 +109,24 @@ class EmailLogRepository {
                AND (%d = 0 OR success = %d)",
             $this->table, $s, $like, $like, $like, $like, $type, $type, $has_success_filter, $success_val
         );
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $total = (int) $wpdb->get_var($count_prepared);
 
-        // $orderby is checked against $allowed_orderby above and $order is
-        // forced to ASC/DESC — neither is ever raw user input.
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        // Sorting uses an identifier placeholder and parameterized direction.
         $rows_prepared = $wpdb->prepare(
             "SELECT * FROM %i
              WHERE (%s = '' OR (to_email LIKE %s OR subject LIKE %s OR type LIKE %s OR context LIKE %s))
                AND (%s = '' OR type = %s)
                AND (%d = 0 OR success = %d)
-             ORDER BY {$orderby} {$order} LIMIT %d OFFSET %d",
-            $this->table, $s, $like, $like, $like, $like, $type, $type, $has_success_filter, $success_val, $per_page, $offset
+             ORDER BY
+               CASE WHEN %s = 'ASC' THEN %i END ASC,
+               CASE WHEN %s = 'DESC' THEN %i END DESC
+             LIMIT %d OFFSET %d",
+            $this->table, $s, $like, $like, $like, $like, $type, $type, $has_success_filter, $success_val,
+            $order, $orderby, $order, $orderby, $per_page, $offset
         );
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $rows = (array) $wpdb->get_results($rows_prepared, ARRAY_A);
 
         return [
@@ -147,7 +152,7 @@ class EmailLogRepository {
             $days
         );
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $res = $wpdb->query($sql);
         return ($res === false) ? 0 : (int)$res;
     }
@@ -167,11 +172,12 @@ class EmailLogRepository {
         // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
         $placeholders = implode(',', array_fill(0, count($ids), '%d'));
         $sql = $wpdb->prepare(
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Placeholder-only fragment matches the validated integer ID list.
             "DELETE FROM %i WHERE id IN ({$placeholders})",
             ...array_merge([$this->table], $ids)
         );
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $res = $wpdb->query($sql);
         return ($res === false) ? 0 : (int)$res;
     }
@@ -209,19 +215,21 @@ class EmailLogRepository {
 
         // The (%s = '' OR ...) / (%d = 0 OR ...) form lets each filter stay
         // optional without interpolating a conditional WHERE fragment.
-        // $orderby is checked against $allowed_orderby above and $order is
-        // forced to ASC/DESC — neither is ever raw user input.
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        // Sorting uses an identifier placeholder and parameterized direction.
         $prepared = $wpdb->prepare(
             "SELECT * FROM %i
              WHERE (%s = '' OR (to_email LIKE %s OR subject LIKE %s OR type LIKE %s OR context LIKE %s))
                AND (%s = '' OR type = %s)
                AND (%d = 0 OR success = %d)
-             ORDER BY {$orderby} {$order} LIMIT %d",
-            $this->table, $s, $like, $like, $like, $like, $type, $type, $has_success_filter, $success_val, $limit
+             ORDER BY
+               CASE WHEN %s = 'ASC' THEN %i END ASC,
+               CASE WHEN %s = 'DESC' THEN %i END DESC
+             LIMIT %d",
+            $this->table, $s, $like, $like, $like, $like, $type, $type, $has_success_filter, $success_val,
+            $order, $orderby, $order, $orderby, $limit
         );
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (array) $wpdb->get_results($prepared, ARRAY_A);
     }
 }

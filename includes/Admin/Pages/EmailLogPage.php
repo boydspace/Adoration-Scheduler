@@ -22,6 +22,7 @@ class EmailLogPage
 
     public function render(): void
     {
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only admin routing parameters; mutations use dedicated nonce-verified handlers.
         if ( ! current_user_can('manage_options') ) {
             wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
@@ -37,13 +38,14 @@ class EmailLogPage
             return;
         }
 
-        $action = sanitize_key($_GET['action'] ?? '');
+        $action = isset($_GET['action']) ? sanitize_key(wp_unslash($_GET['action'])) : '';
         if ($action === 'view') {
-            $this->render_view((int)($_GET['log_id'] ?? 0), $repo_class);
+            $this->render_view(isset($_GET['log_id']) ? absint(wp_unslash($_GET['log_id'])) : 0, $repo_class);
             return;
         }
 
         $this->render_list($repo_class);
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
     }
 
     // ---------------------------------------------------------------------
@@ -52,14 +54,15 @@ class EmailLogPage
 
     private function render_list(string $repo_class): void
     {
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only list filters and post-redirect notices.
         echo '<div class="wrap">';
         echo '<h1>' . esc_html__('Email Log', 'adoration-scheduler') . '</h1>';
         \AdorationScheduler\Admin\Menu::render_settings_tabs('adoration_scheduler_email_log');
 
         // notices
-        $msg = sanitize_text_field($_GET['msg'] ?? '');
+        $msg = isset($_GET['msg']) ? sanitize_key(wp_unslash($_GET['msg'])) : '';
         if ($msg === 'purged') {
-            $n = (int)($_GET['n'] ?? 0);
+            $n = isset($_GET['n']) ? absint(wp_unslash($_GET['n'])) : 0;
             echo '<div class="notice notice-success is-dismissible"><p>';
             echo esc_html(sprintf('Purged %d log entries.', $n));
             echo '</p></div>';
@@ -72,7 +75,7 @@ class EmailLogPage
             echo esc_html__('Purge failed.', 'adoration-scheduler');
             echo '</p></div>';
         } elseif ($msg === 'deleted') {
-            $n = (int)($_GET['n'] ?? 0);
+            $n = isset($_GET['n']) ? absint(wp_unslash($_GET['n'])) : 0;
             echo '<div class="notice notice-success is-dismissible"><p>';
             echo esc_html(sprintf('Deleted %d log entries.', $n));
             echo '</p></div>';
@@ -89,14 +92,14 @@ class EmailLogPage
         // Read filters from query string
         $s       = isset($_GET['s']) ? sanitize_text_field(wp_unslash((string)$_GET['s'])) : '';
         $type    = isset($_GET['type']) ? sanitize_key(wp_unslash((string)$_GET['type'])) : '';
-        $success = isset($_GET['success']) ? (string)wp_unslash((string)$_GET['success']) : ''; // '1'|'0'|''
+        $success = isset($_GET['success']) ? sanitize_text_field(wp_unslash($_GET['success'])) : ''; // '1'|'0'|''
 
-        $paged    = isset($_GET['paged']) ? max(1, (int)$_GET['paged']) : 1;
-        $per_page = isset($_GET['per_page']) ? (int)$_GET['per_page'] : 20;
+        $paged = isset($_GET['paged']) ? max(1, absint(wp_unslash($_GET['paged']))) : 1;
+        $per_page = isset($_GET['per_page']) ? absint(wp_unslash($_GET['per_page'])) : 20;
         $per_page = max(1, min(100, $per_page));
 
-        $orderby = isset($_GET['orderby']) ? sanitize_key((string)$_GET['orderby']) : 'created_at';
-        $order   = isset($_GET['order']) ? strtoupper(sanitize_key((string)$_GET['order'])) : 'DESC';
+        $orderby = isset($_GET['orderby']) ? sanitize_key(wp_unslash($_GET['orderby'])) : 'created_at';
+        $order = isset($_GET['order']) ? strtoupper(sanitize_key(wp_unslash($_GET['order']))) : 'DESC';
 
         $allowed_orderby = ['id','created_at','to_email','type','context','success'];
         if (!in_array($orderby, $allowed_orderby, true)) $orderby = 'created_at';
@@ -409,6 +412,7 @@ class EmailLogPage
         }
 
         echo '</div>';
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
     }
 
     // ---------------------------------------------------------------------
@@ -417,6 +421,7 @@ class EmailLogPage
 
     private function render_view(int $log_id, string $repo_class): void
     {
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only view state used to build the back link.
         echo '<div class="wrap">';
         echo '<h1>' . esc_html__('Email Log Entry', 'adoration-scheduler') . '</h1>';
 
@@ -483,6 +488,7 @@ class EmailLogPage
         }
 
         echo '</div>';
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
     }
 
     private function kv_row(string $label, string $value, bool $value_is_html = false): void
@@ -538,8 +544,8 @@ class EmailLogPage
         }
 
         $s       = isset($_POST['s']) ? sanitize_text_field(wp_unslash((string)$_POST['s'])) : '';
-        $type    = isset($_POST['type']) ? sanitize_key((string)$_POST['type']) : '';
-        $success = isset($_POST['success']) ? (string)$_POST['success'] : '';
+        $type = isset($_POST['type']) ? sanitize_key(wp_unslash($_POST['type'])) : '';
+        $success = isset($_POST['success']) ? sanitize_text_field(wp_unslash($_POST['success'])) : '';
         if ($success !== '1' && $success !== '0') $success = '';
 
         $repo = new $repo_class();
@@ -596,15 +602,17 @@ class EmailLogPage
         }
         check_admin_referer('adoration_email_log_bulk_delete');
 
-        $action = sanitize_key($_POST['bulk_action'] ?? '');
-        $ids    = isset($_POST['ids']) && is_array($_POST['ids']) ? array_map('intval', (array)$_POST['ids']) : [];
+        $action = isset($_POST['bulk_action']) ? sanitize_key(wp_unslash($_POST['bulk_action'])) : '';
+        $ids = isset($_POST['ids']) && is_array($_POST['ids'])
+            ? array_map('absint', wp_unslash($_POST['ids']))
+            : [];
 
         // Build redirect args (preserve view state)
         $return_args = ['page' => 'adoration_scheduler_email_log'];
         foreach (['page','s','type','success','paged','per_page','orderby','order'] as $k) {
             $rk = 'return_' . $k;
             if (!isset($_POST[$rk])) continue;
-            $val = wp_unslash((string)$_POST[$rk]);
+            $val = sanitize_text_field(wp_unslash($_POST[$rk]));
             if ($val === '') continue;
             $return_args[$k] = sanitize_text_field($val);
         }

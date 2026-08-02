@@ -30,8 +30,10 @@ class AnnouncementsReorderAjax {
             wp_send_json_error(['message' => 'Bad nonce'], 400);
         }
 
-        $ids_raw = isset($_POST['order']) ? (array) wp_unslash($_POST['order']) : [];
-        $ids = array_values(array_filter(array_map('intval', $ids_raw), fn($v) => $v > 0));
+        $ids_raw = isset($_POST['order'])
+            ? array_map('sanitize_text_field', (array) wp_unslash($_POST['order']))
+            : [];
+        $ids = array_values(array_filter(array_map('absint', $ids_raw), fn($v) => $v > 0));
 
         if (empty($ids)) {
             wp_send_json_error(['message' => 'No order received'], 400);

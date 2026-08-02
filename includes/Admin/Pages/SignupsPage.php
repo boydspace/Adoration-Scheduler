@@ -1,6 +1,8 @@
 <?php
 namespace AdorationScheduler\Admin\Pages;
 
+// phpcs:disable WordPress.DB.DirectDatabaseQuery -- Signup AJAX actions require immediate, uncached persistence.
+
 if ( ! defined('ABSPATH') ) exit;
 
 use AdorationScheduler\Domain\Repositories\SignupAuditRepository;
@@ -46,11 +48,12 @@ class SignupsPage {
      * Falls back to the main Signups page.
      */
     private static function resolve_return_url(): string {
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Sanitized redirect state used after separately nonce-verified actions.
         $fallback = admin_url('admin.php?page=adoration_scheduler_signups');
 
-        $raw = $_REQUEST['return'] ?? '';
-        $raw = is_string($raw) ? wp_unslash($raw) : '';
-        $raw = trim($raw);
+        $raw = isset($_REQUEST['return']) && is_string($_REQUEST['return'])
+            ? esc_url_raw(wp_unslash($_REQUEST['return']))
+            : '';
 
         if ($raw === '') {
             return $fallback;
@@ -66,6 +69,7 @@ class SignupsPage {
             return $fallback;
         }
 
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
         return $safe;
     }
 
@@ -117,6 +121,7 @@ class SignupsPage {
     // ---------------------------------------------------------------------
 
     public function render(): void {
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only list state; bulk mutations verify their nonce in the table handler.
         // ✅ Use granular cap with fallback so Editors can access if granted.
         if ( ! Plugin::current_user_can_with_fallback('adoration_manage_signups') ) {
             wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
@@ -158,7 +163,7 @@ class SignupsPage {
         $preserve = ['s','orderby','order','status','schedule_id','paged'];
         foreach ($preserve as $k) {
             if (isset($_GET[$k])) {
-                echo '<input type="hidden" name="' . esc_attr($k) . '" value="' . esc_attr((string)wp_unslash($_GET[$k])) . '" />';
+                echo '<input type="hidden" name="' . esc_attr($k) . '" value="' . esc_attr(sanitize_text_field(wp_unslash($_GET[$k]))) . '" />';
             }
         }
 
@@ -320,6 +325,7 @@ class SignupsPage {
         <?php
 
         echo '</div>';
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
     }
 
     // ---------------------------------------------------------------------
@@ -379,7 +385,7 @@ class SignupsPage {
             $t_signups, $t_persons, $t_schedules, $t_slots, $signup_id
         );
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- $prepared is produced by $wpdb->prepare() immediately above, including identifier placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- $prepared is produced by $wpdb->prepare() immediately above, including identifier placeholders.
         $row = $wpdb->get_row($prepared, ARRAY_A);
         if (!$row) {
             wp_send_json_error(['message' => 'Signup not found'], 404);
@@ -597,7 +603,7 @@ class SignupsPage {
             $old_status = '';
         }
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $r = $wpdb->update(
             $t,
             [

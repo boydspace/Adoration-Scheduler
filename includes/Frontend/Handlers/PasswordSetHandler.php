@@ -57,7 +57,7 @@ class PasswordSetHandler
 
     public static function handle(): void
     {
-        $return = isset($_POST['return']) ? esc_url_raw((string) $_POST['return']) : home_url('/');
+        $return = isset($_POST['return']) ? esc_url_raw(wp_unslash($_POST['return'])) : home_url('/');
 
         // Must be signed in (or a WP admin previewing a matching person record).
         $person = MagicLinkService::current_person_or_admin_match();
@@ -67,12 +67,12 @@ class PasswordSetHandler
         }
 
         // phpcs:ignore WordPress.Security.NonceVerification.Missing -- this line reads the token; wp_verify_nonce() on the next line is the actual check, and nothing mutates before it succeeds.
-        $nonce = isset($_POST['_wpnonce']) ? (string) $_POST['_wpnonce'] : '';
+        $nonce = isset($_POST['_wpnonce']) ? sanitize_text_field(wp_unslash($_POST['_wpnonce'])) : '';
         if (!wp_verify_nonce($nonce, 'adoration_set_password_' . $person_id)) {
             self::redirect_with_toast($return, 'Security check failed. Please try again.', 'error');
         }
 
-        $mode = isset($_POST['mode']) ? sanitize_key((string) $_POST['mode']) : 'set';
+        $mode = isset($_POST['mode']) ? sanitize_key(wp_unslash($_POST['mode'])) : 'set';
         $repo = new PersonsRepository();
 
         if ($mode === 'remove') {
@@ -83,7 +83,10 @@ class PasswordSetHandler
         }
 
         // mode === 'set' (covers both first-time set and change)
-        $new_password     = isset($_POST['new_password'])     ? (string) wp_unslash($_POST['new_password'])     : '';
+        // Passwords must remain byte-for-byte intact; sanitizing would alter valid credentials.
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $new_password = isset($_POST['new_password']) ? (string) wp_unslash($_POST['new_password']) : '';
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         $confirm_password = isset($_POST['confirm_password']) ? (string) wp_unslash($_POST['confirm_password']) : '';
 
         if ($new_password === '' || $confirm_password === '') {

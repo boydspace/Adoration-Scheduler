@@ -1,6 +1,8 @@
 <?php
 namespace AdorationScheduler\Domain\Services;
 
+// phpcs:disable WordPress.DB.DirectDatabaseQuery -- Slot generation performs immediate coordinated persistence writes.
+
 use DateTime;
 use DateTimeZone;
 use Exception;

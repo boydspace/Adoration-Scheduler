@@ -144,7 +144,7 @@ class AccessRequestShortcode
                             'cf-turnstile',
                             'https://challenges.cloudflare.com/turnstile/v0/api.js',
                             [],
-                            null,
+                            ADORATION_SCHEDULER_VERSION,
                             true
                         );
                         ?>

@@ -148,11 +148,12 @@ class PeopleImportExportService
         self::require_capability();
         check_admin_referer('adoration_people_import_start');
 
-        if (empty($_FILES['import_file']) || !is_array($_FILES['import_file']) || (int)($_FILES['import_file']['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) {
+        $upload_error = isset($_FILES['import_file']['error']) ? absint($_FILES['import_file']['error']) : UPLOAD_ERR_NO_FILE;
+        if (empty($_FILES['import_file']) || !is_array($_FILES['import_file']) || $upload_error === UPLOAD_ERR_NO_FILE) {
             self::redirect_with_toast('Please choose a .csv or .xlsx file to import.', 'error');
         }
 
-        $orig_name = (string)($_FILES['import_file']['name'] ?? '');
+        $orig_name = isset($_FILES['import_file']['name']) ? sanitize_file_name(wp_unslash($_FILES['import_file']['name'])) : '';
         $ext = strtolower((string) pathinfo($orig_name, PATHINFO_EXTENSION));
 
         if (!in_array($ext, ['csv', 'xlsx'], true)) {

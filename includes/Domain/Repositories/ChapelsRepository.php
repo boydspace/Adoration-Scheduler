@@ -1,6 +1,8 @@
 <?php
 namespace AdorationScheduler\Domain\Repositories;
 
+// phpcs:disable WordPress.DB.DirectDatabaseQuery -- Repository is the persistence boundary for chapel records.
+
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 class ChapelsRepository {
@@ -18,8 +20,8 @@ class ChapelsRepository {
     public function list_active(): array {
         global $wpdb;
         $sql = $wpdb->prepare("SELECT * FROM %i WHERE is_active = 1 ORDER BY name ASC", $this->table);
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (array) $wpdb->get_results($sql, ARRAY_A);
     }
 
@@ -29,8 +31,8 @@ class ChapelsRepository {
     public function list_all(): array {
         global $wpdb;
         $sql = $wpdb->prepare("SELECT * FROM %i ORDER BY name ASC", $this->table);
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (array) $wpdb->get_results($sql, ARRAY_A);
     }
 
@@ -45,7 +47,7 @@ class ChapelsRepository {
         global $wpdb;
 
         // 1) Prefer main-chapel slug if present
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $id = (int) $wpdb->get_var(
             $wpdb->prepare("SELECT id FROM %i WHERE slug = %s LIMIT 1", $this->table, 'main-chapel')
         );
@@ -74,7 +76,7 @@ class ChapelsRepository {
         if ($default_id > 0) return $default_id;
 
         // Nothing exists — create Main Chapel
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $wpdb->insert($this->table, [
             'name'      => 'Main Chapel',
             'slug'      => 'main-chapel',
@@ -94,7 +96,7 @@ class ChapelsRepository {
         $id = (int)$id;
         if ($id <= 0) return null;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $row = $wpdb->get_row(
             $wpdb->prepare("SELECT * FROM %i WHERE id = %d", $this->table, $id),
             ARRAY_A
@@ -112,7 +114,7 @@ class ChapelsRepository {
         $slug = $slug !== null && $slug !== '' ? $slug : $name;
         $slug = sanitize_title($slug);
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $ok = $wpdb->insert($this->table, [
             'name'      => $name,
             'slug'      => $slug,
@@ -142,7 +144,7 @@ class ChapelsRepository {
 
         if (empty($update)) return true;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $r = $wpdb->update($this->table, $update, [ 'id' => $id ]);
         return $r !== false;
     }
@@ -160,7 +162,7 @@ class ChapelsRepository {
         $slots_table     = $wpdb->prefix . 'adoration_slots';
 
         // Schedules referencing chapel_id
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $sch = (int) $wpdb->get_var(
             $wpdb->prepare("SELECT COUNT(*) FROM %i WHERE chapel_id = %d", $schedules_table, $chapel_id)
         );
@@ -182,7 +184,7 @@ class ChapelsRepository {
         $id = (int)$id;
         if ($id <= 0) return false;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $r = $wpdb->delete($this->table, [ 'id' => $id ], [ '%d' ]);
         return ($r !== false && $r > 0);
     }

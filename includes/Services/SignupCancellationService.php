@@ -1,6 +1,8 @@
 <?php
 namespace AdorationScheduler\Services;
 
+// phpcs:disable WordPress.DB.DirectDatabaseQuery -- Signup cancellation requires immediate, uncached persistence.
+
 if ( ! defined('ABSPATH') ) {
     exit;
 }
@@ -303,7 +305,7 @@ class SignupCancellationService
                     $fmt[] = '%s';
                 }
 
-                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
                 $updated = $wpdb->update(
                     $table,
                     $data,
@@ -338,7 +340,7 @@ class SignupCancellationService
             $fmt[] = '%s';
         }
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $updated = $wpdb->update(
             $table,
             $data,
@@ -378,7 +380,7 @@ class SignupCancellationService
         try {
             $like = $wpdb->esc_like($column);
             $prepared = $wpdb->prepare("SHOW COLUMNS FROM %i LIKE %s", $table, $like);
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- $prepared is produced by $wpdb->prepare() immediately above.
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- $prepared is produced by $wpdb->prepare() immediately above.
             $found = $wpdb->get_var($prepared);
             return !empty($found);
         } catch (\Throwable $e) {

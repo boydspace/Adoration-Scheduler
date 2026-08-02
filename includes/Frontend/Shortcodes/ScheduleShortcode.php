@@ -71,7 +71,7 @@ class ScheduleShortcode {
                 'cf-turnstile',
                 'https://challenges.cloudflare.com/turnstile/v0/api.js',
                 [],
-                null,
+                ADORATION_SCHEDULER_VERSION,
                 false
             );
         }
@@ -1610,7 +1610,8 @@ class ScheduleShortcode {
      */
     private static function render_notice_from_query(): string
     {
-        $toast = isset($_GET['as_toast']) ? (string) wp_unslash($_GET['as_toast']) : '';
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only, sanitized post-redirect notice parameters.
+        $toast = isset($_GET['as_toast']) ? sanitize_text_field(wp_unslash($_GET['as_toast'])) : '';
         $toast = trim($toast);
         if ($toast === '') return '';
 
@@ -1639,6 +1640,7 @@ class ScheduleShortcode {
         // interrupting), matching how each type is meant to read.
         $role = ($type === 'error' || $type === 'warning') ? 'alert' : 'status';
 
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
         return '<div class="' . esc_attr($uk) . ' adoration-notice ' . esc_attr($class) . '" role="' . esc_attr($role) . '" uk-alert>'
             . '<p class="uk-margin-remove">' . esc_html($toast) . '</p>'
             . '</div>';

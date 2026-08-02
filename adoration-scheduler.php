@@ -3,7 +3,7 @@
  * Plugin Name: Adoration Scheduler
  * Plugin URI: https://fatherboyd.com/adoration-scheduler
  * Description: A scheduling system for Eucharistic Adoration.
- * Version: 1.0.9
+ * Version: 1.0.10
  * Author: Fr. Andy Boyd
  * Author URI: https://fatherboyd.com
  * Text Domain: adoration-scheduler
@@ -17,7 +17,7 @@ if ( ! defined('ABSPATH') ) {
 
 // Useful constants
 if ( ! defined('ADORATION_SCHEDULER_VERSION') ) {
-    define('ADORATION_SCHEDULER_VERSION', '1.0.9');
+    define('ADORATION_SCHEDULER_VERSION', '1.0.10');
 }
 if ( ! defined('ADORATION_SCHEDULER_FILE') ) {
     define('ADORATION_SCHEDULER_FILE', __FILE__);
@@ -33,17 +33,17 @@ if ( ! defined('ADORATION_SCHEDULER_URL') ) {
 // Load bundled Action Scheduler (only if not already provided by another plugin).
 if ( ! class_exists('ActionScheduler_Versions', false) ) {
 
-    $as_dir  = ADORATION_SCHEDULER_DIR . 'libraries/action-scheduler/';
-    $as_main = $as_dir . 'action-scheduler.php';
-    $as_api  = $as_dir . 'functions.php';
+    $adoration_scheduler_as_dir  = ADORATION_SCHEDULER_DIR . 'libraries/action-scheduler/';
+    $adoration_scheduler_as_main = $adoration_scheduler_as_dir . 'action-scheduler.php';
+    $adoration_scheduler_as_api  = $adoration_scheduler_as_dir . 'functions.php';
 
-    if (file_exists($as_main)) {
-        require_once $as_main;
+    if (file_exists($adoration_scheduler_as_main)) {
+        require_once $adoration_scheduler_as_main;
     }
 
     // IMPORTANT: ensure the public API functions are loaded
-    if (file_exists($as_api)) {
-        require_once $as_api;
+    if (file_exists($adoration_scheduler_as_api)) {
+        require_once $adoration_scheduler_as_api;
     }
 
     // IMPORTANT: initialize Action Scheduler once WP is ready

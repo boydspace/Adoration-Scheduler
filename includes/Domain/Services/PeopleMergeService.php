@@ -1,6 +1,8 @@
 <?php
 namespace AdorationScheduler\Domain\Services;
 
+// phpcs:disable WordPress.DB.DirectDatabaseQuery -- Person merging is a coordinated persistence transaction and must not be cached.
+
 use AdorationScheduler\Domain\Repositories\PersonsRepository;
 
 if ( ! defined('ABSPATH') ) exit;
@@ -21,8 +23,8 @@ class PeopleMergeService {
         $page = sanitize_key((string) wp_unslash($_POST['page'] ?? 'adoration_scheduler_people_merge'));
         if ($page === '') $page = 'adoration_scheduler_people_merge';
 
-        $from_id = isset($_POST['from_person_id']) ? (int) wp_unslash($_POST['from_person_id']) : 0;
-        $to_id   = isset($_POST['to_person_id'])   ? (int) wp_unslash($_POST['to_person_id'])   : 0;
+        $from_id = isset($_POST['from_person_id']) ? absint(wp_unslash($_POST['from_person_id'])) : 0;
+        $to_id = isset($_POST['to_person_id']) ? absint(wp_unslash($_POST['to_person_id'])) : 0;
 
         if ($from_id <= 0 || $to_id <= 0 || $from_id === $to_id) {
             self::redirect_with($page, [
@@ -336,7 +338,7 @@ class PeopleMergeService {
 
         $signup_table = '';
         foreach ($tables_to_try as $t) {
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
             $found = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $t));
             if ($found === $t) {
                 $signup_table = $t;
@@ -370,9 +372,11 @@ class PeopleMergeService {
 
             // Delete duplicates from FROM where TO already has that slot
             $wpdb->query(
+                // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Dynamic %d list and replacement list have the same validated ID count.
                 $wpdb->prepare(
+                    // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Placeholder-only fragment matches the validated integer slot ID list.
                     "DELETE FROM %i WHERE person_id = %d AND slot_id IN ($placeholders)",
-                    $params
+                    ...$params
                 )
             );
             $skipped = (int)$wpdb->rows_affected;

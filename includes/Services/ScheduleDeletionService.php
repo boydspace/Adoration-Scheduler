@@ -1,6 +1,8 @@
 <?php
 namespace AdorationScheduler\Services;
 
+// phpcs:disable WordPress.DB.DirectDatabaseQuery -- Coordinated schedule deletion is a persistence operation and must not be cached.
+
 if ( ! defined('ABSPATH') ) exit;
 
 use AdorationScheduler\Domain\Repositories\SchedulesRepository;

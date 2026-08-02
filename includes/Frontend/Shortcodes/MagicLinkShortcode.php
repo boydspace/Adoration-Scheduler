@@ -298,14 +298,9 @@ class MagicLinkShortcode
 
     private static function current_url(): string
     {
-        $scheme = is_ssl() ? 'https' : 'http';
-        $host   = (string)($_SERVER['HTTP_HOST'] ?? '');
-        $uri    = (string)($_SERVER['REQUEST_URI'] ?? '/');
-
-        if ($host === '') {
-            return home_url('/');
-        }
-
-        return $scheme . '://' . $host . $uri;
+        $uri = isset($_SERVER['REQUEST_URI'])
+            ? esc_url_raw(wp_unslash($_SERVER['REQUEST_URI']))
+            : '/';
+        return esc_url_raw(home_url(strpos($uri, '/') === 0 ? $uri : '/'));
     }
 }

@@ -1,6 +1,8 @@
 <?php
 namespace AdorationScheduler\Services;
 
+// phpcs:disable WordPress.DB.DirectDatabaseQuery -- Administrative signup mutations require immediate, uncached persistence.
+
 if ( ! defined('ABSPATH') ) exit;
 
 /**
@@ -243,7 +245,7 @@ class AdminSignupActionsService
             $t_signups, $t_persons, $t_schedules, $t_slots, $signup_id
         );
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- $prepared is produced by $wpdb->prepare() immediately above, including identifier placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- $prepared is produced by $wpdb->prepare() immediately above, including identifier placeholders.
         $row = $wpdb->get_row($prepared, ARRAY_A);
         if (!$row) return null;
 
@@ -382,7 +384,7 @@ class AdminSignupActionsService
             $fmt[] = '%s';
         }
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $updated = $wpdb->update(
             $table,
             $data,
@@ -454,7 +456,7 @@ class AdminSignupActionsService
         $slot_id     = is_array($row) ? (int)($row['slot_id'] ?? 0) : 0;
         $was_confirmed = is_array($row) && (string)($row['status'] ?? '') === 'confirmed';
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $deleted = $wpdb->delete($table, ['id' => $signup_id], ['%d']);
 
         if ($deleted === false) {
@@ -611,7 +613,7 @@ class AdminSignupActionsService
         try {
             $like = $wpdb->esc_like($column);
             $prepared = $wpdb->prepare("SHOW COLUMNS FROM %i LIKE %s", $table, $like);
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- $prepared is produced by $wpdb->prepare() immediately above.
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- $prepared is produced by $wpdb->prepare() immediately above.
             $found = $wpdb->get_var($prepared);
             return !empty($found);
         } catch (\Throwable $e) {

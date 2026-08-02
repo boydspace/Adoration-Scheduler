@@ -1,6 +1,8 @@
 <?php
 namespace AdorationScheduler\Domain\Repositories;
 
+// phpcs:disable WordPress.DB.DirectDatabaseQuery -- Repository is the persistence boundary; scheduling reads must reflect current data.
+
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 use AdorationScheduler\Services\ReminderScheduler;
@@ -103,7 +105,7 @@ class SignupsRepository {
             $schedule_id
         );
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $rows = (array) $wpdb->get_results($sql, ARRAY_A);
 
         $out = [];
@@ -161,7 +163,7 @@ class SignupsRepository {
             $schedule_id
         );
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $rows = (array) $wpdb->get_results($sql, ARRAY_A);
         foreach ($rows as &$r) {
             $r['signup_count']  = (int)($r['signup_count'] ?? 0);
@@ -196,7 +198,7 @@ class SignupsRepository {
             $today
         );
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $ids = $wpdb->get_col($sql);
         return array_map('intval', (array)$ids);
     }
@@ -240,7 +242,7 @@ class SignupsRepository {
             $confirmed_only ? 1 : 0
         );
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (array) $wpdb->get_results($sql, ARRAY_A);
     }
 
@@ -440,7 +442,7 @@ class SignupsRepository {
             $confirmed_only ? 1 : 0
         );
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (array) $wpdb->get_results($sql, ARRAY_A);
     }
 
@@ -468,7 +470,7 @@ class SignupsRepository {
             $end_ymd
         );
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $rows = (array) $wpdb->get_results($sql, ARRAY_A);
         $out = [];
         foreach ($rows as $r) {
@@ -503,7 +505,7 @@ class SignupsRepository {
             $ymd
         );
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (array) $wpdb->get_results($sql, ARRAY_A);
     }
 
@@ -538,7 +540,7 @@ class SignupsRepository {
             $confirmed_only ? 1 : 0
         );
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (array) $wpdb->get_results($sql, ARRAY_A);
     }
 
@@ -554,22 +556,18 @@ class SignupsRepository {
         $slot_ids = array_values(array_filter(array_map('intval', $slot_ids)));
         if (empty($slot_ids)) return [];
 
-        // Dynamic-length IN-clause: the placeholder count varies with the
-        // number of slot IDs, so the arg list can't be individually enumerated.
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-        $placeholders = implode(',', array_fill(0, count($slot_ids), '%d'));
-        $sql = $wpdb->prepare(
-            "SELECT slot_id, COUNT(*) AS c FROM %i
-             WHERE slot_id IN ($placeholders) AND status = 'confirmed'
-             GROUP BY slot_id",
-            ...array_merge([$this->table], $slot_ids)
-        );
-
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
-        $rows = (array) $wpdb->get_results($sql, ARRAY_A);
         $out = [];
-        foreach ($rows as $r) {
-            $out[(int)$r['slot_id']] = (int)$r['c'];
+        foreach ($slot_ids as $slot_id) {
+            $sql = $wpdb->prepare(
+                "SELECT COUNT(*) FROM %i WHERE slot_id = %d AND status = 'confirmed'",
+                $this->table,
+                $slot_id
+            );
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- Query is fully prepared immediately above.
+            $count = (int) $wpdb->get_var($sql);
+            if ($count > 0) {
+                $out[$slot_id] = $count;
+            }
         }
         return $out;
     }
@@ -589,11 +587,12 @@ class SignupsRepository {
         // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
         $placeholders = implode(',', array_fill(0, count($slot_ids), '%d'));
         $sql = $wpdb->prepare(
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Placeholder-only fragment matches the validated integer slot ID list.
             "SELECT id FROM %i WHERE slot_id IN ($placeholders) AND status = 'confirmed'",
             ...array_merge([$this->table], $slot_ids)
         );
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $ids = (array) $wpdb->get_col($sql);
         return array_map('intval', $ids);
     }
@@ -626,7 +625,7 @@ class SignupsRepository {
             $signup_id
         );
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $row = $wpdb->get_row($sql, ARRAY_A);
         return $row ? (array)$row : null;
     }
@@ -669,7 +668,7 @@ class SignupsRepository {
             );
         }
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $found = $wpdb->get_var($sql);
         return !empty($found);
     }
@@ -712,7 +711,7 @@ class SignupsRepository {
             );
         }
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $found = $wpdb->get_var($sql);
         return !empty($found);
     }
@@ -755,7 +754,7 @@ class SignupsRepository {
             $start_time
         );
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $found = $wpdb->get_var($sql);
         return !empty($found);
     }
@@ -1053,7 +1052,7 @@ class SignupsRepository {
             $this->table, $slots, $sched, $chapels, $this->persons_table, $today, $exclude_person_id, $exclude_person_id, $limit
         );
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $rows = $wpdb->get_results($prepared, ARRAY_A);
         return is_array($rows) ? $rows : [];
     }
@@ -1106,7 +1105,7 @@ class SignupsRepository {
             LIMIT %d
         ", $this->table, $slots, $sched, $chapels, $this->persons_table, $person_id, $today, $limit);
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $rows = $wpdb->get_results($sql, ARRAY_A);
         return is_array($rows) ? $rows : [];
     }
@@ -1150,7 +1149,7 @@ class SignupsRepository {
             LIMIT %d
         ", $this->table, $slots, $sched, $chapels, $persons, $persons, $limit);
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $rows = $wpdb->get_results($sql, ARRAY_A);
         return is_array($rows) ? $rows : [];
     }
@@ -1192,7 +1191,7 @@ class SignupsRepository {
             LIMIT 1
         ", $this->table, $this->persons_table, $this->persons_table, $slots, $sched, $chapels, $signup_id);
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $row = $wpdb->get_row($sql, ARRAY_A);
         return is_array($row) ? $row : null;
     }
@@ -1714,7 +1713,7 @@ class SignupsRepository {
             $cutoff, $grace_minutes, $limit
         );
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $rows = $wpdb->get_results($prepared, ARRAY_A);
         return is_array($rows) ? $rows : [];
     }
@@ -1733,12 +1732,14 @@ class SignupsRepository {
         // number of signup IDs, so the arg list can't be individually enumerated.
         // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
         $placeholders = implode(',', array_fill(0, count($ids), '%d'));
+        // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Dynamic %d list and replacement list have the same validated ID count.
         $prepared = $wpdb->prepare(
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- Placeholder-only fragment matches the validated integer signup ID list.
             "UPDATE %i SET no_show_alert_sent_at = %s WHERE id IN ({$placeholders})",
             ...array_merge([$this->table, current_time('mysql')], $ids)
         );
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $wpdb->query($prepared);
     }
 
@@ -1793,7 +1794,7 @@ class SignupsRepository {
             $date_from, $date_to, $schedule_id, $schedule_id, $limit
         );
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $rows = $wpdb->get_results($prepared, ARRAY_A);
         return is_array($rows) ? $rows : [];
     }
@@ -1843,7 +1844,7 @@ class SignupsRepository {
             $chapel_id, $now, $now
         );
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $rows = $wpdb->get_results($prepared, ARRAY_A);
         return is_array($rows) ? $rows : [];
     }

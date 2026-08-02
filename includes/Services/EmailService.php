@@ -1,6 +1,8 @@
 <?php
 namespace AdorationScheduler\Services;
 
+// phpcs:disable WordPress.DB.DirectDatabaseQuery -- Delivery logging requires immediate, uncached persistence.
+
 if ( ! defined('ABSPATH') ) exit;
 
 /**

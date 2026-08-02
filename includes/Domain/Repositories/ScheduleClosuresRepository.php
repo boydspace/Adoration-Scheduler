@@ -1,6 +1,8 @@
 <?php
 namespace AdorationScheduler\Domain\Repositories;
 
+// phpcs:disable WordPress.DB.DirectDatabaseQuery -- Repository is the persistence boundary for schedule closures.
+
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 /**
@@ -64,7 +66,7 @@ class ScheduleClosuresRepository {
         if ($id <= 0) return null;
 
         $sql = $wpdb->prepare("SELECT * FROM %i WHERE id = %d LIMIT 1", $this->table, $id);
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $row = $wpdb->get_row($sql, ARRAY_A);
         return $row ? (array)$row : null;
     }
@@ -84,7 +86,7 @@ class ScheduleClosuresRepository {
             $schedule_id
         );
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (array) $wpdb->get_results($sql, ARRAY_A);
     }
 
@@ -109,7 +111,7 @@ class ScheduleClosuresRepository {
             $range_start
         );
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (array) $wpdb->get_results($sql, ARRAY_A);
     }
 

@@ -1,6 +1,8 @@
 <?php
 namespace AdorationScheduler\Admin\Pages;
 
+// phpcs:disable WordPress.DB.DirectDatabaseQuery -- Person detail reporting uses immediate read-only schedule and slot lookups.
+
 use AdorationScheduler\Domain\Repositories\PersonsRepository;
 use AdorationScheduler\Admin\Tables\PersonsListTable;
 use AdorationScheduler\Admin\Support\RowActionForm;
@@ -11,16 +13,15 @@ if ( ! defined('ABSPATH') ) exit;
 class PersonsPage {
 
     private function preserved_args_from_request(): array {
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Sanitized read-only list state used in navigation URLs.
         $out = [];
         $keys = ['s','paged','orderby','order'];
 
         foreach ($keys as $k) {
             if (!isset($_REQUEST[$k])) continue;
 
-            $v = $_REQUEST[$k];
-            if (is_array($v)) continue;
-
-            $v = wp_unslash($v);
+            if (is_array($_REQUEST[$k])) continue;
+            $v = sanitize_text_field(wp_unslash($_REQUEST[$k]));
 
             if ($k === 'paged') {
                 $v = (string) max(1, (int) $v);
@@ -33,6 +34,7 @@ class PersonsPage {
             if ($v !== '') $out[$k] = $v;
         }
 
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
         return $out;
     }
 
@@ -99,7 +101,7 @@ class PersonsPage {
             $person_id
         );
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- $sql is produced by $wpdb->prepare() immediately above, including the table identifier.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- $sql is produced by $wpdb->prepare() immediately above, including the table identifier.
         return (array)$wpdb->get_results($sql, ARRAY_A);
     }
 
@@ -221,15 +223,16 @@ class PersonsPage {
     }
 
     public function render(): void {
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only routing, filtering, and notices; mutations use nonce-verified handlers.
         if ( ! current_user_can('manage_options') ) {
             wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
         $repo = new PersonsRepository();
 
-        $page_slug = sanitize_key($_GET['page'] ?? 'adoration_scheduler_people');
-        $action    = sanitize_key($_GET['action'] ?? '');
-        $person_id = (int)($_GET['person_id'] ?? 0);
+        $page_slug = isset($_GET['page']) ? sanitize_key(wp_unslash($_GET['page'])) : 'adoration_scheduler_people';
+        $action = isset($_GET['action']) ? sanitize_key(wp_unslash($_GET['action'])) : '';
+        $person_id = isset($_GET['person_id']) ? absint(wp_unslash($_GET['person_id'])) : 0;
 
         /**
          * ✅ VIEW PAGE
@@ -507,7 +510,7 @@ class PersonsPage {
             }
         }
 
-        $search = sanitize_text_field($_GET['s'] ?? '');
+        $search = isset($_GET['s']) ? sanitize_text_field(wp_unslash($_GET['s'])) : '';
         $table  = new PersonsListTable($page_slug, $search);
 
         $table->process_bulk_action();
@@ -553,5 +556,6 @@ class PersonsPage {
             ?>
         </div>
         <?php
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
     }
 }

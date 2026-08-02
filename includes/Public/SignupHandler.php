@@ -1,6 +1,8 @@
 <?php
 namespace AdorationScheduler\Public;
 
+// phpcs:disable WordPress.DB.DirectDatabaseQuery -- Signup transaction handler requires immediate, uncached reads and writes.
+
 use AdorationScheduler\Domain\Repositories\SchedulesRepository;
 use AdorationScheduler\Domain\Repositories\SlotsRepository;
 use AdorationScheduler\Domain\Repositories\PersonsRepository;
@@ -580,7 +582,7 @@ class SignupHandler {
                 $update_fmt[] = '%d';
             }
 
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
             $updated = $wpdb->update(
                 $signups_table,
                 $update_data,
@@ -621,7 +623,7 @@ class SignupHandler {
                 $insert_fmt[] = '%d';
             }
 
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
             $insert_ok = $wpdb->insert($signups_table, $insert_data, $insert_fmt);
 
             if ($insert_ok === false) {

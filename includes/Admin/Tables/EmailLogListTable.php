@@ -47,8 +47,9 @@ class EmailLogListTable extends \WP_List_Table {
     }
 
     public function get_views(): array {
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only list filter.
         $base = remove_query_arg(['success','paged']);
-        $current = isset($_GET['success']) ? (string)$_GET['success'] : '';
+        $current = isset($_GET['success']) ? sanitize_text_field(wp_unslash($_GET['success'])) : '';
 
         $mk = function(string $label, string $val) use ($base, $current): string {
             $url = add_query_arg(['success' => $val], $base);
@@ -61,9 +62,11 @@ class EmailLogListTable extends \WP_List_Table {
             'sent'   => $mk(__('Sent', 'adoration-scheduler'), '1'),
             'failed' => $mk(__('Failed', 'adoration-scheduler'), '0'),
         ];
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
     }
 
     public function prepare_items(): void {
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only pagination, sorting, and filtering parameters.
         $per_page = $this->get_items_per_page('adoration_email_log_per_page', 20);
 
         $paged   = isset($_GET['paged']) ? max(1, (int)$_GET['paged']) : 1;
@@ -71,7 +74,7 @@ class EmailLogListTable extends \WP_List_Table {
         $order   = sanitize_key($_GET['order'] ?? 'DESC');
 
         $s = isset($_REQUEST['s']) ? sanitize_text_field(wp_unslash($_REQUEST['s'])) : '';
-        $success = isset($_GET['success']) ? (string)sanitize_text_field($_GET['success']) : '';
+        $success = isset($_GET['success']) ? sanitize_text_field(wp_unslash($_GET['success'])) : '';
 
         $res = $this->repo->query([
             's'        => $s,
@@ -89,6 +92,7 @@ class EmailLogListTable extends \WP_List_Table {
             'total_items' => $this->total_items,
             'per_page'    => $per_page,
         ]);
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
     }
 
     protected function column_success($item): string {

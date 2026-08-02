@@ -1,6 +1,9 @@
 <?php
 namespace AdorationScheduler\Core;
 
+// phpcs:disable WordPress.DB.DirectDatabaseQuery -- Installer owns schema creation/migrations; direct, uncached database operations are required here.
+// phpcs:disable PluginCheck.Security.DirectDB.UnescapedDBParameter -- Migration fragments are hardcoded and selected solely from schema introspection.
+
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
@@ -1053,7 +1056,7 @@ class Installer {
         $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
         if ($exists !== $table) return;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $cols = (array) $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM %i", $table), ARRAY_A);
         $have = [];
         foreach ($cols as $c) {
@@ -1082,8 +1085,8 @@ class Installer {
             // $alters is built entirely from hardcoded ADD COLUMN fragments
             // above, conditionally included based on schema introspection —
             // never raw user input; only the table name is parameterized.
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
             $wpdb->query($wpdb->prepare("ALTER TABLE %i " . implode(', ', $alters), $table));
         }
 
@@ -1113,7 +1116,7 @@ class Installer {
             $slug
         ));
         if ($id > 0) {
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
             $wpdb->update($chapels_table, ['is_active' => 1], ['id' => $id], ['%d'], ['%d']);
             return $id;
         }
@@ -1125,7 +1128,7 @@ class Installer {
             $name
         ));
         if ($id > 0) {
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
             $wpdb->update(
                 $chapels_table,
                 ['slug' => $slug, 'is_active' => 1],
@@ -1137,7 +1140,7 @@ class Installer {
         }
 
         // 3) Insert
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $ok = $wpdb->insert(
             $chapels_table,
             ['name' => $name, 'slug' => $slug, 'is_active' => 1],
@@ -1146,7 +1149,7 @@ class Installer {
 
         if (!$ok) {
             $fallback = 'main-chapel-' . wp_generate_password(6, false, false);
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
             $wpdb->insert(
                 $chapels_table,
                 ['name' => $name, 'slug' => $fallback, 'is_active' => 1],
@@ -1201,7 +1204,7 @@ class Installer {
         $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
         if ($exists !== $table) return;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $cols = (array) $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM %i", $table), ARRAY_A);
         $have = [];
         foreach ($cols as $c) {
@@ -1221,8 +1224,8 @@ class Installer {
             // $alters is built entirely from hardcoded ADD COLUMN fragments
             // above, conditionally included based on schema introspection —
             // never raw user input; only the table name is parameterized.
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
             $wpdb->query($wpdb->prepare("ALTER TABLE %i " . implode(', ', $alters), $table));
         }
 
@@ -1237,7 +1240,7 @@ class Installer {
         $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
         if ($exists !== $table) return;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $cols = (array) $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM %i", $table), ARRAY_A);
         $have = [];
         foreach ($cols as $c) {
@@ -1261,8 +1264,8 @@ class Installer {
             // $alters is built entirely from hardcoded ADD COLUMN fragments
             // above, conditionally included based on schema introspection —
             // never raw user input; only the table name is parameterized.
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
             $wpdb->query($wpdb->prepare("ALTER TABLE %i " . implode(', ', $alters), $table));
         }
 
@@ -1285,7 +1288,7 @@ class Installer {
         $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
         if ($exists !== $table) return;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $cols = (array) $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM %i", $table), ARRAY_A);
         $have = [];
         foreach ($cols as $c) {
@@ -1407,7 +1410,7 @@ class Installer {
         $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
         if ($exists !== $table) return;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $cols = (array) $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM %i", $table), ARRAY_A);
         $have = [];
         foreach ($cols as $c) {
@@ -1431,8 +1434,8 @@ class Installer {
             // $alters is built entirely from hardcoded ADD COLUMN fragments
             // above, conditionally included based on schema introspection —
             // never raw user input; only the table name is parameterized.
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
             $wpdb->query($wpdb->prepare("ALTER TABLE %i " . implode(', ', $alters), $table));
         }
 
@@ -1450,7 +1453,7 @@ class Installer {
         $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
         if ($exists !== $table) return;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $cols = (array) $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM %i", $table), ARRAY_A);
         $have = [];
         foreach ($cols as $c) {
@@ -1474,8 +1477,8 @@ class Installer {
             // $alters is built entirely from hardcoded ADD COLUMN fragments
             // above, conditionally included based on schema introspection —
             // never raw user input; only the table name is parameterized.
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
             $wpdb->query($wpdb->prepare("ALTER TABLE %i " . implode(', ', $alters), $table));
         }
     }
@@ -1486,7 +1489,7 @@ class Installer {
         $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
         if ($exists !== $table) return;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $cols = (array) $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM %i", $table), ARRAY_A);
         $have = [];
         foreach ($cols as $c) {
@@ -1513,8 +1516,8 @@ class Installer {
             // $alters is built entirely from hardcoded ADD COLUMN fragments
             // above, conditionally included based on schema introspection —
             // never raw user input; only the table name is parameterized.
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
             $wpdb->query($wpdb->prepare("ALTER TABLE %i " . implode(', ', $alters), $table));
         }
 
@@ -1548,7 +1551,7 @@ class Installer {
 
             $hash = hash_hmac('sha256', $tok, wp_salt('auth'));
 
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
             $wpdb->update(
                 $sessions_table,
                 ['session_token_hash' => $hash],
@@ -1565,7 +1568,7 @@ class Installer {
         $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
         if ($exists !== $table) return;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $cols = (array) $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM %i", $table), ARRAY_A);
         $have = [];
         foreach ($cols as $c) {
@@ -1658,8 +1661,8 @@ class Installer {
             // $alters is built entirely from hardcoded ADD COLUMN fragments
             // above, conditionally included based on schema introspection —
             // never raw user input; only the table name is parameterized.
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
             $wpdb->query($wpdb->prepare("ALTER TABLE %i " . implode(', ', $alters), $table));
         }
 
@@ -1684,7 +1687,7 @@ class Installer {
         $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
         if ($exists !== $table) return;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $cols = (array) $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM %i", $table), ARRAY_A);
         $have = [];
         foreach ($cols as $c) {
@@ -1738,8 +1741,8 @@ class Installer {
             // $alters is built entirely from hardcoded ADD COLUMN fragments
             // above, conditionally included based on schema introspection —
             // never raw user input; only the table name is parameterized.
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
             $wpdb->query($wpdb->prepare("ALTER TABLE %i " . implode(', ', $alters), $table));
         }
 
@@ -1760,7 +1763,7 @@ class Installer {
         $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
         if ($exists !== $table) return;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $cols = (array) $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM %i", $table), ARRAY_A);
         $have = [];
         foreach ($cols as $c) {
@@ -1779,8 +1782,8 @@ class Installer {
             // $alters is built entirely from hardcoded ADD COLUMN fragments
             // above, conditionally included based on schema introspection —
             // never raw user input; only the table name is parameterized.
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
             $wpdb->query($wpdb->prepare("ALTER TABLE %i " . implode(', ', $alters), $table));
         }
 
@@ -1801,7 +1804,7 @@ class Installer {
         $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
         if ($exists !== $table) return;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $cols = (array) $wpdb->get_results($wpdb->prepare("SHOW COLUMNS FROM %i", $table), ARRAY_A);
         $have = [];
         foreach ($cols as $c) {
@@ -1832,8 +1835,8 @@ class Installer {
             // $alters is built entirely from hardcoded ADD COLUMN fragments
             // above, conditionally included based on schema introspection —
             // never raw user input; only the table name is parameterized.
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
             $wpdb->query($wpdb->prepare("ALTER TABLE %i " . implode(', ', $alters), $table));
         }
 
@@ -1849,7 +1852,7 @@ class Installer {
             $ids = (array) $wpdb->get_col($wpdb->prepare("SELECT id FROM %i ORDER BY created_at DESC, id DESC", $table));
             $order = 0;
             foreach ($ids as $row_id) {
-                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
                 $wpdb->update($table, ['sort_order' => $order], ['id' => (int) $row_id], ['%d'], ['%d']);
                 $order += 10;
             }
@@ -1868,7 +1871,7 @@ class Installer {
         foreach ($blank_ids as $pid) {
             $pid = (int) $pid;
             $placeholder = "missing+{$pid}@invalid.local";
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
             $wpdb->update($persons_table, ['email' => $placeholder], ['id' => $pid], ['%s'], ['%d']);
         }
 
@@ -1892,7 +1895,7 @@ class Installer {
             $others  = array_map('intval', array_slice($ids, 1));
 
             foreach ($others as $dup_id) {
-                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
                 $wpdb->update($signups_table, ['person_id' => $keep_id], ['person_id' => $dup_id], ['%d'], ['%d']);
             }
 
@@ -1901,7 +1904,7 @@ class Installer {
                 if (strlen($new_email) > 190) {
                     $new_email = substr($email, 0, 180) . '+dup' . $dup_id;
                 }
-                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+                // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
                 $wpdb->update($persons_table, ['email' => $new_email], ['id' => $dup_id], ['%s'], ['%d']);
             }
         }
@@ -2068,7 +2071,7 @@ class Installer {
             return (string) DB_NAME;
         }
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $name = $wpdb->get_var("SELECT DATABASE()");
         return $name ? (string)$name : '';
     }

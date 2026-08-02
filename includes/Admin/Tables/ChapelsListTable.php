@@ -50,11 +50,12 @@ class ChapelsListTable extends \WP_List_Table {
     }
 
     public function prepare_items(): void {
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only sorting parameters do not change server state.
         $data = $this->repo->list_all();
 
         // Basic sorting in PHP
-        $orderby = isset($_GET['orderby']) ? sanitize_text_field((string)$_GET['orderby']) : 'name';
-        $order   = isset($_GET['order']) ? strtoupper(sanitize_text_field((string)$_GET['order'])) : 'ASC';
+        $orderby = isset($_GET['orderby']) ? sanitize_key(wp_unslash($_GET['orderby'])) : 'name';
+        $order = isset($_GET['order']) ? strtoupper(sanitize_key(wp_unslash($_GET['order']))) : 'ASC';
         $order   = in_array($order, ['ASC','DESC'], true) ? $order : 'ASC';
 
         usort($data, function($a, $b) use ($orderby, $order) {
@@ -84,6 +85,7 @@ class ChapelsListTable extends \WP_List_Table {
         ]);
 
         $this->_column_headers = [$this->get_columns(), [], $this->get_sortable_columns(), 'name'];
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
     }
 
     public function column_name($item): string {

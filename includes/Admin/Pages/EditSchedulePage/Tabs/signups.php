@@ -1,4 +1,6 @@
 <?php
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals -- View variables are scoped by the including controller method.
+// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Template reads sanitized view state; mutations use nonce-verified controller handlers.
 /**
  * Tab: Signups
  *
@@ -19,7 +21,7 @@ use AdorationScheduler\Admin\Ajax\AdminPersonSearchAjax;
 
 // Stable return URL (so admin-post actions can redirect cleanly)
 $page_slug   = sanitize_key($_GET['page'] ?? 'adoration_scheduler_schedules');
-$schedule_id = (int)($_GET['schedule_id'] ?? 0);
+$schedule_id = isset($_GET['schedule_id']) ? absint(wp_unslash($_GET['schedule_id'])) : 0;
 
 $return_url = add_query_arg([
     'page'        => $page_slug,

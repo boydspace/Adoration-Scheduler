@@ -1,6 +1,9 @@
 <?php
 namespace AdorationScheduler\Admin\Tables;
 
+// phpcs:disable WordPress.DB.DirectDatabaseQuery -- List filters and bulk actions require current signup and schedule data.
+// phpcs:disable PluginCheck.Security.DirectDB.UnescapedDBParameter -- Queries are prepared from placeholders and fixed allowlisted ordering.
+
 use AdorationScheduler\Admin\Support\RowActionForm;
 use AdorationScheduler\Utils\ClergyTitles;
 
@@ -187,10 +190,11 @@ class SignupsListTable extends \WP_List_Table {
      * Filters row (Status + Schedule dropdowns)
      */
     protected function extra_tablenav($which): void {
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only table filters do not change server state.
         if ($which !== 'top') return;
 
         $current_status     = isset($_REQUEST['status']) ? sanitize_key((string)wp_unslash($_REQUEST['status'])) : '';
-        $current_scheduleId = isset($_REQUEST['schedule_id']) ? (int)($_REQUEST['schedule_id']) : 0;
+        $current_scheduleId = isset($_REQUEST['schedule_id']) ? absint(wp_unslash($_REQUEST['schedule_id'])) : 0;
 
         $statuses = $this->get_distinct_statuses();
 
@@ -223,35 +227,39 @@ class SignupsListTable extends \WP_List_Table {
         submit_button(__('Filter', 'adoration-scheduler'), 'button', 'filter_action', false);
 
         echo '</div>';
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
     }
 
     public function prepare_items(): void {
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only pagination, sorting, and filtering; bulk mutations verify their nonce.
         $this->process_bulk_action();
 
         global $wpdb;
 
         $per_page = 25;
-        $paged    = max(1, (int)($_REQUEST['paged'] ?? 1));
+        $paged = isset($_REQUEST['paged']) ? max(1, absint(wp_unslash($_REQUEST['paged']))) : 1;
         $offset   = ($paged - 1) * $per_page;
 
-        $search = isset($_REQUEST['s']) ? trim((string)wp_unslash($_REQUEST['s'])) : '';
+        $search = isset($_REQUEST['s']) ? sanitize_text_field(wp_unslash($_REQUEST['s'])) : '';
 
         $filter_status     = isset($_REQUEST['status']) ? sanitize_key((string)wp_unslash($_REQUEST['status'])) : '';
-        $filter_scheduleId = isset($_REQUEST['schedule_id']) ? (int)($_REQUEST['schedule_id']) : 0;
+        $filter_scheduleId = isset($_REQUEST['schedule_id']) ? absint(wp_unslash($_REQUEST['schedule_id'])) : 0;
 
-        $orderby = isset($_REQUEST['orderby']) ? sanitize_key((string)$_REQUEST['orderby']) : 'created_at';
-        $order   = (isset($_REQUEST['order']) && strtoupper((string)$_REQUEST['order']) === 'ASC') ? 'ASC' : 'DESC';
+        $orderby = isset($_REQUEST['orderby']) ? sanitize_key(wp_unslash($_REQUEST['orderby'])) : 'created_at';
+        $order = isset($_REQUEST['order']) && strtoupper(sanitize_key(wp_unslash($_REQUEST['order']))) === 'ASC'
+            ? 'ASC'
+            : 'DESC';
 
         // map UI column => SQL
         $allowed_orderby = [
-            'created_at' => 'su.created_at',
-            'status'     => 'su.status',
-            'email'      => 'p.email',
+            'created_at' => 'created_at',
+            'status'     => 'status',
+            'email'      => 'email',
             'person'     => 'person_name',
-            'schedule'   => 'sc.name',
+            'schedule'   => 'schedule',
             'slot'       => 'slot_sort',
         ];
-        $order_by_sql = $allowed_orderby[$orderby] ?? 'su.created_at';
+        $order_by_sql = $allowed_orderby[$orderby] ?? 'created_at';
 
         $t_signups   = $wpdb->prefix . 'adoration_signups';
         $t_persons   = $wpdb->prefix . 'adoration_persons';
@@ -276,13 +284,11 @@ class SignupsListTable extends \WP_List_Table {
             $t_signups, $t_persons, $t_schedules,
             $search, $like, $like, $like, $like, $filter_status, $filter_status, $has_schedule_filter, $filter_scheduleId
         );
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $total = (int)$wpdb->get_var($count_prepared);
 
         // Items (slot_sort prefers start_at if exists; falls back to date+time)
-        // {$order_by_sql} is looked up from $allowed_orderby above and
-        // {$order} forced to ASC/DESC — neither is ever raw user input.
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        // Sorting uses an identifier placeholder and parameterized direction.
         $items_prepared = $wpdb->prepare(
             "
             SELECT
@@ -310,14 +316,17 @@ class SignupsListTable extends \WP_List_Table {
             WHERE (%s = '' OR (p.email LIKE %s OR p.first_name LIKE %s OR p.last_name LIKE %s OR sc.name LIKE %s))
               AND (%s = '' OR su.status = %s)
               AND (%d = 0 OR su.schedule_id = %d)
-            ORDER BY {$order_by_sql} {$order}
+            ORDER BY
+              CASE WHEN %s = 'ASC' THEN %i END ASC,
+              CASE WHEN %s = 'DESC' THEN %i END DESC
             LIMIT %d OFFSET %d
         ",
             $t_signups, $t_persons, $t_schedules, $t_slots,
             $search, $like, $like, $like, $like, $filter_status, $filter_status, $has_schedule_filter, $filter_scheduleId,
+            $order, $order_by_sql, $order, $order_by_sql,
             $per_page, $offset
         );
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $rows = (array)$wpdb->get_results($items_prepared, ARRAY_A);
 
         $this->items = $rows;
@@ -329,6 +338,7 @@ class SignupsListTable extends \WP_List_Table {
         ]);
 
         $this->_column_headers = [$this->get_columns(), [], $this->get_sortable_columns()];
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
     }
 
     public function process_bulk_action(): void {
@@ -339,12 +349,14 @@ class SignupsListTable extends \WP_List_Table {
             return;
         }
 
-        $ids = $_REQUEST['signup_ids'] ?? [];
+        $ids = isset($_REQUEST['signup_ids'])
+            ? array_map('sanitize_text_field', (array) wp_unslash($_REQUEST['signup_ids']))
+            : [];
         if (!is_array($ids) || empty($ids)) {
             $this->redirect_with_toast(__('No signups selected.', 'adoration-scheduler'), 'error');
         }
 
-        $signup_ids = array_values(array_filter(array_map('intval', $ids)));
+        $signup_ids = array_values(array_filter(array_map('absint', $ids)));
         if (empty($signup_ids)) {
             $this->redirect_with_toast(__('No signups selected.', 'adoration-scheduler'), 'error');
         }
@@ -430,11 +442,13 @@ class SignupsListTable extends \WP_List_Table {
         ];
 
         $preserve = ['s','orderby','order','status','schedule_id','paged'];
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Preserves sanitized view state after a nonce-verified bulk action.
         foreach ($preserve as $k) {
-            if (isset($_REQUEST[$k]) && $_REQUEST[$k] !== '') {
-                $args[$k] = (string)wp_unslash($_REQUEST[$k]);
-            }
+            if (!isset($_REQUEST[$k])) continue;
+            $value = sanitize_text_field(wp_unslash($_REQUEST[$k]));
+            if ($value !== '') $args[$k] = $value;
         }
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
 
         wp_safe_redirect(add_query_arg($args, admin_url('admin.php')));
         exit;

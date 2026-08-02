@@ -13,6 +13,7 @@ class PeopleImportExportPage {
             wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
 
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only server-side preview token; import submission has its own nonce.
         $preview_token = isset($_GET['preview_token']) ? sanitize_text_field(wp_unslash((string)$_GET['preview_token'])) : '';
         $preview_rows = $preview_token !== '' ? PeopleImportExportService::get_preview($preview_token) : null;
         ?>

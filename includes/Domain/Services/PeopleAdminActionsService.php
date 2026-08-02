@@ -165,7 +165,7 @@ class PeopleAdminActionsService {
         // phpcs:ignore WordPress.Security.NonceVerification.Missing -- only builds the error-redirect target; check_admin_referer() below gates the actual delete_person() call.
         $redirect = self::base_people_url($page_slug, $_POST);
 
-        $pid = (int) wp_unslash($_POST['person_id'] ?? 0);
+        $pid = isset($_POST['person_id']) ? absint(wp_unslash($_POST['person_id'])) : 0;
         if ($pid <= 0) {
             $u = add_query_arg(['person_delete_error' => 'invalid'], $redirect);
             $u = self::with_toast($u, self::toast_msg_delete_error('invalid'), 'error', true);
@@ -220,11 +220,11 @@ class PeopleAdminActionsService {
 
         $page_slug = sanitize_key((string) wp_unslash($_POST['page'] ?? 'adoration_scheduler_people'));
 
-        $person_id = (int) wp_unslash($_POST['person_id'] ?? 0);
+        $person_id = isset($_POST['person_id']) ? absint(wp_unslash($_POST['person_id'])) : 0;
 
         $first     = sanitize_text_field((string) wp_unslash($_POST['first_name'] ?? ''));
         $last      = sanitize_text_field((string) wp_unslash($_POST['last_name'] ?? ''));
-        $email_raw = (string) wp_unslash($_POST['email'] ?? '');
+        $email_raw = isset($_POST['email']) ? sanitize_text_field(wp_unslash($_POST['email'])) : '';
         $email     = sanitize_email($email_raw);
 
         $phone_raw = sanitize_text_field((string) wp_unslash($_POST['phone'] ?? ''));
@@ -351,7 +351,7 @@ class PeopleAdminActionsService {
         // phpcs:ignore WordPress.Security.NonceVerification.Missing -- only builds the error-redirect target; check_admin_referer() below gates the actual set_approval_status() call.
         $redirect  = self::base_people_url($page_slug, $_POST);
 
-        $pid    = (int) wp_unslash($_POST['person_id'] ?? 0);
+        $pid = isset($_POST['person_id']) ? absint(wp_unslash($_POST['person_id'])) : 0;
         $status = sanitize_key((string) wp_unslash($_POST['approval_status'] ?? ''));
 
         if ($pid <= 0 || ! in_array($status, [

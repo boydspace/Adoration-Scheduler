@@ -49,9 +49,11 @@ abstract class AbstractEmailTemplatesTab {
         // 1) querystring ?test_to=... (after redirect)
         // 2) current user email
         $prefill = '';
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only recipient preserved after a nonce-verified test action.
         if (isset($_GET['test_to'])) {
-            $prefill = sanitize_email((string) $_GET['test_to']);
+            $prefill = sanitize_email(wp_unslash($_GET['test_to']));
         }
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
         if ($prefill === '' || !is_email($prefill)) {
             $user = wp_get_current_user();
             $prefill = isset($user->user_email) ? (string)$user->user_email : '';

@@ -64,7 +64,7 @@ class PagesShortcodesPage
 
         // ---- 2) Pull every published page's content once -------------------
         global $wpdb;
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $pages = (array) $wpdb->get_results(
             "SELECT ID, post_title, post_name, post_content, post_status
              FROM {$wpdb->posts}

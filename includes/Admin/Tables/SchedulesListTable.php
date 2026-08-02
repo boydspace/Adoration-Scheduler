@@ -193,7 +193,7 @@ class SchedulesListTable extends \WP_List_Table {
         $table = trim($table);
         if ($table === '') return false;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $like = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
         return !empty($like);
     }
@@ -226,13 +226,13 @@ class SchedulesListTable extends \WP_List_Table {
         foreach (['signups','slots','segments','date_patterns'] as $key) {
             $t = $tables[$key];
             if (!$this->table_exists($t)) continue;
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
             $wpdb->delete($t, ['schedule_id' => $schedule_id], ['%d']);
         }
 
         // Finally delete schedule itself.
         if ($this->table_exists($wpdb->prefix . 'adoration_schedules')) {
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
             $deleted = $wpdb->delete($wpdb->prefix . 'adoration_schedules', ['id' => $schedule_id], ['%d']);
             return ($deleted !== false && $deleted > 0);
         }
@@ -271,7 +271,7 @@ class SchedulesListTable extends \WP_List_Table {
                     global $wpdb;
                     $table = $wpdb->prefix . 'adoration_schedules';
                     if ($this->table_exists($table)) {
-                        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+                        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
                         $r = $wpdb->update($table, ['status' => 'trash'], ['id' => (int)$id], ['%s'], ['%d']);
                         $ok = ($r !== false);
                     }
@@ -316,8 +316,9 @@ class SchedulesListTable extends \WP_List_Table {
 
         $args = [];
         foreach ($preserve as $k) {
-            if (!isset($_REQUEST[$k]) || $_REQUEST[$k] === '') continue;
-            $v = wp_unslash($_REQUEST[$k]);
+            if (!isset($_REQUEST[$k])) continue;
+            $v = sanitize_text_field(wp_unslash($_REQUEST[$k]));
+            if ($v === '') continue;
 
             if (in_array($k, ['status','orderby','order'], true)) {
                 $v = sanitize_key($v);
@@ -374,20 +375,21 @@ class SchedulesListTable extends \WP_List_Table {
     }
 
     protected function extra_tablenav($which): void {
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only table filters do not change server state.
         if ($which !== 'top') return;
 
-        $start_from = sanitize_text_field($_GET['start_from'] ?? '');
-        $start_to   = sanitize_text_field($_GET['start_to'] ?? '');
-        $end_from   = sanitize_text_field($_GET['end_from'] ?? '');
-        $end_to     = sanitize_text_field($_GET['end_to'] ?? '');
+        $start_from = isset($_GET['start_from']) ? sanitize_text_field(wp_unslash($_GET['start_from'])) : '';
+        $start_to = isset($_GET['start_to']) ? sanitize_text_field(wp_unslash($_GET['start_to'])) : '';
+        $end_from = isset($_GET['end_from']) ? sanitize_text_field(wp_unslash($_GET['end_from'])) : '';
+        $end_to = isset($_GET['end_to']) ? sanitize_text_field(wp_unslash($_GET['end_to'])) : '';
 
         $base_url = admin_url('admin.php?page=adoration_scheduler_schedules');
 
         $reset_args = [];
-        if (!empty($_GET['status']))  $reset_args['status']  = sanitize_key($_GET['status']);
+        if (!empty($_GET['status']))  $reset_args['status']  = sanitize_key(wp_unslash($_GET['status']));
         if (!empty($_GET['s']))       $reset_args['s']       = sanitize_text_field(wp_unslash($_GET['s']));
-        if (!empty($_GET['orderby'])) $reset_args['orderby'] = sanitize_key($_GET['orderby']);
-        if (!empty($_GET['order']))   $reset_args['order']   = sanitize_key($_GET['order']);
+        if (!empty($_GET['orderby'])) $reset_args['orderby'] = sanitize_key(wp_unslash($_GET['orderby']));
+        if (!empty($_GET['order']))   $reset_args['order']   = sanitize_key(wp_unslash($_GET['order']));
 
         $reset_url = add_query_arg($reset_args, $base_url);
 
@@ -458,29 +460,31 @@ class SchedulesListTable extends \WP_List_Table {
         })();
         </script>
         <?php
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
     }
 
     public function prepare_items(): void {
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only pagination, sorting, and filtering parameters.
         // NOTE: If your page wants bulk actions to redirect reliably,
         // call $table->process_bulk_action() BEFORE any HTML output.
 
         $per_page = 20;
-        $paged    = max(1, (int)($_GET['paged'] ?? 1));
+        $paged = isset($_GET['paged']) ? max(1, absint(wp_unslash($_GET['paged']))) : 1;
 
         $search = isset($_REQUEST['s'])
             ? sanitize_text_field(wp_unslash($_REQUEST['s']))
             : '';
 
-        $orderby = sanitize_key($_GET['orderby'] ?? 'created_at');
-        $order   = strtoupper(sanitize_key($_GET['order'] ?? 'DESC'));
+        $orderby = isset($_GET['orderby']) ? sanitize_key(wp_unslash($_GET['orderby'])) : 'created_at';
+        $order = isset($_GET['order']) ? strtoupper(sanitize_key(wp_unslash($_GET['order']))) : 'DESC';
         $order   = in_array($order, ['ASC', 'DESC'], true) ? $order : 'DESC';
 
         $status_filter = $this->get_current_status();
 
-        $start_from = sanitize_text_field($_GET['start_from'] ?? '');
-        $start_to   = sanitize_text_field($_GET['start_to'] ?? '');
-        $end_from   = sanitize_text_field($_GET['end_from'] ?? '');
-        $end_to     = sanitize_text_field($_GET['end_to'] ?? '');
+        $start_from = isset($_GET['start_from']) ? sanitize_text_field(wp_unslash($_GET['start_from'])) : '';
+        $start_to = isset($_GET['start_to']) ? sanitize_text_field(wp_unslash($_GET['start_to'])) : '';
+        $end_from = isset($_GET['end_from']) ? sanitize_text_field(wp_unslash($_GET['end_from'])) : '';
+        $end_to = isset($_GET['end_to']) ? sanitize_text_field(wp_unslash($_GET['end_to'])) : '';
 
         $repo_status = '';
         if ($status_filter === 'trash') {
@@ -512,10 +516,13 @@ class SchedulesListTable extends \WP_List_Table {
         ]);
 
         $this->_column_headers = [$this->get_columns(), [], $this->get_sortable_columns()];
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
     }
 
     private function get_current_status(): string {
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only list filter.
         $status = sanitize_key($_REQUEST['status'] ?? 'all');
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
         return in_array($status, ['all', 'trash'], true) ? $status : 'all';
     }
 }

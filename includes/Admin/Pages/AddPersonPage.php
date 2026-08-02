@@ -8,16 +8,16 @@ if ( ! defined('ABSPATH') ) exit;
 class AddPersonPage {
 
     private function preserved_args_from_request(): array {
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Sanitized read-only list state used in navigation URLs.
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Sanitized read-only list state used in navigation URLs.
         $out = [];
         $keys = ['s','paged','orderby','order'];
 
         foreach ($keys as $k) {
             if (!isset($_REQUEST[$k])) continue;
 
-            $v = $_REQUEST[$k];
-            if (is_array($v)) continue;
-
-            $v = wp_unslash($v);
+            if (is_array($_REQUEST[$k])) continue;
+            $v = sanitize_text_field(wp_unslash($_REQUEST[$k]));
 
             if ($k === 'paged') {
                 $v = (string) max(1, (int) $v);
@@ -30,10 +30,14 @@ class AddPersonPage {
             if ($v !== '') $out[$k] = $v;
         }
 
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
         return $out;
     }
 
     public function render(): void {
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only routing and post-redirect error notice.
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only routing and post-redirect error notice.
         if ( ! current_user_can('manage_options') ) {
             wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
@@ -216,5 +220,7 @@ class AddPersonPage {
         })();
         </script>
         <?php
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
     }
 }

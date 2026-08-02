@@ -1,6 +1,9 @@
 <?php
 namespace AdorationScheduler\Services;
 
+// phpcs:disable WordPress.DB.DirectDatabaseQuery -- Expired authentication cleanup is an uncached persistence operation.
+// phpcs:disable PluginCheck.Security.DirectDB.UnescapedDBParameter -- Cleanup fragments are private hardcoded SQL and values are prepared.
+
 if (!defined('ABSPATH')) exit;
 
 /**
@@ -301,10 +304,10 @@ class AuthCleanupService
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $sql = "DELETE FROM %i WHERE {$where_sql} LIMIT " . (int)$batch_limit;
 
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- $sql contains a private, hardcoded WHERE fragment; all identifiers and values are supplied as placeholders.
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- $sql contains a private, hardcoded WHERE fragment; all identifiers and values are supplied as placeholders.
             $prepared = $wpdb->prepare($sql, ...array_merge([$table], $where_params));
 
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- $prepared is produced by $wpdb->prepare() immediately above.
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- $prepared is produced by $wpdb->prepare() immediately above.
             $deleted = $wpdb->query($prepared);
 
             if ($deleted === false) {

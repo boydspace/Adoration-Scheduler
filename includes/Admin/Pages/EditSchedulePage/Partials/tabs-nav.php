@@ -1,4 +1,5 @@
 <?php
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals -- View variables are scoped by the including controller method.
 /**
  * Tabs nav partial for EditSchedulePage
  *

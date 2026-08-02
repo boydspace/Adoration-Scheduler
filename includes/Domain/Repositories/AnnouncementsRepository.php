@@ -1,6 +1,8 @@
 <?php
 namespace AdorationScheduler\Domain\Repositories;
 
+// phpcs:disable WordPress.DB.DirectDatabaseQuery -- Repository is the persistence boundary for announcement records.
+
 if ( ! defined('ABSPATH') ) exit;
 
 /**

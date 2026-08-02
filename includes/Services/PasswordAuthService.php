@@ -1,6 +1,8 @@
 <?php
 namespace AdorationScheduler\Services;
 
+// phpcs:disable WordPress.DB.DirectDatabaseQuery -- Password authentication state requires immediate, uncached persistence.
+
 if ( ! defined('ABSPATH') ) {
     exit;
 }

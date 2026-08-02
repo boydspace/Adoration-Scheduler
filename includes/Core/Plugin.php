@@ -473,6 +473,7 @@ class Plugin {
 
                 delete_option('adoration_scheduler_show_setup_wizard');
 
+                // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only routing check for the one-time onboarding redirect.
                 $page = sanitize_key($_GET['page'] ?? '');
                 if ($page === 'adoration_scheduler_setup_wizard') return; // already there
 
@@ -527,7 +528,7 @@ class Plugin {
              * EARLY BULK ACTIONS HANDLER: SCHEDULES
              * (Uses granular cap + fallback instead of manage_options)
              */
-            // phpcs:disable WordPress.Security.NonceVerification.Missing -- these reads only decide whether to delegate to SchedulesListTable::process_bulk_action(), which itself calls check_admin_referer() before any mutation.
+            // phpcs:disable WordPress.Security.NonceVerification.Missing,WordPress.Security.NonceVerification.Recommended -- Delegates only to the nonce-verified bulk handler.
             add_action('admin_init', function () use ($includes_dir) {
 
                 if ( ! Plugin::current_user_can_with_fallback(Plugin::CAP_MANAGE_SCHEDULES) ) return;
@@ -561,14 +562,14 @@ class Plugin {
                 }
 
             }, 0);
-            // phpcs:enable WordPress.Security.NonceVerification.Missing
+            // phpcs:enable WordPress.Security.NonceVerification.Missing,WordPress.Security.NonceVerification.Recommended
 
             /**
              * EARLY BULK ACTIONS HANDLER: PEOPLE
              * Note: You don’t yet have a dedicated "manage_people" cap; using manage_signups is a safe operational stand-in.
              * (Still falls back to manage_options.)
              */
-            // phpcs:disable WordPress.Security.NonceVerification.Missing -- these reads only decide whether to delegate to PersonsListTable::process_bulk_action(), which itself calls check_admin_referer() before any mutation.
+            // phpcs:disable WordPress.Security.NonceVerification.Missing,WordPress.Security.NonceVerification.Recommended -- Delegates only to the nonce-verified bulk handler.
             add_action('admin_init', function () use ($includes_dir) {
 
                 if ( ! Plugin::current_user_can_with_fallback(Plugin::CAP_MANAGE_SIGNUPS) ) return;
@@ -596,13 +597,13 @@ class Plugin {
                 if (is_file($table_path)) require_once $table_path;
 
                 if (class_exists('\\AdorationScheduler\\Admin\\Tables\\PersonsListTable')) {
-                    $search = sanitize_text_field($_REQUEST['s'] ?? '');
+        $search = isset($_REQUEST['s']) ? sanitize_text_field(wp_unslash($_REQUEST['s'])) : '';
                     $table  = new \AdorationScheduler\Admin\Tables\PersonsListTable('adoration_scheduler_people', $search);
                     $table->process_bulk_action();
                 }
 
             }, 0);
-            // phpcs:enable WordPress.Security.NonceVerification.Missing
+            // phpcs:enable WordPress.Security.NonceVerification.Missing,WordPress.Security.NonceVerification.Recommended
 
             /**
              * EARLY BULK ACTIONS HANDLER: SIGNUPS
@@ -619,7 +620,7 @@ class Plugin {
              * SCHEDULES and PEOPLE handlers directly above: process the
              * bulk action here, on admin_init, before any output starts.
              */
-            // phpcs:disable WordPress.Security.NonceVerification.Missing -- these reads only decide whether to delegate to SignupsListTable::process_bulk_action(), which itself calls check_admin_referer() before any mutation.
+            // phpcs:disable WordPress.Security.NonceVerification.Missing,WordPress.Security.NonceVerification.Recommended -- Delegates only to the nonce-verified bulk handler.
             add_action('admin_init', function () use ($includes_dir) {
 
                 if ( ! Plugin::current_user_can_with_fallback(Plugin::CAP_MANAGE_SIGNUPS) ) return;
@@ -652,7 +653,7 @@ class Plugin {
                 }
 
             }, 0);
-            // phpcs:enable WordPress.Security.NonceVerification.Missing
+            // phpcs:enable WordPress.Security.NonceVerification.Missing,WordPress.Security.NonceVerification.Recommended
 
             // Admin signup row actions (cancel/delete)
             self::require_first_existing($includes_dir, [

@@ -19,7 +19,8 @@ class MagicLinkTab {
     public function render(string $tab_key): void {
 
         // Pre-fill test recipient from redirect (EmailTemplatesPage adds ?test_to=...)
-        $test_to = isset($_GET['test_to']) ? sanitize_email((string)$_GET['test_to']) : '';
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only recipient preserved after a nonce-verified test action.
+        $test_to = isset($_GET['test_to']) ? sanitize_email(wp_unslash($_GET['test_to'])) : '';
         if ($test_to === '') {
             $test_to = (string) (wp_get_current_user()->user_email ?? '');
         }

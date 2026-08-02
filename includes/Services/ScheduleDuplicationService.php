@@ -1,6 +1,9 @@
 <?php
 namespace AdorationScheduler\Services;
 
+// phpcs:disable WordPress.DB.DirectDatabaseQuery -- Schedule duplication coordinates multiple immediate persistence writes.
+// phpcs:disable PluginCheck.Security.DirectDB.UnescapedDBParameter -- Dynamic copy SQL contains placeholders only and all arguments are prepared.
+
 if ( ! defined('ABSPATH') ) exit;
 
 use AdorationScheduler\Domain\Repositories\SchedulesRepository;
@@ -205,7 +208,7 @@ class ScheduleDuplicationService {
                 [$table, 'schedule_id', $from_id]
             );
 
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- the dynamic string contains placeholders only; every value and identifier is supplied to prepare().
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- the dynamic string contains placeholders only; every value and identifier is supplied to prepare().
             $wpdb->query($wpdb->prepare($sql, ...$args));
         }
     }
@@ -344,7 +347,7 @@ class ScheduleDuplicationService {
         $table = trim($table);
         if ($table === '') return false;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $exists = $wpdb->get_var($wpdb->prepare("SHOW TABLES LIKE %s", $table));
         return !empty($exists);
     }

@@ -201,7 +201,7 @@ class SchedulesPage {
      * - Only run on POST with schedule_ids[] present.
      * - Only run on our schedules admin page.
      */
-    // phpcs:disable WordPress.Security.NonceVerification.Missing -- these reads only decide whether to delegate to SchedulesListTable::process_bulk_action(), which itself calls check_admin_referer('bulk-schedules') before any mutation.
+    // phpcs:disable WordPress.Security.NonceVerification.Missing,WordPress.Security.NonceVerification.Recommended -- Delegates only to the nonce-verified bulk handler.
     public static function handle_bulk_actions_early(): void {
 
         if ( ! is_admin() ) return;
@@ -240,7 +240,7 @@ class SchedulesPage {
         $table = new SchedulesListTable();
         $table->process_bulk_action(); // includes nonce check + redirect + exit
     }
-    // phpcs:enable WordPress.Security.NonceVerification.Missing
+    // phpcs:enable WordPress.Security.NonceVerification.Missing,WordPress.Security.NonceVerification.Recommended
 
     // phpcs:disable WordPress.Security.NonceVerification.Recommended -- entire method is a read-only admin view; every $_GET read here only selects which notice/tab to display after a prior nonce-verified redirect, nothing mutates.
     public function render(): void {

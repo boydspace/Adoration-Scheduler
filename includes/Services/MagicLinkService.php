@@ -1,6 +1,8 @@
 <?php
 namespace AdorationScheduler\Services;
 
+// phpcs:disable WordPress.DB.DirectDatabaseQuery -- Authentication tokens require immediate, uncached persistence.
+
 if ( ! defined('ABSPATH') ) {
     exit;
 }
@@ -282,7 +284,7 @@ class MagicLinkService
         // Insert magic link row (retry on rare selector collision)
         $ok = false;
         for ($i = 0; $i < 5; $i++) {
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
             $ok = $wpdb->insert($magic, [
                 'person_id'   => $person_id,
                 'selector'    => $selector,
@@ -502,7 +504,7 @@ class MagicLinkService
         // Insert session (retry on rare UNIQUE collision)
         $ok = false;
         for ($i = 0; $i < 5; $i++) {
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
             $ok = $wpdb->insert($sessions, [
                 'person_id'          => $person_id,
                 'session_hash'       => $session_hash,
@@ -606,10 +608,10 @@ class MagicLinkService
         $sessions = $wpdb->prefix . 'adoration_sessions';
         $links    = $wpdb->prefix . 'adoration_magic_links';
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $wpdb->delete($sessions, ['person_id' => $person_id], ['%d']);
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $wpdb->delete($links, ['person_id' => $person_id], ['%d']);
 
         self::clear_session_cookie();

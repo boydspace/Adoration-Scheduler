@@ -1,6 +1,9 @@
 <?php
 namespace AdorationScheduler\Domain\Repositories;
 
+// phpcs:disable WordPress.DB.DirectDatabaseQuery -- Repository is the persistence boundary; schedule state must reflect current data.
+// phpcs:disable PluginCheck.Security.DirectDB.UnescapedDBParameter -- Queries are prepared from placeholders and fixed allowlisted ordering.
+
 use AdorationScheduler\Domain\Repositories\ChapelsRepository;
 
 if ( ! defined( 'ABSPATH' ) ) exit;
@@ -59,8 +62,8 @@ class SchedulesRepository {
                 $this->table,
                 $limit
             );
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
             return (array) $wpdb->get_results( $sql, ARRAY_A );
         }
 
@@ -70,8 +73,8 @@ class SchedulesRepository {
             self::STATUS_TRASH,
             $limit
         );
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (array) $wpdb->get_results( $sql, ARRAY_A );
     }
 
@@ -96,8 +99,8 @@ class SchedulesRepository {
             $chapels
         );
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (array) $wpdb->get_results( $sql, ARRAY_A );
     }
 
@@ -114,8 +117,8 @@ class SchedulesRepository {
             'perpetual',
             'active'
         );
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (array) $wpdb->get_results( $sql, ARRAY_A );
     }
 
@@ -132,8 +135,8 @@ class SchedulesRepository {
             'monthly',
             'active'
         );
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (array) $wpdb->get_results( $sql, ARRAY_A );
     }
 
@@ -165,8 +168,8 @@ class SchedulesRepository {
             );
         }
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $row = $wpdb->get_row( $sql, ARRAY_A );
         return $row ?: null;
     }
@@ -224,8 +227,8 @@ class SchedulesRepository {
             );
         }
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $row = $wpdb->get_row( $sql, ARRAY_A );
         return $row ?: null;
     }
@@ -265,7 +268,7 @@ class SchedulesRepository {
             'settings_json'        => isset($data['settings_json']) ? (string)$data['settings_json'] : null,
         ];
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $ok = $wpdb->insert( $this->table, $insert );
         return $ok ? (int) $wpdb->insert_id : 0;
     }
@@ -283,8 +286,8 @@ class SchedulesRepository {
             $slug,
             self::STATUS_TRASH
         );
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (int) $wpdb->get_var( $sql ) > 0;
     }
 
@@ -305,8 +308,8 @@ class SchedulesRepository {
             self::STATUS_TRASH
         );
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (int) $wpdb->get_var( $sql ) > 0;
     }
 
@@ -393,7 +396,7 @@ class SchedulesRepository {
             $update['default_max_adorers'] = null; // let wpdb store NULL
         }
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $result = $wpdb->update(
             $this->table,
             $update,
@@ -420,8 +423,8 @@ class SchedulesRepository {
             $schedule_id
         );
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (int)$wpdb->get_var($sql);
     }
 
@@ -455,7 +458,7 @@ class SchedulesRepository {
     public function soft_delete(int $id): bool {
         global $wpdb;
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $result = $wpdb->update(
             $this->table,
             [ 'status' => self::STATUS_TRASH ],
@@ -478,7 +481,7 @@ class SchedulesRepository {
             $status = 'draft';
         }
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $result = $wpdb->update(
             $this->table,
             [ 'status' => $status ],
@@ -517,7 +520,7 @@ class SchedulesRepository {
         }
 
         // Finally delete schedule row
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $deleted = $wpdb->delete(
             $this->table,
             [ 'id' => (int)$id ],
@@ -548,22 +551,22 @@ class SchedulesRepository {
         $t_dates   = $wpdb->prefix . 'adoration_date_patterns';
 
         // 1) Signups
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $r1 = $wpdb->delete($t_signups, [ 'schedule_id' => $schedule_id ], [ '%d' ]);
         if ($r1 === false) return false;
 
         // 2) Slots
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $r2 = $wpdb->delete($t_slots, [ 'schedule_id' => $schedule_id ], [ '%d' ]);
         if ($r2 === false) return false;
 
         // 3) Segments
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $r3 = $wpdb->delete($t_segs, [ 'schedule_id' => $schedule_id ], [ '%d' ]);
         if ($r3 === false) return false;
 
         // 4) Date patterns
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $r4 = $wpdb->delete($t_dates, [ 'schedule_id' => $schedule_id ], [ '%d' ]);
         if ($r4 === false) return false;
 
@@ -640,12 +643,10 @@ class SchedulesRepository {
             $end_from, $end_from,
             $end_to, $end_to
         );
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $total = (int)$wpdb->get_var($count_prepared);
 
-        // $orderby is looked up from $allowed_orderby and $order forced to
-        // ASC/DESC — neither is ever raw user input.
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+        // Sorting uses an identifier placeholder and parameterized direction.
         $items_prepared = $wpdb->prepare(
             "SELECT * FROM %i
                        WHERE ( (%s <> '' AND status = %s) OR (%s = '' AND status <> %s) )
@@ -654,7 +655,10 @@ class SchedulesRepository {
                          AND (%s = '' OR start_date <= %s)
                          AND (%s = '' OR end_date >= %s)
                          AND (%s = '' OR end_date <= %s)
-                       ORDER BY {$orderby} {$order} LIMIT %d OFFSET %d",
+                       ORDER BY
+                         CASE WHEN %s = 'ASC' THEN %i END ASC,
+                         CASE WHEN %s = 'DESC' THEN %i END DESC
+                       LIMIT %d OFFSET %d",
             $this->table,
             $status, $status, $status, self::STATUS_TRASH,
             $search, $like, $like,
@@ -662,10 +666,11 @@ class SchedulesRepository {
             $start_to, $start_to,
             $end_from, $end_from,
             $end_to, $end_to,
+            $order, $orderby, $order, $orderby,
             $per_page, $offset
         );
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $items = (array)$wpdb->get_results($items_prepared, ARRAY_A);
 
         return [
@@ -732,7 +737,7 @@ class SchedulesRepository {
             return false;
         }
 
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $result = $wpdb->update(
             $this->table,
             [ 'settings_json' => $json ],

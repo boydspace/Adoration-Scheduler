@@ -253,7 +253,7 @@ class SmsSettingsPage {
 
         check_admin_referer('adoration_scheduler_sms_test');
 
-        $raw_phone = (string)($_POST['test_phone'] ?? '');
+        $raw_phone = isset($_POST['test_phone']) ? sanitize_text_field(wp_unslash($_POST['test_phone'])) : '';
         $to_e164   = PhoneNumberFormatter::to_e164($raw_phone);
 
         $result = $to_e164 !== null
@@ -271,6 +271,7 @@ class SmsSettingsPage {
     }
 
     public static function render(): void {
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only post-redirect notices; settings and test actions verify nonces.
         if (!current_user_can('manage_options')) {
             wp_die(esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403);
         }
@@ -286,8 +287,9 @@ class SmsSettingsPage {
             <?php endif; ?>
 
             <?php if (isset($_GET['sms_test'])):
-                $sent  = ((string)$_GET['sms_test'] === 'sent');
-                $err   = isset($_GET['sms_err']) ? sanitize_text_field(rawurldecode((string)$_GET['sms_err'])) : '';
+                $sent = sanitize_text_field(wp_unslash($_GET['sms_test'])) === 'sent';
+                $encoded_error = isset($_GET['sms_err']) ? sanitize_text_field(wp_unslash($_GET['sms_err'])) : '';
+                $err = sanitize_text_field(rawurldecode($encoded_error));
                 $class = $sent ? 'notice-success' : 'notice-error';
                 $msg   = $sent ? __('Test text sent.', 'adoration-scheduler') : (__('Test text failed: ', 'adoration-scheduler') . $err);
                 ?>
@@ -313,5 +315,6 @@ class SmsSettingsPage {
             </form>
         </div>
         <?php
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
     }
 }

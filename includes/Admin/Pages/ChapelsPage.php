@@ -1,6 +1,8 @@
 <?php
 namespace AdorationScheduler\Admin\Pages;
 
+// phpcs:disable WordPress.DB.DirectDatabaseQuery -- Chapel administration includes coordinated reassignment and schema-existence checks.
+
 if ( ! defined('ABSPATH') ) exit;
 
 use AdorationScheduler\Domain\Repositories\ChapelsRepository;
@@ -36,9 +38,9 @@ class ChapelsPage {
         if (isset($_POST['adoration_save_chapel'])) {
             check_admin_referer('adoration_save_chapel');
 
-            $id        = isset($_POST['id']) ? (int)$_POST['id'] : 0;
-            $name      = isset($_POST['name']) ? sanitize_text_field((string)$_POST['name']) : '';
-            $slug      = isset($_POST['slug']) ? sanitize_text_field((string)$_POST['slug']) : '';
+            $id = isset($_POST['id']) ? absint(wp_unslash($_POST['id'])) : 0;
+            $name = isset($_POST['name']) ? sanitize_text_field(wp_unslash($_POST['name'])) : '';
+            $slug = isset($_POST['slug']) ? sanitize_title(wp_unslash($_POST['slug'])) : '';
             $is_active = !empty($_POST['is_active']) ? 1 : 0;
 
             if ($name === '') {
@@ -59,8 +61,8 @@ class ChapelsPage {
             $this->redirect_with_notice($new_id > 0 ? 'chapel_added' : 'chapel_add_failed');
         }
 
-        $action = isset($_GET['action']) ? sanitize_text_field((string)$_GET['action']) : '';
-        $id     = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+        $action = isset($_GET['action']) ? sanitize_key(wp_unslash($_GET['action'])) : '';
+        $id = isset($_GET['id']) ? absint(wp_unslash($_GET['id'])) : 0;
 
         // ✅ Activate / Deactivate
         if (($action === 'activate' || $action === 'deactivate') && $id > 0) {
@@ -129,6 +131,7 @@ class ChapelsPage {
     }
 
     public function render(): void {
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only routing and post-redirect notices; mutations use nonce-verified handlers.
         if ( ! current_user_can('manage_options') ) {
             wp_die(esc_html__('You do not have permission to access this page.', 'adoration-scheduler'), 403);
         }
@@ -143,12 +146,12 @@ class ChapelsPage {
         \AdorationScheduler\Admin\Menu::render_settings_tabs('adoration_scheduler_chapels');
 
         if (!empty($_GET['adoration_notice'])) {
-            $key = sanitize_text_field((string)$_GET['adoration_notice']);
+            $key = sanitize_key(wp_unslash($_GET['adoration_notice']));
             $this->render_notice_from_key($key);
         }
 
-        $action = isset($_GET['action']) ? sanitize_text_field((string)$_GET['action']) : '';
-        $id     = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+        $action = isset($_GET['action']) ? sanitize_key(wp_unslash($_GET['action'])) : '';
+        $id = isset($_GET['id']) ? absint(wp_unslash($_GET['id'])) : 0;
 
         if ($action === 'edit' && $id > 0) {
             $this->render_edit_form($id);
@@ -157,6 +160,7 @@ class ChapelsPage {
         }
 
         echo '</div>';
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
     }
 
     private function render_list_and_add_form(): void {

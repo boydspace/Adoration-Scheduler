@@ -4,7 +4,7 @@ Tags: adoration, eucharistic adoration, scheduling, church, parish
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.0.9
+Stable tag: 1.0.10
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -145,6 +145,13 @@ Cloudflare Terms of Service: https://www.cloudflare.com/website-terms/
 Cloudflare Privacy Policy: https://www.cloudflare.com/privacypolicy/
 
 == Changelog ==
+
+= 1.0.10 =
+* Completed a comprehensive WordPress Plugin Check hardening pass across administrative pages, shortcodes, request handlers, repositories, services, and view templates.
+* Standardized request unslashing, sanitization, nonce documentation, capability boundaries, output handling, and prepared database queries without changing public workflows.
+* Reworked allowlisted sorting to use identifier placeholders and parameterized direction selection, and retained the optimized validated bulk slot update.
+* Documented intentional uncached persistence boundaries and excluded development-only files from production release packages.
+* Reduced Plugin Check warnings from 1,869 to the practical production floor; verified with 76 unit tests and 18 WordPress integration tests.
 
 = 1.0.9 =
 * Security and WordPress.org readiness: hardened public, account, signup, calendar, check-in, replacement, and administrative request handling with consistent unslashing, sanitization, nonce verification, capability checks, safe redirects, and validated client metadata.

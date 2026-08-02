@@ -19,7 +19,8 @@ class AddNewSchedulePage {
         $back_url = add_query_arg(['page' => 'adoration_scheduler_schedules'], admin_url('admin.php'));
 
         // Optional notices from redirect
-        $created = sanitize_text_field($_GET['created'] ?? '');
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Read-only post-redirect failure notice.
+        $created = isset($_GET['created']) ? sanitize_text_field(wp_unslash($_GET['created'])) : '';
         if ($created === '0') {
             $notice = '<div class="notice notice-error"><p>Failed to create schedule. Please check required fields and try again.</p></div>';
         }

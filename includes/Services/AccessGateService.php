@@ -204,13 +204,10 @@ class AccessGateService
 
     private static function current_request_url(): string
     {
-        $scheme = is_ssl() ? 'https://' : 'http://';
-        $host   = isset($_SERVER['HTTP_HOST']) ? (string) $_SERVER['HTTP_HOST'] : '';
-        $uri    = isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '';
-
-        if ($host === '') return '';
-
-        return $scheme . $host . $uri;
+        $uri = isset($_SERVER['REQUEST_URI'])
+            ? esc_url_raw(wp_unslash($_SERVER['REQUEST_URI']))
+            : '/';
+        return esc_url_raw(home_url(strpos($uri, '/') === 0 ? $uri : '/'));
     }
 
     /**

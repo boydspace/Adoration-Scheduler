@@ -43,7 +43,7 @@ class EditSchedulePage {
     private function toasts_from_query(): void {
         if (!isset($_GET['as_toast'])) return;
 
-        $raw = (string) wp_unslash($_GET['as_toast']);
+        $raw = sanitize_text_field(wp_unslash($_GET['as_toast']));
         $raw = rawurldecode($raw);
         $msg = trim(sanitize_text_field($raw));
         if ($msg === '') return;
@@ -52,7 +52,7 @@ class EditSchedulePage {
             ? sanitize_key((string) wp_unslash($_GET['as_toast_type']))
             : 'info';
 
-        $sticky = !empty($_GET['as_toast_sticky']) && (string)wp_unslash($_GET['as_toast_sticky']) === '1';
+        $sticky = !empty($_GET['as_toast_sticky']) && sanitize_text_field(wp_unslash($_GET['as_toast_sticky'])) === '1';
 
         $this->add_toast($msg, $type, $sticky);
     }
@@ -331,7 +331,7 @@ class EditSchedulePage {
         $table = $wpdb->prefix . 'adoration_signups';
 
         $sql = $wpdb->prepare("SELECT COUNT(*) FROM %i WHERE schedule_id = %d", $table, $schedule_id);
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- $sql is produced by $wpdb->prepare() immediately above.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- $sql is produced by $wpdb->prepare() immediately above.
         $n = (int) $wpdb->get_var($sql);
         return max(0, $n);
     }
@@ -796,7 +796,9 @@ class EditSchedulePage {
             $date_pattern_id = absint(wp_unslash($_POST['date_pattern_id'] ?? 0));
             $start_time = sanitize_text_field(wp_unslash($_POST['start_time'] ?? ''));
             $end_time   = sanitize_text_field(wp_unslash($_POST['end_time'] ?? ''));
-            $slot_len   = (isset($_POST['slot_length']) && wp_unslash($_POST['slot_length']) !== '') ? absint(wp_unslash($_POST['slot_length'])) : null;
+            $slot_len = isset($_POST['slot_length']) && sanitize_text_field(wp_unslash($_POST['slot_length'])) !== ''
+                ? absint(wp_unslash($_POST['slot_length']))
+                : null;
 
             if (!$date_pattern_id || !$start_time || !$end_time) {
                 $this->add_toast('Date, start time, and end time are required.', 'error', false);

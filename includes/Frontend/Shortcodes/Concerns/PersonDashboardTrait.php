@@ -126,11 +126,10 @@ trait PersonDashboardTrait
 
     protected static function current_url(): string
     {
-        $scheme = is_ssl() ? 'https://' : 'http://';
-        $host   = isset($_SERVER['HTTP_HOST']) ? (string) $_SERVER['HTTP_HOST'] : '';
-        $uri    = isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '/';
-
-        $url = $scheme . $host . $uri;
+        $uri = isset($_SERVER['REQUEST_URI'])
+            ? esc_url_raw(wp_unslash($_SERVER['REQUEST_URI']))
+            : '/';
+        $url = esc_url_raw(home_url(strpos($uri, '/') === 0 ? $uri : '/'));
 
         // Ensure we don't preserve toast args in return URLs
         $url = remove_query_arg(['as_toast', 'as_toast_type', 'as_toast_sticky'], $url);
@@ -234,7 +233,7 @@ trait PersonDashboardTrait
             $signups, $slots, $sched, $chapels, $person_id, $today
         );
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- $prepared is produced by $wpdb->prepare() immediately above, including identifier placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- $prepared is produced by $wpdb->prepare() immediately above, including identifier placeholders.
         $rows = $wpdb->get_results($prepared, ARRAY_A);
         return is_array($rows) ? $rows : [];
     }
@@ -338,7 +337,7 @@ trait PersonDashboardTrait
             $signups, $slots, $sched, $chapels, $persons, $person_id
         );
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- $prepared is produced by $wpdb->prepare() immediately above, including identifier placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- $prepared is produced by $wpdb->prepare() immediately above, including identifier placeholders.
         $rows = $wpdb->get_results($prepared, ARRAY_A);
         return is_array($rows) ? $rows : [];
     }

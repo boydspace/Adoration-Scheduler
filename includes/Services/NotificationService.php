@@ -1,6 +1,8 @@
 <?php
 namespace AdorationScheduler\Services;
 
+// phpcs:disable WordPress.DB.DirectDatabaseQuery -- Notification lookup and logging must reflect current data.
+
 if ( ! defined('ABSPATH') ) exit;
 
 use AdorationScheduler\Domain\Repositories\SchedulesRepository;

@@ -183,7 +183,8 @@ class CoverageReportPage {
      * shared.
      */
     private static function resolve_filters(): array {
-        $schedule_id = (int)($_GET['schedule_id'] ?? 0);
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only report filters do not change server state.
+        $schedule_id = isset($_GET['schedule_id']) ? absint(wp_unslash($_GET['schedule_id'])) : 0;
 
         $today = current_time('Y-m-d');
         $default_from = gmdate('Y-m-01', strtotime($today . ' -11 months'));
@@ -195,6 +196,7 @@ class CoverageReportPage {
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $to))   $to   = $today;
         if ($to < $from) $to = $from;
 
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
         return [$schedule_id, $from, $to];
     }
 }

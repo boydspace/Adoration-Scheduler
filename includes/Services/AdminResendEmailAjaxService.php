@@ -1,6 +1,8 @@
 <?php
 namespace AdorationScheduler\Services;
 
+// phpcs:disable WordPress.DB.DirectDatabaseQuery -- Resend lookup and delivery logging must reflect current data.
+
 if ( ! defined('ABSPATH') ) exit;
 
 use AdorationScheduler\Domain\Repositories\SignupAuditRepository;
@@ -192,7 +194,7 @@ class AdminResendEmailAjaxService
             $t_signups, $t_persons, $t_schedules, $t_slots, $signup_id
         );
 
-        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- $prepared is produced by $wpdb->prepare() immediately above, including identifier placeholders.
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- $prepared is produced by $wpdb->prepare() immediately above, including identifier placeholders.
         $row = $wpdb->get_row($prepared, ARRAY_A);
         if (!$row) {
             wp_send_json_error(['message' => 'Signup not found'], 404);
@@ -282,7 +284,7 @@ class AdminResendEmailAjaxService
             // ✅ REQUIRED BY SCHEMA: selector (UNIQUE + NOT NULL)
             $selector = self::generate_unique_selector($t_magic);
 
-            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
             $ins = $wpdb->insert($t_magic, [
                 'person_id'   => $person_id,
                 'selector'    => $selector,

@@ -114,7 +114,7 @@ class UpdateContactInfoHandler
         $persons = $wpdb->prefix . 'adoration_persons';
 
         // Update only the approved columns.
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $updated = $wpdb->update(
             $persons,
             [

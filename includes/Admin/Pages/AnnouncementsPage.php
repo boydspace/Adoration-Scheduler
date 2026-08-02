@@ -32,8 +32,8 @@ class AnnouncementsPage {
         if (isset($_POST['adoration_save_announcement'])) {
             check_admin_referer('adoration_save_announcement');
 
-            $id    = isset($_POST['id']) ? (int)$_POST['id'] : 0;
-            $title = isset($_POST['title']) ? sanitize_text_field((string)$_POST['title']) : '';
+            $id = isset($_POST['id']) ? absint(wp_unslash($_POST['id'])) : 0;
+            $title = isset($_POST['title']) ? sanitize_text_field(wp_unslash($_POST['title'])) : '';
             $body  = isset($_POST['body']) ? wp_kses_post((string) wp_unslash($_POST['body'])) : '';
 
             // ✅ Visibility (2026-07-19): independent checkboxes, not a
@@ -42,7 +42,7 @@ class AnnouncementsPage {
             // e.g. to draft it) neither.
             $show_public  = !empty($_POST['show_public']);
             $show_private = !empty($_POST['show_private']);
-            $image_id     = isset($_POST['image_id']) ? (int)$_POST['image_id'] : 0;
+            $image_id = isset($_POST['image_id']) ? absint(wp_unslash($_POST['image_id'])) : 0;
 
             if ($title === '') {
                 $this->redirect_with_notice('error_title_required');
@@ -57,8 +57,8 @@ class AnnouncementsPage {
             $this->redirect_with_notice($new_id > 0 ? 'announcement_added' : 'announcement_add_failed');
         }
 
-        $action = isset($_GET['action']) ? sanitize_text_field((string)$_GET['action']) : '';
-        $id     = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+        $action = isset($_GET['action']) ? sanitize_key(wp_unslash($_GET['action'])) : '';
+        $id = isset($_GET['id']) ? absint(wp_unslash($_GET['id'])) : 0;
 
         // ✅ Activate / Deactivate
         if (($action === 'activate' || $action === 'deactivate') && $id > 0) {
@@ -87,6 +87,7 @@ class AnnouncementsPage {
     }
 
     public function render(): void {
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only routing and post-redirect notices; mutations use nonce-verified handlers.
         if ( ! current_user_can('manage_options') ) {
             wp_die(esc_html__('You do not have permission to access this page.', 'adoration-scheduler'), 403);
         }
@@ -97,12 +98,12 @@ class AnnouncementsPage {
         echo '<p class="description">' . esc_html__('Shown on the front end via [adoration_announcements] (members) and [adoration_public_announcements] (public). Use the arrows below to control the order they appear in.', 'adoration-scheduler') . '</p>';
 
         if (!empty($_GET['adoration_notice'])) {
-            $key = sanitize_text_field((string)$_GET['adoration_notice']);
+            $key = sanitize_key(wp_unslash($_GET['adoration_notice']));
             $this->render_notice_from_key($key);
         }
 
-        $action = isset($_GET['action']) ? sanitize_text_field((string)$_GET['action']) : '';
-        $id     = isset($_GET['id']) ? (int)$_GET['id'] : 0;
+        $action = isset($_GET['action']) ? sanitize_key(wp_unslash($_GET['action'])) : '';
+        $id = isset($_GET['id']) ? absint(wp_unslash($_GET['id'])) : 0;
 
         if ($action === 'edit' && $id > 0) {
             $this->render_edit_form($id);
@@ -111,6 +112,7 @@ class AnnouncementsPage {
         }
 
         echo '</div>';
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
     }
 
     private function render_list_and_add_form(): void {

@@ -57,6 +57,8 @@ class WidgetRerenderAjax
 
         // Only the two atts every shortcode in this family accepts are
         // honored here - anything else posted in the JSON blob is ignored.
+        // Raw JSON must remain syntactically intact; only the two allow-listed decoded values are used and sanitized below.
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         $raw_atts = isset($_POST['atts']) ? (string) wp_unslash($_POST['atts']) : '{}';
         $decoded  = json_decode($raw_atts, true);
         $decoded  = is_array($decoded) ? $decoded : [];

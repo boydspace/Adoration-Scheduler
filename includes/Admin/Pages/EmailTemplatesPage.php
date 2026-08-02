@@ -273,6 +273,7 @@ class EmailTemplatesPage {
     }
 
     private static function current_tab(): string {
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only tab selection.
         $tab = sanitize_key((string)($_GET['tab'] ?? ''));
         if ($tab === '') $tab = self::default_tab();
 
@@ -280,6 +281,7 @@ class EmailTemplatesPage {
         if (!isset($tabs[$tab])) {
             $tab = self::default_tab();
         }
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
         return $tab;
     }
 
@@ -299,10 +301,12 @@ class EmailTemplatesPage {
 
         check_admin_referer('adoration_scheduler_email_templates_save');
 
-        $tab = sanitize_key((string)($_POST['tab'] ?? ''));
+        $tab = isset($_POST['tab']) ? sanitize_key(wp_unslash($_POST['tab'])) : '';
         if ($tab === '') $tab = self::default_tab();
 
-        $posted = $_POST['templates'] ?? [];
+        // Values are unslashed here and sanitized by sanitize_templates() after merging.
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $posted = isset($_POST['templates']) ? wp_unslash($_POST['templates']) : [];
         if (!is_array($posted)) $posted = [];
 
         // ✅ IMPORTANT: use raw saved option (not get_templates()) so we preserve previous saved values
@@ -340,12 +344,12 @@ class EmailTemplatesPage {
 
         check_admin_referer('adoration_scheduler_email_templates_test');
 
-        $which = sanitize_text_field((string)($_POST['which'] ?? 'signup_confirmation'));
-        $tab   = sanitize_key((string)($_POST['tab'] ?? ''));
+        $which = isset($_POST['which']) ? sanitize_key(wp_unslash($_POST['which'])) : 'signup_confirmation';
+        $tab = isset($_POST['tab']) ? sanitize_key(wp_unslash($_POST['tab'])) : '';
         if ($tab === '') $tab = self::default_tab();
 
         // ✅ accept a custom test recipient
-        $to = sanitize_email((string)($_POST['to_email'] ?? ''));
+        $to = isset($_POST['to_email']) ? sanitize_email(wp_unslash($_POST['to_email'])) : '';
         if ($to === '' || !is_email($to)) {
             $to = (string) (wp_get_current_user()->user_email ?? '');
         }
@@ -369,6 +373,7 @@ class EmailTemplatesPage {
     }
 
     public function render(): void {
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only post-redirect notices; save and test handlers verify nonces.
         if ( ! current_user_can('manage_options') ) {
             wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
@@ -412,5 +417,6 @@ class EmailTemplatesPage {
         $tab->render($tab_key);
 
         echo '</div>';
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
     }
 }

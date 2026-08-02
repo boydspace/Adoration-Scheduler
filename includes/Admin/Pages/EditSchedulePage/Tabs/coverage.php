@@ -1,4 +1,7 @@
 <?php
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals -- View variables are scoped by the including controller method.
+// phpcs:disable WordPress.Security.NonceVerification.Recommended -- Template reads sanitized view state; mutations use nonce-verified controller handlers.
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals -- View variables are scoped by the including controller method.
 /**
  * Tab: Coverage Calendar (perpetual schedules)
  *

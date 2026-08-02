@@ -62,9 +62,9 @@ class WaitlistService
         }
 
         $return_default = admin_url('admin.php?page=adoration_scheduler_schedules');
-        $return = isset($_POST['return']) ? (string) wp_unslash($_POST['return']) : $return_default;
+        $return = isset($_POST['return']) ? esc_url_raw(wp_unslash($_POST['return'])) : $return_default;
 
-        $waitlist_id = (int)($_POST['waitlist_id'] ?? 0);
+        $waitlist_id = isset($_POST['waitlist_id']) ? absint(wp_unslash($_POST['waitlist_id'])) : 0;
         if ($waitlist_id <= 0) {
             self::redirect_with_toast($return, 'Missing waitlist entry.', 'error');
         }
@@ -101,7 +101,7 @@ class WaitlistService
 
     public static function handle_leave(): void
     {
-        $return = isset($_POST['return']) ? (string) wp_unslash($_POST['return']) : '';
+        $return = isset($_POST['return']) ? sanitize_text_field(wp_unslash($_POST['return'])) : '';
         $return = ($return !== '' && strpos($return, '/') === 0) ? home_url($return) : home_url('/my-adoration/');
 
         $person = MagicLinkService::current_person_or_admin_match();
@@ -111,7 +111,7 @@ class WaitlistService
             self::redirect_with_toast($return, 'Please sign in again to manage your waitlist entries.', 'error');
         }
 
-        $waitlist_id = (int)($_POST['waitlist_id'] ?? 0);
+        $waitlist_id = isset($_POST['waitlist_id']) ? absint(wp_unslash($_POST['waitlist_id'])) : 0;
         if ($waitlist_id <= 0) {
             self::redirect_with_toast($return, 'Missing waitlist entry.', 'error');
         }

@@ -57,6 +57,7 @@ class PersonsListTable extends \WP_List_Table {
      * same convention WP core list tables use for e.g. Posts' status links.
      */
     public function get_views(): array {
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only list filter.
         $current = sanitize_key((string) ($_GET['approval_status'] ?? ''));
 
         $base = admin_url('admin.php?page=' . $this->page_slug);
@@ -89,6 +90,7 @@ class PersonsListTable extends \WP_List_Table {
         }
 
         return $views;
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
     }
 
     public function get_sortable_columns(): array {
@@ -219,16 +221,15 @@ class PersonsListTable extends \WP_List_Table {
      * Preserve current list state in links so you don't lose search/sort/page
      */
     private function preserved_args_from_request(): array {
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Sanitized read-only list state used in navigation URLs.
         $out = [];
         $keys = ['s','paged','orderby','order'];
 
         foreach ($keys as $k) {
             if (!isset($_REQUEST[$k])) continue;
 
-            $v = $_REQUEST[$k];
-            if (is_array($v)) continue;
-
-            $v = wp_unslash($v);
+            if (is_array($_REQUEST[$k])) continue;
+            $v = sanitize_text_field(wp_unslash($_REQUEST[$k]));
 
             if ($k === 'paged') {
                 $v = (string) max(1, (int) $v);
@@ -241,6 +242,7 @@ class PersonsListTable extends \WP_List_Table {
             if ($v !== '') $out[$k] = $v;
         }
 
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
         return $out;
     }
 
@@ -396,12 +398,15 @@ class PersonsListTable extends \WP_List_Table {
      * This is still fine because your Plugin.php runs this early via admin_init.
      */
     public function process_bulk_action(): void {
-        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
+        $method = isset($_SERVER['REQUEST_METHOD'])
+            ? strtoupper(sanitize_text_field(wp_unslash($_SERVER['REQUEST_METHOD'])))
+            : '';
+        if ($method !== 'POST') {
             return;
         }
 
-        $action  = sanitize_key($_POST['action'] ?? '');
-        $action2 = sanitize_key($_POST['action2'] ?? '');
+        $action = isset($_POST['action']) ? sanitize_key(wp_unslash($_POST['action'])) : '';
+        $action2 = isset($_POST['action2']) ? sanitize_key(wp_unslash($_POST['action2'])) : '';
 
         $candidate = '';
         if ($action !== '' && $action !== '-1') {
@@ -420,8 +425,10 @@ class PersonsListTable extends \WP_List_Table {
 
         check_admin_referer('bulk-' . $this->_args['plural']);
 
-        $ids = isset($_POST['person_ids']) ? (array) $_POST['person_ids'] : [];
-        $ids = array_map('intval', $ids);
+        $ids = isset($_POST['person_ids'])
+            ? array_map('sanitize_text_field', (array) wp_unslash($_POST['person_ids']))
+            : [];
+        $ids = array_map('absint', $ids);
         $ids = array_values(array_filter($ids, fn($v) => $v > 0));
 
         if (empty($ids)) {
@@ -434,8 +441,9 @@ class PersonsListTable extends \WP_List_Table {
         $args = [];
 
         foreach ($preserve as $k) {
-            if (!isset($_REQUEST[$k]) || $_REQUEST[$k] === '') continue;
-            $v = wp_unslash($_REQUEST[$k]);
+            if (!isset($_REQUEST[$k])) continue;
+            $v = sanitize_text_field(wp_unslash($_REQUEST[$k]));
+            if ($v === '') continue;
 
             if (in_array($k, ['orderby','order','approval_status'], true)) {
                 $v = sanitize_key($v);
@@ -504,6 +512,7 @@ class PersonsListTable extends \WP_List_Table {
     }
 
     public function prepare_items(): void {
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only pagination, sorting, and filtering parameters.
         $this->_column_headers = [$this->get_columns(), [], $this->get_sortable_columns()];
 
         $paged  = max(1, (int)$this->get_pagenum());
@@ -564,6 +573,7 @@ class PersonsListTable extends \WP_List_Table {
             'per_page'    => $this->per_page,
             'total_pages' => (int) ceil($total / $this->per_page),
         ]);
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
     }
 
     public function search_box($text, $input_id) {

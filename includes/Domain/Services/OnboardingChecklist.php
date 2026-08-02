@@ -1,6 +1,8 @@
 <?php
 namespace AdorationScheduler\Domain\Services;
 
+// phpcs:disable WordPress.DB.DirectDatabaseQuery -- Onboarding readiness checks must reflect current database state.
+
 use AdorationScheduler\Domain\Repositories\SchedulesRepository;
 
 if ( ! defined('ABSPATH') ) exit;
@@ -146,7 +148,7 @@ class OnboardingChecklist
     private static function table_exists(string $table): bool
     {
         global $wpdb;
-        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
         $found = $wpdb->get_var($wpdb->prepare('SHOW TABLES LIKE %s', $table));
         return $found === $table;
     }

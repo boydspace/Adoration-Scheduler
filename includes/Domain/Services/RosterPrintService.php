@@ -47,7 +47,7 @@ class RosterPrintService
             wp_die(esc_html__('Sorry, you are not allowed to do that.', 'adoration-scheduler'), 403);
         }
 
-        $schedule_id = (int)($_GET['schedule_id'] ?? 0);
+        $schedule_id = isset($_GET['schedule_id']) ? absint(wp_unslash($_GET['schedule_id'])) : 0;
         if ($schedule_id <= 0) {
             wp_die(esc_html__('Missing schedule.', 'adoration-scheduler'), 400);
         }
@@ -87,6 +87,7 @@ class RosterPrintService
      */
     private static function resolve_range(): array
     {
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only print-range filters do not change server state.
         $today = current_time('Y-m-d');
         $default_to = gmdate('Y-m-d', strtotime($today . ' +30 days'));
 
@@ -109,6 +110,7 @@ class RosterPrintService
             }
         }
 
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
         return [$from, $to];
     }
 

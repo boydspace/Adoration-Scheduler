@@ -1,4 +1,5 @@
 <?php
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals -- View variables are scoped by the including controller method.
 /**
  * Tab: Email (Schedule-specific)
  *
@@ -116,16 +117,16 @@ if ( isset($_POST['adoration_save_schedule_email_templates']) ) {
     $enabled_post = !empty($_POST['enabled']);
 
     $templates = [
-        'from_name'  => sanitize_text_field($_POST['from_name'] ?? ''),
-        'from_email' => sanitize_email($_POST['from_email'] ?? ''),
-        'reply_to'   => trim((string)($_POST['reply_to'] ?? '')),
+        'from_name' => isset($_POST['from_name']) ? sanitize_text_field(wp_unslash($_POST['from_name'])) : '',
+        'from_email' => isset($_POST['from_email']) ? sanitize_email(wp_unslash($_POST['from_email'])) : '',
+        'reply_to' => isset($_POST['reply_to']) ? sanitize_text_field(wp_unslash($_POST['reply_to'])) : '',
 
-        'signup_confirmation_subject' => sanitize_text_field($_POST['signup_confirmation_subject'] ?? ''),
-        'reminder_24h_subject'        => sanitize_text_field($_POST['reminder_24h_subject'] ?? ''),
+        'signup_confirmation_subject' => isset($_POST['signup_confirmation_subject']) ? sanitize_text_field(wp_unslash($_POST['signup_confirmation_subject'])) : '',
+        'reminder_24h_subject' => isset($_POST['reminder_24h_subject']) ? sanitize_text_field(wp_unslash($_POST['reminder_24h_subject'])) : '',
     ];
 
-    $templates['signup_confirmation_body'] = wp_kses_post($_POST['signup_confirmation_body'] ?? '');
-    $templates['reminder_24h_body']        = wp_kses_post($_POST['reminder_24h_body'] ?? '');
+    $templates['signup_confirmation_body'] = isset($_POST['signup_confirmation_body']) ? wp_kses_post(wp_unslash($_POST['signup_confirmation_body'])) : '';
+    $templates['reminder_24h_body'] = isset($_POST['reminder_24h_body']) ? wp_kses_post(wp_unslash($_POST['reminder_24h_body'])) : '';
 
     if ($templates['from_email'] !== '' && !is_email($templates['from_email'])) {
         $notice = '<div class="notice notice-error"><p>From Email must be a valid email address (or blank).</p></div>';
@@ -152,8 +153,8 @@ if ( isset($_POST['adoration_save_schedule_email_templates']) ) {
 if ( isset($_POST['adoration_send_schedule_test_email']) ) {
     check_admin_referer('adoration_send_schedule_test_email');
 
-    $which = sanitize_text_field($_POST['which'] ?? 'signup_confirmation');
-    $to    = sanitize_email($_POST['to'] ?? '');
+    $which = isset($_POST['which']) ? sanitize_key(wp_unslash($_POST['which'])) : 'signup_confirmation';
+    $to = isset($_POST['to']) ? sanitize_email(wp_unslash($_POST['to'])) : '';
 
     if ($to === '' || !is_email($to)) {
         $notice = '<div class="notice notice-error"><p>Please enter a valid test recipient email address.</p></div>';

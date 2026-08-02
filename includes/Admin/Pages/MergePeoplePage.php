@@ -6,6 +6,7 @@ if ( ! defined('ABSPATH') ) exit;
 class MergePeoplePage {
 
     public function render(): void {
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- Read-only prefill values and post-redirect notices; merge submission is handled separately with a nonce.
         if ( ! current_user_can('manage_options') ) {
             wp_die( esc_html__('Sorry, you are not allowed to access this page.', 'adoration-scheduler'), 403 );
         }
@@ -24,10 +25,11 @@ class MergePeoplePage {
         // ------------------------------------------------------------
         $notice = '';
 
-        if (isset($_GET['merged']) && (string)$_GET['merged'] === '1') {
-            $moved   = (int)($_GET['merge_moved'] ?? 0);
-            $skipped = (int)($_GET['merge_skipped'] ?? 0);
-            $deleted = (string)($_GET['merge_deleted'] ?? '0') === '1';
+        if (isset($_GET['merged']) && sanitize_text_field(wp_unslash($_GET['merged'])) === '1') {
+            $moved = isset($_GET['merge_moved']) ? absint(wp_unslash($_GET['merge_moved'])) : 0;
+            $skipped = isset($_GET['merge_skipped']) ? absint(wp_unslash($_GET['merge_skipped'])) : 0;
+            $deleted = isset($_GET['merge_deleted'])
+                && sanitize_text_field(wp_unslash($_GET['merge_deleted'])) === '1';
 
             $msg = sprintf(
                 // translators: 1: number of signups moved, 2: number of duplicate signups removed, 3: "was"/"was NOT".
@@ -431,5 +433,6 @@ class MergePeoplePage {
         })();
         </script>
         <?php
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
     }
 }
