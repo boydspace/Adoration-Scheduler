@@ -57,7 +57,7 @@ class PersonCreationService {
                     self::redirect_back_to_add($preserve, 'email_in_use');
                 }
             } catch (\Throwable $e) {
-                error_log('[AdorationScheduler] PersonCreationService find_by_email failed: ' . $e->getMessage());
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] PersonCreationService find_by_email failed: ' . $e->getMessage());
                 // Continue and let upsert/insert decide.
             }
         }
@@ -80,7 +80,7 @@ class PersonCreationService {
         }
 
         if (!$created_id) {
-            error_log('[AdorationScheduler] PersonCreationService could not create person. Repo public methods: ' . implode(', ', get_class_methods($repo)));
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] PersonCreationService could not create person. Repo public methods: ' . implode(', ', get_class_methods($repo)));
             self::redirect_back_to_add($preserve, 'repo_missing');
         }
 
@@ -159,7 +159,7 @@ class PersonCreationService {
             return self::coerce_idish_result($res);
 
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] PersonCreationService upsert_by_email failed: ' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] PersonCreationService upsert_by_email failed: ' . $e->getMessage());
             return 0;
         }
     }
@@ -177,7 +177,7 @@ class PersonCreationService {
 
         $table = self::discover_table_name($repo);
         if ($table === '') {
-            error_log('[AdorationScheduler] PersonCreationService: could not discover persons table name from repository.');
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] PersonCreationService: could not discover persons table name from repository.');
             return 0;
         }
 
@@ -201,7 +201,7 @@ class PersonCreationService {
 
         if ($ok === false) {
             $err = (string)$wpdb->last_error;
-            error_log('[AdorationScheduler] PersonCreationService DB insert failed into ' . $table . ': ' . $err);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] PersonCreationService DB insert failed into ' . $table . ': ' . $err);
 
             // Map duplicate email constraint to email_in_use
             if ($err !== '' && stripos($err, 'Duplicate entry') !== false && stripos($err, '.email') !== false) {
@@ -296,7 +296,7 @@ class PersonCreationService {
         }
     }
 
-    // phpcs:ignore WordPress.Security.NonceVerification.Missing -- only called from handle_create_person(), after that method's own check_admin_referer('adoration_create_person') has already passed; this just preserves list display state (search/paged/sort) for the redirect.
+    // phpcs:disable WordPress.Security.NonceVerification.Missing -- only called from handle_create_person(), after that method's own check_admin_referer('adoration_create_person') has already passed; this just preserves list display state (search/paged/sort) for the redirect.
     private static function preserved_args_from_post(): array {
         $out = [];
         $keys = ['s','paged','orderby','order'];
@@ -320,6 +320,7 @@ class PersonCreationService {
 
         return $out;
     }
+    // phpcs:enable WordPress.Security.NonceVerification.Missing
 
     private static function normalize_phone_us(?string $raw): ?string {
         $raw = (string)($raw ?? '');

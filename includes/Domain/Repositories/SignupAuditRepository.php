@@ -105,6 +105,7 @@ class SignupAuditRepository
         );
 
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $rows = (array)$wpdb->get_results($sql, ARRAY_A);
 
         // Decode meta JSON for convenience (best-effort).

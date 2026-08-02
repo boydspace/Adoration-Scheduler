@@ -52,7 +52,7 @@ class TwilioSmsProvider implements SmsProviderInterface
 
         if (is_wp_error($response)) {
             $err = $response->get_error_message();
-            error_log('[AdorationScheduler] Twilio send request error: ' . $err);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Twilio send request error: ' . $err);
             return ['success' => false, 'error' => 'Could not reach Twilio. Please try again.'];
         }
 
@@ -62,7 +62,7 @@ class TwilioSmsProvider implements SmsProviderInterface
 
         if ($code < 200 || $code >= 300) {
             $message_from_twilio = (is_array($json) && !empty($json['message'])) ? (string) $json['message'] : '';
-            error_log('[AdorationScheduler] Twilio send HTTP ' . $code . ' body=' . $raw);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Twilio send returned HTTP ' . $code . '.');
             return [
                 'success' => false,
                 'error'   => $message_from_twilio !== '' ? $message_from_twilio : ('Twilio returned HTTP ' . $code . '.'),

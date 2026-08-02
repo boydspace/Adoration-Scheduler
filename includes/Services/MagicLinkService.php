@@ -58,7 +58,9 @@ class MagicLinkService
     {
         global $wpdb;
 
-        $raw = isset($_COOKIE[self::COOKIE_NAME]) ? trim((string)$_COOKIE[self::COOKIE_NAME]) : '';
+        $raw = isset($_COOKIE[self::COOKIE_NAME])
+            ? trim(sanitize_text_field(wp_unslash($_COOKIE[self::COOKIE_NAME])))
+            : '';
         if ($raw === '') return null;
 
         $sessions = $wpdb->prefix . 'adoration_sessions';
@@ -142,7 +144,7 @@ class MagicLinkService
                 return $matched;
             }
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] Admin->person email match failed: ' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Admin->person email match failed: ' . $e->getMessage());
         }
 
         return null;
@@ -159,16 +161,14 @@ class MagicLinkService
     public static function handle_request(): void
     {
         // Hard-guard against accidental invocation / misrouted posts.
-        $action = isset($_REQUEST['action']) ? (string) $_REQUEST['action'] : '';
+        $action = isset($_REQUEST['action']) ? sanitize_key(wp_unslash($_REQUEST['action'])) : '';
         if ($action !== 'adoration_magic_request') {
             return;
         }
 
-        $method = isset($_SERVER['REQUEST_METHOD']) ? strtoupper((string)$_SERVER['REQUEST_METHOD']) : '';
-        $uri    = isset($_SERVER['REQUEST_URI']) ? (string)$_SERVER['REQUEST_URI'] : '';
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('[AdorationScheduler] MagicLinkService::handle_request HIT method=' . $method . ' uri=' . $uri);
-        }
+        $method = isset($_SERVER['REQUEST_METHOD'])
+            ? strtoupper(sanitize_text_field(wp_unslash($_SERVER['REQUEST_METHOD'])))
+            : '';
 
         if ($method !== 'POST') {
             wp_safe_redirect(home_url('/'));
@@ -176,7 +176,7 @@ class MagicLinkService
         }
 
         // Return URL (where the form lives)
-        $return = isset($_POST['return']) ? (string) wp_unslash($_POST['return']) : '';
+        $return = isset($_POST['return']) ? esc_url_raw(wp_unslash($_POST['return'])) : '';
         $return = $return ? self::safe_redirect_url($return) : '';
         if (!$return) $return = wp_get_referer();
         if (!$return) $return = home_url('/');
@@ -191,7 +191,7 @@ class MagicLinkService
         // Nonce (only after confirming POST)
         check_admin_referer('adoration_magic_request');
 
-        $email = isset($_POST['email']) ? strtolower(trim((string) wp_unslash($_POST['email']))) : '';
+        $email = isset($_POST['email']) ? strtolower(sanitize_email(wp_unslash($_POST['email']))) : '';
         if ($email === '' || !is_email($email)) {
             $err = self::add_toast($return, 'error', 'Please enter a valid email address.');
             self::finish_redirect($err);
@@ -204,8 +204,10 @@ class MagicLinkService
          * throttled — production visitors on real IPs are still fully
          * rate-limited either way.
          */
-        $ip = isset($_SERVER['REMOTE_ADDR']) ? (string)$_SERVER['REMOTE_ADDR'] : '';
-        if ($ip === '') $ip = '0.0.0.0';
+        $ip = isset($_SERVER['REMOTE_ADDR'])
+            ? sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR']))
+            : '';
+        if (!filter_var($ip, FILTER_VALIDATE_IP)) $ip = '0.0.0.0';
 
         $blocked = false;
 
@@ -230,7 +232,7 @@ class MagicLinkService
         }
 
         if ($blocked) {
-            error_log('[AdorationScheduler] MagicLink rate-limited ip=' . $ip . ' email=' . $email);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Magic-link request rate-limited.');
             // still return success toast (no leakage)
             self::finish_redirect($success);
         }
@@ -266,7 +268,9 @@ class MagicLinkService
             $person_id
         ));
 
-        $ua = isset($_SERVER['HTTP_USER_AGENT']) ? (string)$_SERVER['HTTP_USER_AGENT'] : null;
+        $ua = isset($_SERVER['HTTP_USER_AGENT'])
+            ? sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT']))
+            : null;
         if (is_string($ua) && strlen($ua) > 255) $ua = substr($ua, 0, 255);
 
         /**
@@ -308,14 +312,13 @@ class MagicLinkService
         }
 
         if ($ok === false) {
-            error_log('[AdorationScheduler] MagicLink insert FAILED last_error=' . $wpdb->last_error);
-            error_log('[AdorationScheduler] MagicLink insert last_query=' . $wpdb->last_query);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] MagicLink insert FAILED last_error=' . $wpdb->last_error);
             // still return success toast (no leakage)
             self::finish_redirect($success);
         }
 
         // Redirect destination after login
-        $r = isset($_POST['r']) ? (string) wp_unslash($_POST['r']) : '';
+        $r = isset($_POST['r']) ? esc_url_raw(wp_unslash($_POST['r'])) : '';
         $r = $r ? self::safe_redirect_url($r) : '';
         if (!$r) $r = home_url('/my-adoration/');
 
@@ -354,7 +357,6 @@ class MagicLinkService
         ]);
 
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('[AdorationScheduler] MagicLink send_magic_link sent=' . ($sent ? 'YES' : 'NO') . ' to=' . $email . ' person_id=' . $person_id);
         }
 
         // Always redirect with success toast, regardless of $sent (avoid leakage)
@@ -392,24 +394,21 @@ class MagicLinkService
      */
     public static function handle_consume(): void
     {
-        $action = isset($_REQUEST['action']) ? (string) $_REQUEST['action'] : '';
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- the single-use, expiring magic token is the authorization credential for this deliberately unauthenticated GET endpoint.
+        $action = isset($_REQUEST['action']) ? sanitize_key(wp_unslash($_REQUEST['action'])) : '';
         if ($action !== 'adoration_magic_consume') {
             return;
         }
 
-        if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('[AdorationScheduler] MagicLinkService::handle_consume HIT url=' . (isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : ''));
-        }
-
-        $t = isset($_GET['t']) ? trim((string) wp_unslash($_GET['t'])) : '';
-        $r = isset($_GET['r']) ? (string) wp_unslash($_GET['r']) : '';
+        $t = isset($_GET['t']) ? trim(sanitize_text_field(wp_unslash($_GET['t']))) : '';
+        $r = isset($_GET['r']) ? esc_url_raw(wp_unslash($_GET['r'])) : '';
         $r = $r ? self::safe_redirect_url($r) : '';
         if (!$r) $r = home_url('/my-adoration/');
 
         $fail = self::add_toast($r, 'error', 'That sign-in link is invalid or has expired. Please request a new one.');
 
         if ($t === '') {
-            error_log('[AdorationScheduler] Magic consume missing token');
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Magic consume missing token');
             wp_safe_redirect($fail);
             exit;
         }
@@ -432,7 +431,7 @@ class MagicLinkService
         ", $magic, $now, $token_hash, $now));
 
         if ($updated !== 1) {
-            error_log('[AdorationScheduler] Magic consume invalid/expired/already-used token_hash=' . substr($token_hash, 0, 12) . '... updated=' . (string)$updated);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Magic consume invalid/expired/already-used token_hash=' . substr($token_hash, 0, 12) . '... updated=' . (string)$updated);
             wp_safe_redirect($fail);
             exit;
         }
@@ -446,7 +445,7 @@ class MagicLinkService
         ", $magic, $token_hash), ARRAY_A);
 
         if (!is_array($row) || empty($row['person_id'])) {
-            error_log('[AdorationScheduler] Magic consume: token marked used but person_id missing token_hash=' . substr($token_hash, 0, 12) . '...');
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Magic consume: token marked used but person_id missing token_hash=' . substr($token_hash, 0, 12) . '...');
             wp_safe_redirect($fail);
             exit;
         }
@@ -462,6 +461,7 @@ class MagicLinkService
         $ok_toast = self::add_toast($r, 'success', 'Signed in.');
         wp_safe_redirect($ok_toast);
         exit;
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
     }
 
     /**
@@ -489,10 +489,15 @@ class MagicLinkService
         $session_hash       = self::hash_token($session_token_raw);   // 64-char hex
         $expires_at         = gmdate('Y-m-d H:i:s', time() + self::SESSION_TTL_SECONDS);
 
-        $ua = isset($_SERVER['HTTP_USER_AGENT']) ? (string)$_SERVER['HTTP_USER_AGENT'] : null;
+        $ua = isset($_SERVER['HTTP_USER_AGENT'])
+            ? sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT']))
+            : null;
         if (is_string($ua) && strlen($ua) > 255) $ua = substr($ua, 0, 255);
 
-        $ip = isset($_SERVER['REMOTE_ADDR']) ? (string)$_SERVER['REMOTE_ADDR'] : null;
+        $ip = isset($_SERVER['REMOTE_ADDR'])
+            ? sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR']))
+            : null;
+        if ($ip !== null && !filter_var($ip, FILTER_VALIDATE_IP)) $ip = null;
 
         // Insert session (retry on rare UNIQUE collision)
         $ok = false;
@@ -524,15 +529,14 @@ class MagicLinkService
         }
 
         if ($ok === false) {
-            error_log('[AdorationScheduler] SESSION INSERT FAILED');
-            error_log('[AdorationScheduler] last_error=' . $wpdb->last_error);
-            error_log('[AdorationScheduler] last_query=' . $wpdb->last_query);
-            error_log('[AdorationScheduler] sessions_table=' . $sessions);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] SESSION INSERT FAILED');
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] last_error=' . $wpdb->last_error);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] sessions_table=' . $sessions);
             return false;
         }
 
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('[AdorationScheduler] SESSION INSERT OK insert_id=' . (int)$wpdb->insert_id);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] SESSION INSERT OK insert_id=' . (int)$wpdb->insert_id);
         }
 
         self::set_session_cookie($session_token_raw);
@@ -542,7 +546,7 @@ class MagicLinkService
 
     public static function handle_logout(): void
     {
-        $action = isset($_REQUEST['action']) ? (string) $_REQUEST['action'] : '';
+        $action = isset($_REQUEST['action']) ? sanitize_key(wp_unslash($_REQUEST['action'])) : '';
         if ($action !== 'adoration_magic_logout') {
             return;
         }
@@ -552,7 +556,9 @@ class MagicLinkService
         $return = wp_get_referer();
         if (!$return) $return = home_url('/');
 
-        $raw = isset($_COOKIE[self::COOKIE_NAME]) ? trim((string)$_COOKIE[self::COOKIE_NAME]) : '';
+        $raw = isset($_COOKIE[self::COOKIE_NAME])
+            ? trim(sanitize_text_field(wp_unslash($_COOKIE[self::COOKIE_NAME])))
+            : '';
         if ($raw !== '') {
             global $wpdb;
             $sessions = $wpdb->prefix . 'adoration_sessions';
@@ -571,7 +577,7 @@ class MagicLinkService
                 $sessions, $hash, $hash, $raw
             ));
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('[AdorationScheduler] Logout deleted_sessions=' . (string)$deleted);
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Logout deleted_sessions=' . (string)$deleted);
             }
         }
 

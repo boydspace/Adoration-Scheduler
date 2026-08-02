@@ -45,7 +45,7 @@ class PublicAnnouncementsShortcode
             $repo = new AnnouncementsRepository();
             $rows = $repo->list_active_public($limit);
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] PublicAnnouncementsShortcode failed: ' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] PublicAnnouncementsShortcode failed: ' . $e->getMessage());
         }
 
         ob_start();

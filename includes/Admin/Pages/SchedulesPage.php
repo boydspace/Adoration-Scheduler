@@ -43,7 +43,7 @@ class SchedulesPage {
         self::require_admin_cap(self::CAP_MANAGE_SCHEDULES);
 
         // POST-only hard guard
-        $method = isset($_SERVER['REQUEST_METHOD']) ? strtoupper((string)$_SERVER['REQUEST_METHOD']) : '';
+        $method = isset($_SERVER['REQUEST_METHOD']) ? strtoupper(sanitize_text_field(wp_unslash($_SERVER['REQUEST_METHOD']))) : '';
         if ($method !== 'POST') {
             wp_safe_redirect(admin_url('admin.php?page=adoration_scheduler_schedules'));
             exit;
@@ -93,13 +93,13 @@ class SchedulesPage {
         }
 
         // ✅ NEW DEFAULTS (from AddNewSchedulePage)
-        $default_slot_length = isset($_POST['default_slot_length']) ? (int) wp_unslash($_POST['default_slot_length']) : 60;
+        $default_slot_length = isset($_POST['default_slot_length']) ? absint(wp_unslash($_POST['default_slot_length'])) : 60;
         if ($default_slot_length <= 0) $default_slot_length = 60;
 
-        $default_min_adorers = isset($_POST['default_min_adorers']) ? (int) wp_unslash($_POST['default_min_adorers']) : 1;
+        $default_min_adorers = isset($_POST['default_min_adorers']) ? absint(wp_unslash($_POST['default_min_adorers'])) : 1;
         if ($default_min_adorers < 0) $default_min_adorers = 0;
 
-        $max_raw = isset($_POST['default_max_adorers']) ? wp_unslash($_POST['default_max_adorers']) : '';
+        $max_raw = isset($_POST['default_max_adorers']) ? sanitize_text_field(wp_unslash($_POST['default_max_adorers'])) : '';
         $max_raw = is_string($max_raw) ? trim($max_raw) : '';
         $default_max_adorers = ($max_raw === '') ? null : (int) $max_raw;
         if ($default_max_adorers !== null && $default_max_adorers < 0) {
@@ -107,7 +107,7 @@ class SchedulesPage {
         }
 
         // Optional event dates (one per line)
-        $event_dates_raw = isset($_POST['event_dates']) ? (string) wp_unslash($_POST['event_dates']) : '';
+        $event_dates_raw = isset($_POST['event_dates']) ? sanitize_textarea_field(wp_unslash($_POST['event_dates'])) : '';
         $event_dates_raw = trim($event_dates_raw);
 
         $event_dates = [];
@@ -156,7 +156,7 @@ class SchedulesPage {
         } elseif (method_exists($schedulesRepo, 'create_schedule')) {
             $schedule_id = (int) $schedulesRepo->create_schedule($payload);
         } else {
-            error_log('[AdorationScheduler] No create method found on SchedulesRepository (expected create/insert/create_schedule).');
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] No create method found on SchedulesRepository (expected create/insert/create_schedule).');
             wp_safe_redirect(add_query_arg(['created' => '0'], $back_url));
             exit;
         }
@@ -174,7 +174,7 @@ class SchedulesPage {
                     $dateRepo->create($schedule_id, $d);
                 } catch (\Throwable $e) {
                     // don't fail creation if one date fails
-                    error_log('[AdorationScheduler] Failed adding event date ' . $d . ' for schedule ' . $schedule_id . ': ' . $e->getMessage());
+                    \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Failed adding event date ' . $d . ' for schedule ' . $schedule_id . ': ' . $e->getMessage());
                 }
             }
         }
@@ -201,14 +201,14 @@ class SchedulesPage {
      * - Only run on POST with schedule_ids[] present.
      * - Only run on our schedules admin page.
      */
-    // phpcs:ignore WordPress.Security.NonceVerification.Missing -- these reads only decide whether to delegate to SchedulesListTable::process_bulk_action(), which itself calls check_admin_referer('bulk-schedules') before any mutation.
+    // phpcs:disable WordPress.Security.NonceVerification.Missing -- these reads only decide whether to delegate to SchedulesListTable::process_bulk_action(), which itself calls check_admin_referer('bulk-schedules') before any mutation.
     public static function handle_bulk_actions_early(): void {
 
         if ( ! is_admin() ) return;
         if ( ! self::current_user_can_with_fallback(self::CAP_MANAGE_SCHEDULES) ) return;
 
         // Only handle POST bulk submits
-        if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') return;
+        if (sanitize_text_field(wp_unslash($_SERVER['REQUEST_METHOD'] ?? '')) !== 'POST') return;
 
         // Only on our schedules page
         $page = sanitize_key($_REQUEST['page'] ?? '');
@@ -240,7 +240,9 @@ class SchedulesPage {
         $table = new SchedulesListTable();
         $table->process_bulk_action(); // includes nonce check + redirect + exit
     }
+    // phpcs:enable WordPress.Security.NonceVerification.Missing
 
+    // phpcs:disable WordPress.Security.NonceVerification.Recommended -- entire method is a read-only admin view; every $_GET read here only selects which notice/tab to display after a prior nonce-verified redirect, nothing mutates.
     public function render(): void {
 
         if ( ! self::current_user_can_with_fallback(self::CAP_MANAGE_SCHEDULES) ) {
@@ -409,6 +411,7 @@ class SchedulesPage {
                     'paged',
                 ];
 
+                // phpcs:disable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- $val is exhaustively sanitized per-key by the switch below (sanitize_key/int-cast/sanitize_text_field) before it's ever used, and the eventual output is esc_attr()'d too.
                 foreach ($preserve_keys as $key) {
                     if (!isset($_REQUEST[$key]) || $_REQUEST[$key] === '') continue;
 
@@ -430,6 +433,7 @@ class SchedulesPage {
 
                     echo '<input type="hidden" name="' . esc_attr($key) . '" value="' . esc_attr($val) . '" />';
                 }
+                // phpcs:enable WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
 
                 $table->search_box(__('Search Schedules', 'adoration-scheduler'), 'adoration-schedules');
                 $table->display();
@@ -438,6 +442,7 @@ class SchedulesPage {
         </div>
         <?php
     }
+    // phpcs:enable WordPress.Security.NonceVerification.Recommended
 
     // ----------------- helpers -----------------
 

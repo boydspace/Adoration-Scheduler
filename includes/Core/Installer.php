@@ -295,7 +295,7 @@ class Installer {
         }
 
         $msg = is_wp_error($new_id) ? $new_id->get_error_message() : 'Unknown error';
-        error_log('[AdorationScheduler] Failed to create My Adoration page: ' . $msg);
+        \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Failed to create My Adoration page: ' . $msg);
     }
 
     /**
@@ -378,7 +378,7 @@ class Installer {
         }
 
         $msg = is_wp_error($new_id) ? $new_id->get_error_message() : 'Unknown error';
-        error_log('[AdorationScheduler] Failed to create Request Access page: ' . $msg);
+        \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Failed to create Request Access page: ' . $msg);
     }
 
 
@@ -1083,6 +1083,7 @@ class Installer {
             // above, conditionally included based on schema introspection —
             // never raw user input; only the table name is parameterized.
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
             $wpdb->query($wpdb->prepare("ALTER TABLE %i " . implode(', ', $alters), $table));
         }
 
@@ -1221,6 +1222,7 @@ class Installer {
             // above, conditionally included based on schema introspection —
             // never raw user input; only the table name is parameterized.
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
             $wpdb->query($wpdb->prepare("ALTER TABLE %i " . implode(', ', $alters), $table));
         }
 
@@ -1260,6 +1262,7 @@ class Installer {
             // above, conditionally included based on schema introspection —
             // never raw user input; only the table name is parameterized.
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
             $wpdb->query($wpdb->prepare("ALTER TABLE %i " . implode(', ', $alters), $table));
         }
 
@@ -1429,6 +1432,7 @@ class Installer {
             // above, conditionally included based on schema introspection —
             // never raw user input; only the table name is parameterized.
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
             $wpdb->query($wpdb->prepare("ALTER TABLE %i " . implode(', ', $alters), $table));
         }
 
@@ -1471,6 +1475,7 @@ class Installer {
             // above, conditionally included based on schema introspection —
             // never raw user input; only the table name is parameterized.
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
             $wpdb->query($wpdb->prepare("ALTER TABLE %i " . implode(', ', $alters), $table));
         }
     }
@@ -1509,6 +1514,7 @@ class Installer {
             // above, conditionally included based on schema introspection —
             // never raw user input; only the table name is parameterized.
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
             $wpdb->query($wpdb->prepare("ALTER TABLE %i " . implode(', ', $alters), $table));
         }
 
@@ -1653,6 +1659,7 @@ class Installer {
             // above, conditionally included based on schema introspection —
             // never raw user input; only the table name is parameterized.
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
             $wpdb->query($wpdb->prepare("ALTER TABLE %i " . implode(', ', $alters), $table));
         }
 
@@ -1732,6 +1739,7 @@ class Installer {
             // above, conditionally included based on schema introspection —
             // never raw user input; only the table name is parameterized.
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
             $wpdb->query($wpdb->prepare("ALTER TABLE %i " . implode(', ', $alters), $table));
         }
 
@@ -1772,6 +1780,7 @@ class Installer {
             // above, conditionally included based on schema introspection —
             // never raw user input; only the table name is parameterized.
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
             $wpdb->query($wpdb->prepare("ALTER TABLE %i " . implode(', ', $alters), $table));
         }
 
@@ -1824,6 +1833,7 @@ class Installer {
             // above, conditionally included based on schema introspection —
             // never raw user input; only the table name is parameterized.
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
             $wpdb->query($wpdb->prepare("ALTER TABLE %i " . implode(', ', $alters), $table));
         }
 
@@ -1935,7 +1945,7 @@ class Installer {
         $r = $wpdb->query($wpdb->prepare("ALTER TABLE %i ADD INDEX %i (%i)", $table, $index_name, $column));
         if ($r === false && !empty($wpdb->last_error)) {
             if (stripos($wpdb->last_error, 'Duplicate key name') !== false) return;
-            error_log('[AdorationScheduler] maybe_add_index failed: ' . $wpdb->last_error);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] maybe_add_index failed: ' . $wpdb->last_error);
         }
     }
 
@@ -1973,16 +1983,10 @@ class Installer {
 
         if ($exists) return;
 
-        // Each column name is stripped to [A-Za-z0-9_] above and individually
-        // backtick-quoted, never raw user input — %i can't express a
-        // multi-column list, so this stays a hand-built identifier list.
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-        $cols_sql = implode(',', array_map(fn($c) => "`{$c}`", $cols));
-
-        $r = $wpdb->query($wpdb->prepare("ALTER TABLE %i ADD INDEX %i ({$cols_sql})", $table, $index_name));
+        $r = self::add_index($table, $index_name, $cols, false);
         if ($r === false && !empty($wpdb->last_error)) {
             if (stripos($wpdb->last_error, 'Duplicate key name') !== false) return;
-            error_log('[AdorationScheduler] ensure_index failed: ' . $wpdb->last_error);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] ensure_index failed: ' . $wpdb->last_error);
         }
     }
 
@@ -2014,14 +2018,8 @@ class Installer {
             $index_name
         ));
 
-        // Each column name is stripped to [A-Za-z0-9_] above and individually
-        // backtick-quoted, never raw user input — %i can't express a
-        // multi-column list, so this stays a hand-built identifier list.
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-        $cols_sql = implode(',', array_map(fn($c) => "`{$c}`", $cols));
-
         if ($non_unique === null) {
-            $wpdb->query($wpdb->prepare("ALTER TABLE %i ADD UNIQUE KEY %i ({$cols_sql})", $table, $index_name));
+            self::add_index($table, $index_name, $cols, true);
             return;
         }
 
@@ -2029,7 +2027,38 @@ class Installer {
         if ($non_unique === 0) return;
 
         $wpdb->query($wpdb->prepare("ALTER TABLE %i DROP INDEX %i", $table, $index_name));
-        $wpdb->query($wpdb->prepare("ALTER TABLE %i ADD UNIQUE KEY %i ({$cols_sql})", $table, $index_name));
+        self::add_index($table, $index_name, $cols, true);
+    }
+
+    /**
+     * Add a one-, two-, or three-column index using identifier placeholders.
+     * All current plugin indexes fall within this deliberately explicit limit.
+     *
+     * @return int|bool Number of affected rows, or false on failure.
+     */
+    private static function add_index(string $table, string $index_name, array $columns, bool $unique) {
+        global $wpdb;
+
+        if (count($columns) === 1) {
+            return $unique
+                ? $wpdb->query($wpdb->prepare('ALTER TABLE %i ADD UNIQUE KEY %i (%i)', $table, $index_name, $columns[0]))
+                : $wpdb->query($wpdb->prepare('ALTER TABLE %i ADD INDEX %i (%i)', $table, $index_name, $columns[0]));
+        }
+
+        if (count($columns) === 2) {
+            return $unique
+                ? $wpdb->query($wpdb->prepare('ALTER TABLE %i ADD UNIQUE KEY %i (%i,%i)', $table, $index_name, $columns[0], $columns[1]))
+                : $wpdb->query($wpdb->prepare('ALTER TABLE %i ADD INDEX %i (%i,%i)', $table, $index_name, $columns[0], $columns[1]));
+        }
+
+        if (count($columns) === 3) {
+            return $unique
+                ? $wpdb->query($wpdb->prepare('ALTER TABLE %i ADD UNIQUE KEY %i (%i,%i,%i)', $table, $index_name, $columns[0], $columns[1], $columns[2]))
+                : $wpdb->query($wpdb->prepare('ALTER TABLE %i ADD INDEX %i (%i,%i,%i)', $table, $index_name, $columns[0], $columns[1], $columns[2]));
+        }
+
+        \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Refusing to create an index with an unsupported column count.');
+        return false;
     }
 
     private static function get_db_name(): string {

@@ -111,7 +111,7 @@ class AccountDeletionService
                     'person_name' => $original_name !== '' ? $original_name : '',
                 ]);
             } catch (\Throwable $e) {
-                error_log('[AdorationScheduler] AccountDeletionService: goodbye email failed: ' . $e->getMessage());
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] AccountDeletionService: goodbye email failed: ' . $e->getMessage());
             }
         }
 

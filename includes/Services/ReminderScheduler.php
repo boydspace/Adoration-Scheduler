@@ -46,7 +46,7 @@ class ReminderScheduler {
             as_schedule_single_action($when, self::CRON_HOOK, [$signup_id], self::AS_GROUP);
 
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('[AdorationScheduler] ReminderScheduler scheduled (AS) signup_id=' . $signup_id . ' when=' . gmdate('c', $when) . ' (UTC)');
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] ReminderScheduler scheduled (AS) signup_id=' . $signup_id . ' when=' . gmdate('c', $when) . ' (UTC)');
             }
 
             return;
@@ -59,7 +59,7 @@ class ReminderScheduler {
         wp_schedule_single_event($when, self::CRON_HOOK, [$signup_id]);
 
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('[AdorationScheduler] ReminderScheduler scheduled (WP-Cron) signup_id=' . $signup_id . ' when=' . gmdate('c', $when) . ' (UTC)');
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] ReminderScheduler scheduled (WP-Cron) signup_id=' . $signup_id . ' when=' . gmdate('c', $when) . ' (UTC)');
         }
     }
 
@@ -122,7 +122,7 @@ class ReminderScheduler {
         $slot_ts = self::parse_local_datetime_to_timestamp($date, $start);
         if ($slot_ts === null) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('[AdorationScheduler] ReminderScheduler compute_remind_timestamp FAILED parse signup_id=' . (int)$signup_id . ' date=' . $date . ' start=' . $start);
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] ReminderScheduler compute_remind_timestamp FAILED parse signup_id=' . (int)$signup_id . ' date=' . $date . ' start=' . $start);
             }
             return null;
         }
@@ -132,7 +132,7 @@ class ReminderScheduler {
         // Don’t schedule in the past (or within 60 seconds)
         if ($remind_ts <= (time() + 60)) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('[AdorationScheduler] ReminderScheduler not scheduling (past) signup_id=' . (int)$signup_id
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] ReminderScheduler not scheduling (past) signup_id=' . (int)$signup_id
                     . ' slot_utc=' . gmdate('c', $slot_ts)
                     . ' remind_utc=' . gmdate('c', $remind_ts));
             }
@@ -140,7 +140,7 @@ class ReminderScheduler {
         }
 
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('[AdorationScheduler] ReminderScheduler computed signup_id=' . (int)$signup_id
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] ReminderScheduler computed signup_id=' . (int)$signup_id
                 . ' slot_date=' . $date
                 . ' slot_start=' . $start
                 . ' lead_hours=' . $lead_hours
@@ -237,7 +237,6 @@ class ReminderScheduler {
         if ($end !== '') $slot_label .= '–' . $end;
 
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('[AdorationScheduler] ReminderScheduler send_reminder signup_id=' . $signup_id . ' to=' . $to . ' date=' . $date . ' start=' . $start);
         }
 
         // ✅ Check-in (2026-07-18): best-effort, mirrors EmailService's
@@ -294,7 +293,7 @@ class ReminderScheduler {
                 SmsService::send_reminder_sms($reminder_args);
             }
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] SMS reminder threw for signup_id=' . $signup_id . ': ' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] SMS reminder threw for signup_id=' . $signup_id . ': ' . $e->getMessage());
         }
     }
 }

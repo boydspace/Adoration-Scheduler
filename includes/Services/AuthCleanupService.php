@@ -110,7 +110,7 @@ class AuthCleanupService
 
         if (!self::action_scheduler_ready()) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('[AdorationScheduler] AuthCleanupService: Action Scheduler not ready on wp_loaded; not scheduling.');
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] AuthCleanupService: Action Scheduler not ready on wp_loaded; not scheduling.');
             }
             return;
         }
@@ -134,7 +134,7 @@ class AuthCleanupService
     {
         if (!self::action_scheduler_ready()) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('[AdorationScheduler] AuthCleanupService: Action Scheduler not ready; ensure_recurring skipped.');
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] AuthCleanupService: Action Scheduler not ready; ensure_recurring skipped.');
             }
             return;
         }
@@ -167,7 +167,7 @@ class AuthCleanupService
         );
 
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log(
+            \AdorationScheduler\Core\Logger::error(
                 '[AdorationScheduler] AuthCleanupService scheduled: first=' .
                 gmdate('c', $first) .
                 ' interval=' . $interval . 's group=' . self::AS_GROUP
@@ -262,7 +262,7 @@ class AuthCleanupService
         }
 
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log(sprintf(
+            \AdorationScheduler\Core\Logger::error(sprintf(
                 '[AdorationScheduler] AuthCleanupService ran: deleted_sessions=%d deleted_magic_links=%d retain_days=%d batch_limit=%d max_batches=%d',
                 $deleted_sessions,
                 $deleted_magic,
@@ -301,12 +301,14 @@ class AuthCleanupService
             // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $sql = "DELETE FROM %i WHERE {$where_sql} LIMIT " . (int)$batch_limit;
 
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- $sql contains a private, hardcoded WHERE fragment; all identifiers and values are supplied as placeholders.
             $prepared = $wpdb->prepare($sql, ...array_merge([$table], $where_params));
 
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- $prepared is produced by $wpdb->prepare() immediately above.
             $deleted = $wpdb->query($prepared);
 
             if ($deleted === false) {
-                error_log('[AdorationScheduler] AuthCleanupService delete failed table=' . $table . ' err=' . $wpdb->last_error);
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] AuthCleanupService delete failed table=' . $table . ' err=' . $wpdb->last_error);
                 break;
             }
 

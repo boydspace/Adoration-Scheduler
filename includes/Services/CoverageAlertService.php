@@ -58,7 +58,7 @@ class CoverageAlertService
 
         if (!self::action_scheduler_ready()) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('[AdorationScheduler] CoverageAlertService: Action Scheduler not ready on wp_loaded; not scheduling.');
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] CoverageAlertService: Action Scheduler not ready on wp_loaded; not scheduling.');
             }
             return;
         }
@@ -104,7 +104,7 @@ class CoverageAlertService
         );
 
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log(
+            \AdorationScheduler\Core\Logger::error(
                 '[AdorationScheduler] CoverageAlertService scheduled: first=' .
                 gmdate('c', $first) .
                 ' interval=' . $interval . 's group=' . self::AS_GROUP
@@ -148,7 +148,7 @@ class CoverageAlertService
         try {
             $gaps = $slots_repo->find_open_urgent_slots($window_hours, $only_unalerted);
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] CoverageAlertService::run_check query failed: ' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] CoverageAlertService::run_check query failed: ' . $e->getMessage());
             return;
         }
 
@@ -214,7 +214,7 @@ class CoverageAlertService
                 'dedupe_key'   => '', // digest already dedupes via coverage_alert_sent_at per slot
             ]);
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] CoverageAlertService::send_digest failed: ' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] CoverageAlertService::send_digest failed: ' . $e->getMessage());
         }
     }
 

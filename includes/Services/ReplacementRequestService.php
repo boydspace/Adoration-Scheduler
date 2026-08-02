@@ -102,7 +102,7 @@ class ReplacementRequestService
 
     public static function handle_request(): void
     {
-        $return = isset($_POST['return']) ? esc_url_raw((string) $_POST['return']) : home_url('/');
+        $return = isset($_POST['return']) ? esc_url_raw(wp_unslash($_POST['return'])) : home_url('/');
 
         $person = MagicLinkService::current_person_or_admin_match();
         $person_id = (int)($person['id'] ?? 0);
@@ -110,23 +110,23 @@ class ReplacementRequestService
             self::redirect_with_toast($return, 'Please sign in again to request a replacement.', 'error');
         }
 
-        $signup_id = isset($_POST['signup_id']) ? (int) $_POST['signup_id'] : 0;
+        $signup_id = isset($_POST['signup_id']) ? absint(wp_unslash($_POST['signup_id'])) : 0;
         if ($signup_id <= 0) {
             self::redirect_with_toast($return, 'Invalid signup.', 'error');
         }
 
         // phpcs:ignore WordPress.Security.NonceVerification.Missing -- this line reads the token; wp_verify_nonce() on the next line is the actual check, and nothing mutates before it succeeds.
-        $nonce = isset($_POST['_wpnonce']) ? (string) $_POST['_wpnonce'] : '';
+        $nonce = isset($_POST['_wpnonce']) ? sanitize_text_field(wp_unslash($_POST['_wpnonce'])) : '';
         if (!wp_verify_nonce($nonce, 'adoration_request_replacement_' . $signup_id)) {
             self::redirect_with_toast($return, 'Security check failed. Please try again.', 'error');
         }
 
-        $note = isset($_POST['note']) ? (string) wp_unslash($_POST['note']) : '';
+        $note = isset($_POST['note']) ? sanitize_textarea_field(wp_unslash($_POST['note'])) : '';
 
         // Direct-to-person swap requests: an optional specific target.
         // Validated here (exists, not the requester themselves) rather than
         // trusting the posted ID blindly, since it drives claim exclusivity.
-        $target_person_id = isset($_POST['target_person_id']) ? (int) $_POST['target_person_id'] : 0;
+        $target_person_id = isset($_POST['target_person_id']) ? absint(wp_unslash($_POST['target_person_id'])) : 0;
         if ($target_person_id > 0) {
             if ($target_person_id === $person_id) {
                 self::redirect_with_toast($return, 'You can\'t ask yourself to cover your own hour.', 'error');
@@ -161,7 +161,7 @@ class ReplacementRequestService
      */
     public static function handle_open_to_everyone(): void
     {
-        $return = isset($_POST['return']) ? esc_url_raw((string) $_POST['return']) : home_url('/');
+        $return = isset($_POST['return']) ? esc_url_raw(wp_unslash($_POST['return'])) : home_url('/');
 
         $person = MagicLinkService::current_person_or_admin_match();
         $person_id = (int)($person['id'] ?? 0);
@@ -169,13 +169,13 @@ class ReplacementRequestService
             self::redirect_with_toast($return, 'Please sign in again.', 'error');
         }
 
-        $signup_id = isset($_POST['signup_id']) ? (int) $_POST['signup_id'] : 0;
+        $signup_id = isset($_POST['signup_id']) ? absint(wp_unslash($_POST['signup_id'])) : 0;
         if ($signup_id <= 0) {
             self::redirect_with_toast($return, 'Invalid signup.', 'error');
         }
 
         // phpcs:ignore WordPress.Security.NonceVerification.Missing -- this line reads the token; wp_verify_nonce() on the next line is the actual check, and nothing mutates before it succeeds.
-        $nonce = isset($_POST['_wpnonce']) ? (string) $_POST['_wpnonce'] : '';
+        $nonce = isset($_POST['_wpnonce']) ? sanitize_text_field(wp_unslash($_POST['_wpnonce'])) : '';
         if (!wp_verify_nonce($nonce, 'adoration_replacement_open_to_everyone_' . $signup_id)) {
             self::redirect_with_toast($return, 'Security check failed. Please try again.', 'error');
         }
@@ -195,7 +195,7 @@ class ReplacementRequestService
 
     public static function handle_claim(): void
     {
-        $return = isset($_POST['return']) ? esc_url_raw((string) $_POST['return']) : home_url('/');
+        $return = isset($_POST['return']) ? esc_url_raw(wp_unslash($_POST['return'])) : home_url('/');
 
         $person = MagicLinkService::current_person_or_admin_match();
         $person_id = (int)($person['id'] ?? 0);
@@ -203,13 +203,13 @@ class ReplacementRequestService
             self::redirect_with_toast($return, 'Please sign in again to claim this slot.', 'error');
         }
 
-        $signup_id = isset($_POST['signup_id']) ? (int) $_POST['signup_id'] : 0;
+        $signup_id = isset($_POST['signup_id']) ? absint(wp_unslash($_POST['signup_id'])) : 0;
         if ($signup_id <= 0) {
             self::redirect_with_toast($return, 'Invalid signup.', 'error');
         }
 
         // phpcs:ignore WordPress.Security.NonceVerification.Missing -- this line reads the token; wp_verify_nonce() on the next line is the actual check, and nothing mutates before it succeeds.
-        $nonce = isset($_POST['_wpnonce']) ? (string) $_POST['_wpnonce'] : '';
+        $nonce = isset($_POST['_wpnonce']) ? sanitize_text_field(wp_unslash($_POST['_wpnonce'])) : '';
         if (!wp_verify_nonce($nonce, 'adoration_claim_replacement_' . $signup_id)) {
             self::redirect_with_toast($return, 'Security check failed. Please try again.', 'error');
         }
@@ -243,7 +243,7 @@ class ReplacementRequestService
 
     public static function handle_cancel(): void
     {
-        $return = isset($_POST['return']) ? esc_url_raw((string) $_POST['return']) : home_url('/');
+        $return = isset($_POST['return']) ? esc_url_raw(wp_unslash($_POST['return'])) : home_url('/');
 
         $person = MagicLinkService::current_person_or_admin_match();
         $person_id = (int)($person['id'] ?? 0);
@@ -251,13 +251,13 @@ class ReplacementRequestService
             self::redirect_with_toast($return, 'Please sign in again.', 'error');
         }
 
-        $signup_id = isset($_POST['signup_id']) ? (int) $_POST['signup_id'] : 0;
+        $signup_id = isset($_POST['signup_id']) ? absint(wp_unslash($_POST['signup_id'])) : 0;
         if ($signup_id <= 0) {
             self::redirect_with_toast($return, 'Invalid signup.', 'error');
         }
 
         // phpcs:ignore WordPress.Security.NonceVerification.Missing -- this line reads the token; wp_verify_nonce() on the next line is the actual check, and nothing mutates before it succeeds.
-        $nonce = isset($_POST['_wpnonce']) ? (string) $_POST['_wpnonce'] : '';
+        $nonce = isset($_POST['_wpnonce']) ? sanitize_text_field(wp_unslash($_POST['_wpnonce'])) : '';
         if (!wp_verify_nonce($nonce, 'adoration_cancel_replacement_' . $signup_id)) {
             self::redirect_with_toast($return, 'Security check failed. Please try again.', 'error');
         }
@@ -356,7 +356,7 @@ class ReplacementRequestService
                 ]);
             }
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] ReplacementRequestService: notify failed: ' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] ReplacementRequestService: notify failed: ' . $e->getMessage());
         }
     }
 }

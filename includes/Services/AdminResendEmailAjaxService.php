@@ -36,7 +36,7 @@ class AdminResendEmailAjaxService
 
             $repo->log((int)$signup_id, (string)$event_type, is_array($meta) ? $meta : [], $actor_user_id, $actor_label);
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] Audit log failed: ' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Audit log failed: ' . $e->getMessage());
         }
     }
 
@@ -49,7 +49,7 @@ class AdminResendEmailAjaxService
         $cls = '\\AdorationScheduler\\Services\\NotificationService';
 
         if (!class_exists($cls)) {
-            error_log('[AdorationScheduler] NotificationService class missing');
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] NotificationService class missing');
             return false;
         }
 
@@ -67,11 +67,11 @@ class AdminResendEmailAjaxService
                 try {
                     $ok = (bool) $cls::$m($args);
                     if (defined('WP_DEBUG') && WP_DEBUG) {
-                        error_log('[AdorationScheduler] Resend used NotificationService::' . $m . '() -> ' . ($ok ? 'true' : 'false'));
+                        \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Resend used NotificationService::' . $m . '() -> ' . ($ok ? 'true' : 'false'));
                     }
                     return $ok;
                 } catch (\Throwable $e) {
-                    error_log('[AdorationScheduler] NotificationService::' . $m . ' threw: ' . $e->getMessage());
+                    \AdorationScheduler\Core\Logger::error('[AdorationScheduler] NotificationService::' . $m . ' threw: ' . $e->getMessage());
                     return false;
                 }
             }
@@ -95,18 +95,18 @@ class AdminResendEmailAjaxService
                     }
 
                     if (defined('WP_DEBUG') && WP_DEBUG) {
-                        error_log('[AdorationScheduler] Resend used NotificationService::' . $m . '() -> ' . ($ok ? 'true' : 'false'));
+                        \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Resend used NotificationService::' . $m . '() -> ' . ($ok ? 'true' : 'false'));
                     }
                     return $ok;
 
                 } catch (\Throwable $e) {
-                    error_log('[AdorationScheduler] NotificationService::' . $m . ' threw: ' . $e->getMessage());
+                    \AdorationScheduler\Core\Logger::error('[AdorationScheduler] NotificationService::' . $m . ' threw: ' . $e->getMessage());
                     return false;
                 }
             }
         }
 
-        error_log('[AdorationScheduler] No usable NotificationService method found for email_type=' . $email_type);
+        \AdorationScheduler\Core\Logger::error('[AdorationScheduler] No usable NotificationService method found for email_type=' . $email_type);
         return false;
     }
 
@@ -192,6 +192,7 @@ class AdminResendEmailAjaxService
             $t_signups, $t_persons, $t_schedules, $t_slots, $signup_id
         );
 
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- $prepared is produced by $wpdb->prepare() immediately above, including identifier placeholders.
         $row = $wpdb->get_row($prepared, ARRAY_A);
         if (!$row) {
             wp_send_json_error(['message' => 'Signup not found'], 404);
@@ -260,10 +261,14 @@ class AdminResendEmailAjaxService
             $now     = gmdate('Y-m-d H:i:s');
             $expires = gmdate('Y-m-d H:i:s', time() + (60 * 15));
 
-            $ip = isset($_SERVER['REMOTE_ADDR']) ? (string)$_SERVER['REMOTE_ADDR'] : '';
-            if ($ip === '') $ip = '0.0.0.0';
+            $ip = isset($_SERVER['REMOTE_ADDR'])
+                ? sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR']))
+                : '';
+            if ($ip === '' || filter_var($ip, FILTER_VALIDATE_IP) === false) $ip = '0.0.0.0';
 
-            $ua = isset($_SERVER['HTTP_USER_AGENT']) ? (string)$_SERVER['HTTP_USER_AGENT'] : null;
+            $ua = isset($_SERVER['HTTP_USER_AGENT'])
+                ? sanitize_text_field(wp_unslash($_SERVER['HTTP_USER_AGENT']))
+                : null;
             if (is_string($ua) && strlen($ua) > 255) $ua = substr($ua, 0, 255);
 
             // Invalidate old unused links for this person (best-effort)

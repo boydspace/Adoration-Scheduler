@@ -62,7 +62,7 @@ class NoShowAlertService
 
         if (!self::action_scheduler_ready()) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('[AdorationScheduler] NoShowAlertService: Action Scheduler not ready on wp_loaded; not scheduling.');
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] NoShowAlertService: Action Scheduler not ready on wp_loaded; not scheduling.');
             }
             return;
         }
@@ -108,7 +108,7 @@ class NoShowAlertService
         );
 
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log(
+            \AdorationScheduler\Core\Logger::error(
                 '[AdorationScheduler] NoShowAlertService scheduled: first=' .
                 gmdate('c', $first) .
                 ' interval=' . $interval . 's group=' . self::AS_GROUP
@@ -149,7 +149,7 @@ class NoShowAlertService
         try {
             $gaps = $signups_repo->find_unchecked_in_past_grace($grace_minutes, 100);
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] NoShowAlertService::run_check query failed: ' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] NoShowAlertService::run_check query failed: ' . $e->getMessage());
             return;
         }
 
@@ -211,7 +211,7 @@ class NoShowAlertService
                 'dedupe_key'     => '', // digest already dedupes via no_show_alert_sent_at per signup
             ]);
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] NoShowAlertService::send_digest failed: ' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] NoShowAlertService::send_digest failed: ' . $e->getMessage());
         }
     }
 

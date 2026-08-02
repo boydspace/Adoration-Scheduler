@@ -30,7 +30,7 @@ class SlotsRepository {
         $ok = $wpdb->insert($this->table, $row);
 
         if (!$ok && !empty($wpdb->last_error)) {
-            error_log('[AdorationScheduler] SlotsRepository::insert failed: ' . $wpdb->last_error);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] SlotsRepository::insert failed: ' . $wpdb->last_error);
         }
 
         return $ok ? (int) $wpdb->insert_id : 0;
@@ -86,7 +86,7 @@ class SlotsRepository {
         );
 
         if ($result === false && !empty($wpdb->last_error)) {
-            error_log('[AdorationScheduler] SlotsRepository::update_canonical_datetimes failed: ' . $wpdb->last_error);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] SlotsRepository::update_canonical_datetimes failed: ' . $wpdb->last_error);
         }
 
         return ($result !== false);
@@ -99,6 +99,7 @@ class SlotsRepository {
             $this->table,
             $schedule_id
         );
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (int) $wpdb->get_var($sql);
     }
 
@@ -109,6 +110,7 @@ class SlotsRepository {
             $this->table,
             $schedule_id
         );
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (int) $wpdb->get_var($sql);
     }
 
@@ -119,6 +121,7 @@ class SlotsRepository {
             $this->table,
             $schedule_id
         );
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (int) $wpdb->get_var($sql);
     }
 
@@ -140,6 +143,7 @@ class SlotsRepository {
             $slot_id
         );
 
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $row = $wpdb->get_row($sql, ARRAY_A);
         return $row ? (array) $row : null;
     }
@@ -220,12 +224,13 @@ class SlotsRepository {
         $rows = $wpdb->get_results($sql, ARRAY_A);
 
         if (!empty($wpdb->last_error)) {
-            error_log('[AdorationScheduler] SlotsRepository query error (primary): ' . $wpdb->last_error);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] SlotsRepository query error (primary): ' . $wpdb->last_error);
             $wpdb->last_error = '';
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
             $rows = $wpdb->get_results($fallback_sql, ARRAY_A);
 
             if (!empty($wpdb->last_error)) {
-                error_log('[AdorationScheduler] SlotsRepository query error (fallback): ' . $wpdb->last_error);
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] SlotsRepository query error (fallback): ' . $wpdb->last_error);
             }
         }
 
@@ -314,6 +319,7 @@ class SlotsRepository {
             $window_end
         );
 
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $rows = (array) $wpdb->get_results($sql, ARRAY_A);
 
         foreach ($rows as &$row) {
@@ -365,6 +371,7 @@ class SlotsRepository {
             $to_ymd
         );
 
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $rows = (array) $wpdb->get_results($sql, ARRAY_A);
         return $rows;
     }
@@ -420,6 +427,7 @@ class SlotsRepository {
             $schedule_id
         );
 
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $rows = (array) $wpdb->get_results($sql, ARRAY_A);
 
         $out = [];
@@ -534,6 +542,7 @@ class SlotsRepository {
             $limit
         );
 
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $rows = $wpdb->get_results($sql, ARRAY_A);
         return is_array($rows) ? $rows : [];
     }
@@ -559,6 +568,7 @@ class SlotsRepository {
             $end_ymd
         );
 
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $rows = (array) $wpdb->get_results($sql, ARRAY_A);
         $out = [];
         foreach ($rows as $r) {
@@ -604,6 +614,7 @@ class SlotsRepository {
             $limit
         );
 
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (array) $wpdb->get_results($sql, ARRAY_A);
     }
 
@@ -630,6 +641,7 @@ class SlotsRepository {
             $ymd
         );
 
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (array) $wpdb->get_results($sql, ARRAY_A);
     }
 
@@ -654,6 +666,7 @@ class SlotsRepository {
             $end_at,
             $start_at
         );
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (array) $wpdb->get_results($sql, ARRAY_A);
     }
 
@@ -678,6 +691,7 @@ class SlotsRepository {
             $end_at,
             $start_at
         );
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (array) $wpdb->get_results($sql, ARRAY_A);
     }
 
@@ -697,6 +711,7 @@ class SlotsRepository {
             "UPDATE %i SET is_active = 1 WHERE id IN ($placeholders)",
             array_merge([$this->table], $ids)
         );
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $result = $wpdb->query($sql);
         return ($result === false) ? 0 : (int) $result;
     }
@@ -715,6 +730,7 @@ class SlotsRepository {
             "UPDATE %i SET is_active = 0 WHERE id IN ($placeholders)",
             array_merge([$this->table], $ids)
         );
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $result = $wpdb->query($sql);
         return ($result === false) ? 0 : (int) $result;
     }
@@ -734,6 +750,7 @@ class SlotsRepository {
                 $this->table,
                 $schedule_id
             );
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
             $result = $wpdb->query($sql);
             return ($result === false) ? 0 : (int) $result;
         }
@@ -749,6 +766,7 @@ class SlotsRepository {
             $params
         );
 
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $result = $wpdb->query($sql);
         return ($result === false) ? 0 : (int) $result;
     }
@@ -813,6 +831,7 @@ class SlotsRepository {
             $only_unalerted ? 1 : 0
         );
 
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (array) $wpdb->get_results($sql, ARRAY_A);
     }
 
@@ -836,6 +855,7 @@ class SlotsRepository {
             "UPDATE %i SET coverage_alert_sent_at = NOW() WHERE id IN ($placeholders)",
             array_merge([$this->table], $ids)
         );
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $result = $wpdb->query($sql);
         return ($result === false) ? 0 : (int) $result;
     }

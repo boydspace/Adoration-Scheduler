@@ -19,6 +19,7 @@ class ChapelsRepository {
         global $wpdb;
         $sql = $wpdb->prepare("SELECT * FROM %i WHERE is_active = 1 ORDER BY name ASC", $this->table);
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (array) $wpdb->get_results($sql, ARRAY_A);
     }
 
@@ -29,6 +30,7 @@ class ChapelsRepository {
         global $wpdb;
         $sql = $wpdb->prepare("SELECT * FROM %i ORDER BY name ASC", $this->table);
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (array) $wpdb->get_results($sql, ARRAY_A);
     }
 

@@ -99,6 +99,7 @@ class PersonsPage {
             $person_id
         );
 
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- $sql is produced by $wpdb->prepare() immediately above, including the table identifier.
         return (array)$wpdb->get_results($sql, ARRAY_A);
     }
 

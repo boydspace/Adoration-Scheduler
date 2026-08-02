@@ -102,13 +102,14 @@ class CheckInService
     // SELF-REPORT CHECK-IN / CHECK-OUT (email link or portal button)
     // -------------------------------------------------------------------------
 
+    // phpcs:disable WordPress.Security.NonceVerification.Recommended -- the expiring, signup-specific check-in token is the credential for this public email-link endpoint; visitors may not have a WordPress session for a conventional nonce.
     public static function handle_checkin(): void
     {
-        $action = isset($_REQUEST['action']) ? (string) $_REQUEST['action'] : '';
+        $action = isset($_REQUEST['action']) ? sanitize_key(wp_unslash($_REQUEST['action'])) : '';
         if ($action !== self::ACTION_CHECKIN) return;
 
-        $token = isset($_GET['token']) ? trim((string) wp_unslash($_GET['token'])) : '';
-        $mode  = isset($_GET['mode']) ? sanitize_key((string) wp_unslash($_GET['mode'])) : 'in';
+        $token = isset($_GET['token']) ? sanitize_text_field(wp_unslash($_GET['token'])) : '';
+        $mode  = isset($_GET['mode']) ? sanitize_key(wp_unslash($_GET['mode'])) : 'in';
         $mode  = ($mode === 'out') ? 'out' : 'in';
 
         if ($token === '') {
@@ -183,17 +184,19 @@ class CheckInService
             );
         }
     }
+    // phpcs:enable WordPress.Security.NonceVerification.Recommended
 
     // -------------------------------------------------------------------------
     // KIOSK PAGE (public, per-chapel, "who's on now")
     // -------------------------------------------------------------------------
 
+    // phpcs:disable WordPress.Security.NonceVerification.Recommended -- this public read-only kiosk page is authorized by its per-chapel random token and does not require a WordPress login session.
     public static function handle_kiosk_page(): void
     {
-        $action = isset($_REQUEST['action']) ? (string) $_REQUEST['action'] : '';
+        $action = isset($_REQUEST['action']) ? sanitize_key(wp_unslash($_REQUEST['action'])) : '';
         if ($action !== self::ACTION_KIOSK_PAGE) return;
 
-        $token = isset($_GET['token']) ? trim((string) wp_unslash($_GET['token'])) : '';
+        $token = isset($_GET['token']) ? sanitize_text_field(wp_unslash($_GET['token'])) : '';
         if ($token === '') {
             self::output_html('Kiosk not found', 'This check-in page link is missing information.');
         }
@@ -287,15 +290,16 @@ class CheckInService
         echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- already escaped per-field above
         exit;
     }
+    // phpcs:enable WordPress.Security.NonceVerification.Recommended
 
-    // phpcs:ignore WordPress.Security.NonceVerification.Missing -- deliberately unauthenticated by design (see class docblock): this is a nopriv kiosk-device endpoint with no WP session to tie a nonce to. The per-chapel kiosk_token (printed as a QR code) is the authorization, same trust model as a paper sign-in sheet; the tapped signup is re-validated against the live "current" list before being recorded. Accepted risk: knowing a chapel's token plus an active signup_id lets someone remotely flip an attendance flag — low impact (no PII/financial/account exposure).
+    // phpcs:disable WordPress.Security.NonceVerification.Missing,WordPress.Security.NonceVerification.Recommended -- deliberately unauthenticated by design (see class docblock): this is a nopriv kiosk-device endpoint with no WP session to tie a nonce to. The per-chapel kiosk_token (printed as a QR code) is the authorization, same trust model as a paper sign-in sheet; the tapped signup is re-validated against the live "current" list before being recorded. Accepted risk: knowing a chapel's token plus an active signup_id lets someone remotely flip an attendance flag — low impact (no PII/financial/account exposure).
     public static function handle_kiosk_checkin(): void
     {
-        $action = isset($_REQUEST['action']) ? (string) $_REQUEST['action'] : '';
+        $action = isset($_REQUEST['action']) ? sanitize_key(wp_unslash($_REQUEST['action'])) : '';
         if ($action !== self::ACTION_KIOSK_CHECKIN) return;
 
-        $token     = isset($_POST['token']) ? trim((string) wp_unslash($_POST['token'])) : '';
-        $signup_id = isset($_POST['signup_id']) ? (int) $_POST['signup_id'] : 0;
+        $token     = isset($_POST['token']) ? sanitize_text_field(wp_unslash($_POST['token'])) : '';
+        $signup_id = isset($_POST['signup_id']) ? absint(wp_unslash($_POST['signup_id'])) : 0;
 
         if ($token === '' || $signup_id <= 0) {
             wp_die(esc_html__('Missing check-in information.', 'adoration-scheduler'), 400);
@@ -330,6 +334,7 @@ class CheckInService
         wp_safe_redirect($kiosk_url);
         exit;
     }
+    // phpcs:enable WordPress.Security.NonceVerification.Missing,WordPress.Security.NonceVerification.Recommended
 
     // -------------------------------------------------------------------------
     // Shared helpers

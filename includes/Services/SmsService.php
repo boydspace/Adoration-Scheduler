@@ -56,7 +56,7 @@ class SmsService
         $result = self::provider()->send($to_e164, $message);
 
         if (empty($result['success'])) {
-            error_log('[AdorationScheduler] SMS reminder failed to=' . $to_e164 . ' error=' . (string)($result['error'] ?? 'unknown'));
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] SMS reminder failed: ' . (string)($result['error'] ?? 'unknown'));
             return false;
         }
 

@@ -168,11 +168,10 @@ class AccessRequestShortcode
 
     private static function current_url(): string
     {
-        $scheme = is_ssl() ? 'https://' : 'http://';
-        $host   = isset($_SERVER['HTTP_HOST']) ? (string) $_SERVER['HTTP_HOST'] : '';
-        $uri    = isset($_SERVER['REQUEST_URI']) ? (string) $_SERVER['REQUEST_URI'] : '/';
-
-        $url = $scheme . $host . $uri;
+        $uri = isset($_SERVER['REQUEST_URI'])
+            ? esc_url_raw(wp_unslash($_SERVER['REQUEST_URI']))
+            : '/';
+        $url = home_url(strpos($uri, '/') === 0 ? $uri : '/');
         $url = remove_query_arg(['as_toast', 'as_toast_type', 'as_toast_sticky'], $url);
 
         return (string) $url;
@@ -185,14 +184,13 @@ class AccessRequestShortcode
      * same-site address before use, same pattern as SignupsPage's own
      * resolve_return_url().
      */
+    // phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only shortcode rendering; this query parameter only selects a validated same-site return URL.
     private static function resolve_return_url(): string
     {
-        $raw = isset($_GET['return']) ? (string) wp_unslash($_GET['return']) : '';
-        $raw = trim($raw);
+        $raw = isset($_GET['return']) ? esc_url_raw(wp_unslash($_GET['return'])) : '';
 
         if ($raw !== '') {
-            $candidate = esc_url_raw($raw);
-            $safe = wp_validate_redirect($candidate, '');
+            $safe = wp_validate_redirect($raw, '');
 
             if ($safe !== '' && strpos($safe, home_url()) === 0) {
                 return $safe;
@@ -201,4 +199,5 @@ class AccessRequestShortcode
 
         return self::current_url();
     }
+    // phpcs:enable WordPress.Security.NonceVerification.Recommended
 }

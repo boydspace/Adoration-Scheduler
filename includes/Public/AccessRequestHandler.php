@@ -31,7 +31,9 @@ class AccessRequestHandler
 
     public static function handle(): void
     {
-        $action = isset($_REQUEST['action']) ? (string) $_REQUEST['action'] : '';
+        // This value only dispatches the handler; check_admin_referer() below protects processing.
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        $action = isset($_REQUEST['action']) ? sanitize_key(wp_unslash($_REQUEST['action'])) : '';
         if ($action !== self::ACTION) {
             return;
         }
@@ -41,7 +43,9 @@ class AccessRequestHandler
             exit;
         }
 
-        $method = isset($_SERVER['REQUEST_METHOD']) ? strtoupper((string)$_SERVER['REQUEST_METHOD']) : '';
+        $method = isset($_SERVER['REQUEST_METHOD'])
+            ? strtoupper(sanitize_text_field(wp_unslash($_SERVER['REQUEST_METHOD'])))
+            : '';
         if ($method !== 'POST') {
             wp_safe_redirect(home_url('/'));
             exit;
@@ -128,7 +132,7 @@ class AccessRequestHandler
         ]);
 
         if ($new_id <= 0) {
-            error_log('[AdorationScheduler] AccessRequestHandler: create_pending_person failed for ' . $email_norm);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] AccessRequestHandler: create_pending_person failed.');
             SignupHandler::redirect_back('err', 'Something went wrong submitting your request. Please try again.');
             exit;
         }
@@ -177,7 +181,7 @@ class AccessRequestHandler
                 'context'         => 'admin',
             ]);
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] AccessRequestHandler: admin notify failed: ' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] AccessRequestHandler: admin notify failed: ' . $e->getMessage());
         }
     }
 
@@ -219,7 +223,7 @@ class AccessRequestHandler
                 'context'      => 'admin',
             ]);
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] AccessRequestHandler: approval notify failed: ' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] AccessRequestHandler: approval notify failed: ' . $e->getMessage());
         }
     }
 }

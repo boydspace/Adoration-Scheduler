@@ -103,14 +103,15 @@ class CalendarFeedService
     // PERSONAL FEED
     // -------------------------------------------------------------------------
 
+    // phpcs:disable WordPress.Security.NonceVerification.Recommended -- the long random calendar token is the credential for this read-only subscription endpoint; calendar clients cannot maintain a WordPress session or refresh a nonce.
     public static function handle_personal_feed(): void
     {
-        $action = isset($_REQUEST['action']) ? (string) $_REQUEST['action'] : '';
+        $action = isset($_REQUEST['action']) ? sanitize_key(wp_unslash($_REQUEST['action'])) : '';
         if ($action !== self::ACTION_PERSONAL) {
             return;
         }
 
-        $token = isset($_GET['token']) ? trim((string) wp_unslash($_GET['token'])) : '';
+        $token = isset($_GET['token']) ? sanitize_text_field(wp_unslash($_GET['token'])) : '';
         if ($token === '') {
             self::output_error_ics('Missing calendar token.');
         }
@@ -153,20 +154,22 @@ class CalendarFeedService
 
         self::output_ics($ics->build(), 'my-adoration.ics');
     }
+    // phpcs:enable WordPress.Security.NonceVerification.Recommended
 
     // -------------------------------------------------------------------------
     // PUBLIC FEED (no names, no auth — same data ScheduleShortcode already
     // shows publicly, just reshaped as .ics instead of an HTML grid)
     // -------------------------------------------------------------------------
 
+    // phpcs:disable WordPress.Security.NonceVerification.Recommended -- this is a read-only public feed containing the same non-personal schedule data as the public schedule shortcode.
     public static function handle_public_feed(): void
     {
-        $action = isset($_REQUEST['action']) ? (string) $_REQUEST['action'] : '';
+        $action = isset($_REQUEST['action']) ? sanitize_key(wp_unslash($_REQUEST['action'])) : '';
         if ($action !== self::ACTION_PUBLIC) {
             return;
         }
 
-        $slug = isset($_GET['slug']) ? sanitize_title((string) wp_unslash($_GET['slug'])) : '';
+        $slug = isset($_GET['slug']) ? sanitize_title(wp_unslash($_GET['slug'])) : '';
         if ($slug === '') {
             self::output_error_ics('Missing schedule.');
         }
@@ -232,6 +235,7 @@ class CalendarFeedService
 
         self::output_ics($ics->build(), sanitize_title($schedule_name !== '' ? $schedule_name : 'adoration-schedule') . '.ics');
     }
+    // phpcs:enable WordPress.Security.NonceVerification.Recommended
 
     // -------------------------------------------------------------------------
     // REGENERATE (self-service, signed-in person only)
@@ -239,12 +243,16 @@ class CalendarFeedService
 
     public static function handle_regenerate_token(): void
     {
-        $action = isset($_REQUEST['action']) ? (string) $_REQUEST['action'] : '';
+        // This value only dispatches the handler; the person-specific nonce below protects the mutation.
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        $action = isset($_REQUEST['action']) ? sanitize_key(wp_unslash($_REQUEST['action'])) : '';
         if ($action !== self::ACTION_REGENERATE) {
             return;
         }
 
-        $return = isset($_POST['return']) ? esc_url_raw((string) $_POST['return']) : home_url('/my-adoration/');
+        // Read before nonce verification solely so failures can return to the originating page.
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        $return = isset($_POST['return']) ? esc_url_raw(wp_unslash($_POST['return'])) : home_url('/my-adoration/');
 
         $person = MagicLinkService::current_person_or_admin_match();
         $person_id = (int)($person['id'] ?? 0);
@@ -253,7 +261,7 @@ class CalendarFeedService
         }
 
         // phpcs:ignore WordPress.Security.NonceVerification.Missing -- this line reads the token; wp_verify_nonce() on the next line is the actual check, and nothing mutates before it succeeds.
-        $nonce = isset($_POST['_wpnonce']) ? (string) $_POST['_wpnonce'] : '';
+        $nonce = isset($_POST['_wpnonce']) ? sanitize_text_field(wp_unslash($_POST['_wpnonce'])) : '';
         if (!wp_verify_nonce($nonce, self::ACTION_REGENERATE . '_' . $person_id)) {
             self::redirect_with_toast($return, 'Security check failed. Please try again.', 'error');
         }

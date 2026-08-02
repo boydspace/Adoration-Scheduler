@@ -206,9 +206,9 @@ class AttendancePage {
      * last 7 days through today, since attendance review is mostly about
      * "did anyone miss their hour recently," not a long historical window.
      */
-    // phpcs:ignore WordPress.Security.NonceVerification.Missing -- these are display-filter reads only. When called from handle_request() the actual mutation (set_attendance_admin()) is gated by check_admin_referer('adoration_set_attendance'); when called from render() it's a plain GET view with no mutation.
+    // phpcs:disable WordPress.Security.NonceVerification.Missing -- these are display-filter reads only. When called from handle_request() the actual mutation (set_attendance_admin()) is gated by check_admin_referer('adoration_set_attendance'); when called from render() it's a plain GET view with no mutation.
     private static function resolve_filters(): array {
-        $schedule_id = (int)($_GET['schedule_id'] ?? ($_POST['schedule_id'] ?? 0));
+        $schedule_id = absint(wp_unslash($_GET['schedule_id'] ?? ($_POST['schedule_id'] ?? 0)));
 
         $today = current_time('Y-m-d');
         $default_from = gmdate('Y-m-d', strtotime($today . ' -7 days'));
@@ -225,4 +225,5 @@ class AttendancePage {
 
         return [$schedule_id, $from, $to];
     }
+    // phpcs:enable WordPress.Security.NonceVerification.Missing
 }

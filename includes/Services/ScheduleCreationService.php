@@ -46,14 +46,16 @@ class ScheduleCreationService {
         // --------------------
         // Sanitize input
         // --------------------
-        $name         = sanitize_text_field($_POST['name'] ?? '');
-        $type         = sanitize_text_field($_POST['type'] ?? 'event');
-        $status       = sanitize_text_field($_POST['status'] ?? 'draft');
-        $privacy_mode = sanitize_text_field($_POST['privacy_mode'] ?? 'counts_only');
+        $name = isset($_POST['name']) ? sanitize_text_field(wp_unslash($_POST['name'])) : '';
+        $type = isset($_POST['type']) ? sanitize_key(wp_unslash($_POST['type'])) : 'event';
+        $status = isset($_POST['status']) ? sanitize_key(wp_unslash($_POST['status'])) : 'draft';
+        $privacy_mode = isset($_POST['privacy_mode'])
+            ? sanitize_key(wp_unslash($_POST['privacy_mode']))
+            : 'counts_only';
 
         // ✅ NEW: Chapel selection
         $chapel_id = isset($_POST['chapel_id'])
-            ? (int) wp_unslash($_POST['chapel_id'])
+            ? absint(wp_unslash($_POST['chapel_id']))
             : 0;
 
         // If chapel_id missing/invalid, fallback to default.
@@ -68,29 +70,31 @@ class ScheduleCreationService {
         }
 
         // NEW (schedule row fields)
-        $start_date_raw = sanitize_text_field($_POST['start_date'] ?? '');
-        $end_date_raw   = sanitize_text_field($_POST['end_date'] ?? '');
+        $start_date_raw = isset($_POST['start_date']) ? sanitize_text_field(wp_unslash($_POST['start_date'])) : '';
+        $end_date_raw = isset($_POST['end_date']) ? sanitize_text_field(wp_unslash($_POST['end_date'])) : '';
 
         // ✅ NEW: Overnight flag (checkbox)
         // Checkbox sends "1" when checked, nothing when unchecked.
         $is_overnight = isset($_POST['is_overnight']) ? 1 : 0;
 
         // NEW (date list -> date_patterns rows)
-        $event_dates_raw = (string)($_POST['event_dates'] ?? '');
+        $event_dates_raw = isset($_POST['event_dates'])
+            ? sanitize_textarea_field(wp_unslash($_POST['event_dates']))
+            : '';
 
         // ✅ DEFAULTS (schedule row fields)
         $default_slot_length = isset($_POST['default_slot_length'])
-            ? (int) wp_unslash($_POST['default_slot_length'])
+            ? intval(sanitize_text_field(wp_unslash($_POST['default_slot_length'])))
             : 60;
         if ($default_slot_length <= 0) $default_slot_length = 60;
 
         $default_min_adorers = isset($_POST['default_min_adorers'])
-            ? (int) wp_unslash($_POST['default_min_adorers'])
+            ? intval(sanitize_text_field(wp_unslash($_POST['default_min_adorers'])))
             : 1;
         if ($default_min_adorers < 0) $default_min_adorers = 0;
 
         $default_max_raw = isset($_POST['default_max_adorers'])
-            ? wp_unslash($_POST['default_max_adorers'])
+            ? sanitize_text_field(wp_unslash($_POST['default_max_adorers']))
             : '';
         $default_max_raw = is_string($default_max_raw) ? trim($default_max_raw) : $default_max_raw;
 

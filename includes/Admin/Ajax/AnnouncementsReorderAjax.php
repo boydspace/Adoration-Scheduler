@@ -41,7 +41,7 @@ class AnnouncementsReorderAjax {
             $repo = new AnnouncementsRepository();
             $ok = $repo->reorder($ids);
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] AnnouncementsReorderAjax failed: ' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] AnnouncementsReorderAjax failed: ' . $e->getMessage());
             wp_send_json_error(['message' => 'Server error'], 500);
         }
 

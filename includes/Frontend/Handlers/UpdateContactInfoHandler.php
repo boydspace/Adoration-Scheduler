@@ -78,7 +78,7 @@ class UpdateContactInfoHandler
 
     public static function handle(): void
     {
-        $return = isset($_POST['return']) ? esc_url_raw((string) $_POST['return']) : home_url('/');
+        $return = isset($_POST['return']) ? esc_url_raw(wp_unslash($_POST['return'])) : home_url('/');
 
         // Must be signed in (or a WP admin previewing a matching person record).
         $person = MagicLinkService::current_person_or_admin_match();
@@ -89,18 +89,18 @@ class UpdateContactInfoHandler
 
         // Nonce
         // phpcs:ignore WordPress.Security.NonceVerification.Missing -- this line reads the token; wp_verify_nonce() on the next line is the actual check, and nothing mutates before it succeeds.
-        $nonce = isset($_POST['_wpnonce']) ? (string) $_POST['_wpnonce'] : '';
+        $nonce = isset($_POST['_wpnonce']) ? sanitize_text_field(wp_unslash($_POST['_wpnonce'])) : '';
         if (!wp_verify_nonce($nonce, 'adoration_update_contact_' . $person_id)) {
             self::redirect_with_toast($return, 'Security check failed. Please try again.', 'error');
         }
 
         // Allowed fields only (email is intentionally NOT accepted here)
-        $first = isset($_POST['first_name']) ? sanitize_text_field((string) $_POST['first_name']) : '';
-        $last  = isset($_POST['last_name'])  ? sanitize_text_field((string) $_POST['last_name'])  : '';
+        $first = isset($_POST['first_name']) ? sanitize_text_field(wp_unslash($_POST['first_name'])) : '';
+        $last  = isset($_POST['last_name']) ? sanitize_text_field(wp_unslash($_POST['last_name'])) : '';
         $title       = ClergyTitles::resolve_from_post('title');
-        $parish = isset($_POST['parish']) ? sanitize_text_field((string) $_POST['parish']) : '';
+        $parish = isset($_POST['parish']) ? sanitize_text_field(wp_unslash($_POST['parish'])) : '';
 
-        $phone_raw = isset($_POST['phone']) ? (string) $_POST['phone'] : '';
+        $phone_raw = isset($_POST['phone']) ? sanitize_text_field(wp_unslash($_POST['phone'])) : '';
         $phone = self::normalize_phone_us($phone_raw);
         if ($phone === null) {
             self::redirect_with_toast($return, 'Please enter a valid 10-digit phone number.', 'error');

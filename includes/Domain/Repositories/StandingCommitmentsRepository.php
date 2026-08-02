@@ -85,6 +85,7 @@ class StandingCommitmentsRepository {
             $active_only ? 1 : 0
         );
 
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $row = $wpdb->get_row($sql, ARRAY_A);
         return $row ? (array)$row : null;
     }
@@ -148,6 +149,7 @@ class StandingCommitmentsRepository {
         if ($id <= 0) return null;
 
         $sql = $wpdb->prepare("SELECT * FROM %i WHERE id = %d LIMIT 1", $this->table, $id);
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $row = $wpdb->get_row($sql, ARRAY_A);
         return $row ? (array)$row : null;
     }
@@ -175,6 +177,7 @@ class StandingCommitmentsRepository {
             $active_only ? 1 : 0
         );
 
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (array)$wpdb->get_results($sql, ARRAY_A);
     }
 
@@ -204,6 +207,7 @@ class StandingCommitmentsRepository {
             $start_time
         );
 
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (array)$wpdb->get_results($sql, ARRAY_A);
     }
 
@@ -225,6 +229,7 @@ class StandingCommitmentsRepository {
             $start_time
         );
 
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (int)$wpdb->get_var($sql);
     }
 
@@ -271,6 +276,7 @@ class StandingCommitmentsRepository {
             $active_only ? 1 : 0
         );
 
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (array)$wpdb->get_results($sql, ARRAY_A);
     }
 

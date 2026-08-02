@@ -108,7 +108,7 @@ class SignupsPage {
 
             $repo->log((int)$signup_id, (string)$event_type, is_array($meta) ? $meta : [], $actor_user_id, $actor_label);
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] Audit log failed: ' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Audit log failed: ' . $e->getMessage());
         }
     }
 
@@ -379,6 +379,7 @@ class SignupsPage {
             $t_signups, $t_persons, $t_schedules, $t_slots, $signup_id
         );
 
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- $prepared is produced by $wpdb->prepare() immediately above, including identifier placeholders.
         $row = $wpdb->get_row($prepared, ARRAY_A);
         if (!$row) {
             wp_send_json_error(['message' => 'Signup not found'], 404);

@@ -34,6 +34,7 @@ class SegmentsRepository {
             $this->table,
             $date_pattern_id
         );
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (array)$wpdb->get_results($sql, ARRAY_A);
     }
 
@@ -44,6 +45,7 @@ class SegmentsRepository {
             $this->table,
             $schedule_id
         );
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (array)$wpdb->get_results($sql, ARRAY_A);
     }
 

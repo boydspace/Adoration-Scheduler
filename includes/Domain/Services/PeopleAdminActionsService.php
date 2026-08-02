@@ -321,7 +321,7 @@ class PeopleAdminActionsService {
                         'person_id'   => $person_id,
                     ]);
                 } catch (\Throwable $e) {
-                    error_log('[AdorationScheduler] send_account_ready failed for person_id=' . $person_id . ': ' . $e->getMessage());
+                    \AdorationScheduler\Core\Logger::error('[AdorationScheduler] send_account_ready failed for person_id=' . $person_id . ': ' . $e->getMessage());
                 }
             }
 

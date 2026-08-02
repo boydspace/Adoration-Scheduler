@@ -46,14 +46,16 @@ class ScheduleDuplicationService {
         self::require_admin_cap(self::CAP_MANAGE_SCHEDULES);
 
         // Hard guard: only allow GET/POST (some hosts send HEAD)
-        $method = isset($_SERVER['REQUEST_METHOD']) ? strtoupper((string) $_SERVER['REQUEST_METHOD']) : '';
+        $method = isset($_SERVER['REQUEST_METHOD'])
+            ? strtoupper(sanitize_text_field(wp_unslash($_SERVER['REQUEST_METHOD'])))
+            : '';
         if (!in_array($method, ['GET','POST'], true)) {
             wp_safe_redirect(admin_url('admin.php?page=adoration_scheduler_schedules'));
             exit;
         }
 
         // Keep your existing GET-based behavior so we don't have to touch UI
-        $source_id = isset($_GET['schedule_id']) ? (int) wp_unslash($_GET['schedule_id']) : 0;
+        $source_id = isset($_GET['schedule_id']) ? absint(wp_unslash($_GET['schedule_id'])) : 0;
         if ($source_id <= 0) {
             self::redirect_with_toast('Missing schedule ID.', 'error');
         }
@@ -171,29 +173,40 @@ class ScheduleDuplicationService {
                 continue;
             }
 
-            // Build INSERT INTO t (col1,col2,...) SELECT ... FROM t WHERE schedule_id=from
-            // For schedule_id column, we inject "to_id AS schedule_id"
+            // Build the query entirely from placeholders, including every
+            // schema-derived table and column identifier.
+            $insert_parts = [];
+            $insert_args = [];
             $select_parts = [];
+            $select_args = [];
             foreach ($cols as $c) {
+                $insert_parts[] = '%i';
+                $insert_args[] = $c;
+
                 if ($c === 'schedule_id') {
-                    $select_parts[] = '%d AS schedule_id';
+                    $select_parts[] = '%d AS %i';
+                    $select_args[] = $to_id;
+                    $select_args[] = $c;
                 } else {
-                    $select_parts[] = $c;
+                    $select_parts[] = '%i';
+                    $select_args[] = $c;
                 }
             }
 
-            // $cols/$select_parts are column names read from a real schema
-            // introspection (get_table_columns()) above, never raw user
-            // input; the table name itself goes through %i below.
-            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
             $sql = sprintf(
-                "INSERT INTO %%i (%s) SELECT %s FROM %%i WHERE schedule_id = %%d",
-                implode(',', $cols),
+                "INSERT INTO %%i (%s) SELECT %s FROM %%i WHERE %%i = %%d",
+                implode(',', $insert_parts),
                 implode(',', $select_parts)
             );
+            $args = array_merge(
+                [$table],
+                $insert_args,
+                $select_args,
+                [$table, 'schedule_id', $from_id]
+            );
 
-            $prepared = $wpdb->prepare($sql, $table, $to_id, $table, $from_id);
-            $wpdb->query($prepared);
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- the dynamic string contains placeholders only; every value and identifier is supplied to prepare().
+            $wpdb->query($wpdb->prepare($sql, ...$args));
         }
     }
 
@@ -236,7 +249,7 @@ class ScheduleDuplicationService {
                         } elseif ($p->allowsNull()) {
                             $args[] = null;
                         } else {
-                            error_log('[AdorationScheduler] SlotGenerator ctor param unsupported: ' . ($typeName ?: ('$' . $p->getName())));
+                            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] SlotGenerator ctor param unsupported: ' . ($typeName ?: ('$' . $p->getName())));
                             return null;
                         }
                 }
@@ -245,7 +258,7 @@ class ScheduleDuplicationService {
             return $ref->newInstanceArgs($args);
 
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] SlotGenerator init failed: ' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] SlotGenerator init failed: ' . $e->getMessage());
             return null;
         }
     }
@@ -265,7 +278,7 @@ class ScheduleDuplicationService {
             : $repo->find($schedule_id);
 
         if (!$schedule) {
-            error_log('[AdorationScheduler] Slot regenerate skipped: schedule not found id=' . $schedule_id);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Slot regenerate skipped: schedule not found id=' . $schedule_id);
             return;
         }
 
@@ -279,13 +292,13 @@ class ScheduleDuplicationService {
                 try {
                     $gen->{$m}($schedule);
                 } catch (\Throwable $e) {
-                    error_log('[AdorationScheduler] Slot regenerate failed: ' . $e->getMessage());
+                    \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Slot regenerate failed: ' . $e->getMessage());
                 }
                 return;
             }
         }
 
-        error_log('[AdorationScheduler] Slot regenerate skipped: no usable SlotGenerator method found for schedule id=' . $schedule_id);
+        \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Slot regenerate skipped: no usable SlotGenerator method found for schedule id=' . $schedule_id);
     }
 
     private static function generate_copy_name(string $base): string {

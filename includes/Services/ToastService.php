@@ -42,6 +42,7 @@ class ToastService
      * If URL has ?as_toast=... set a short-lived cookie and redirect to clean URL.
      * This prevents refresh/back from replaying the toast.
      */
+    // phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only display parameters; this method creates a one-shot presentation cookie and performs no privileged mutation.
     public static function maybe_redirect_toast(): void
     {
         if (!isset($_GET['as_toast']) || !is_string($_GET['as_toast'])) {
@@ -50,7 +51,7 @@ class ToastService
 
         // Admin: limit to our plugin pages only (avoid hijacking other admin screens).
         if (is_admin()) {
-            $page = isset($_GET['page']) ? sanitize_key((string)$_GET['page']) : '';
+            $page = isset($_GET['page']) ? sanitize_key(wp_unslash($_GET['page'])) : '';
             if ($page === '' || strpos($page, 'adoration_scheduler') !== 0) {
                 return;
             }
@@ -95,6 +96,7 @@ class ToastService
         wp_safe_redirect($url);
         exit;
     }
+    // phpcs:enable WordPress.Security.NonceVerification.Recommended
 
     /**
      * Enqueue inline CSS/JS and, if cookie payload exists, show the toast once.
@@ -252,19 +254,21 @@ class ToastService
         wp_add_inline_script($script_handle, $js);
     }
 
+    // phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only toast presentation parameters, sanitized and allow-listed below.
     private static function payload_from_query(): ?array
     {
-        $raw = $_GET['as_toast'] ?? '';
+        $raw = isset($_GET['as_toast']) ? sanitize_text_field(wp_unslash($_GET['as_toast'])) : '';
         if (!is_string($raw) || trim($raw) === '') return null;
 
         $msg = self::sanitize_toast_text($raw);
         if ($msg === '') return null;
 
-        $type = isset($_GET['as_toast_type']) ? sanitize_key((string)$_GET['as_toast_type']) : 'success';
+        $type = isset($_GET['as_toast_type']) ? sanitize_key(wp_unslash($_GET['as_toast_type'])) : 'success';
         $allowed = self::allowed_types();
         if (!in_array($type, $allowed, true)) $type = 'success';
 
-        $sticky = isset($_GET['as_toast_sticky']) && (string)$_GET['as_toast_sticky'] === '1';
+        $sticky = isset($_GET['as_toast_sticky'])
+            && sanitize_text_field(wp_unslash($_GET['as_toast_sticky'])) === '1';
 
         return [
             'message' => $msg,
@@ -272,6 +276,7 @@ class ToastService
             'sticky'  => $sticky,
         ];
     }
+    // phpcs:enable WordPress.Security.NonceVerification.Recommended
 
     /**
      * ✅ Callers now consistently rawurlencode() the message before handing
@@ -301,7 +306,7 @@ class ToastService
     {
         if (empty($_COOKIE[self::COOKIE_NAME])) return null;
 
-        $raw = $_COOKIE[self::COOKIE_NAME];
+        $raw = sanitize_text_field(wp_unslash($_COOKIE[self::COOKIE_NAME]));
         if (!is_string($raw) || trim($raw) === '') return null;
 
         $secure = is_ssl();
@@ -346,13 +351,10 @@ class ToastService
 
     private static function current_url(): string
     {
-        $scheme = is_ssl() ? 'https' : 'http';
-        $host   = $_SERVER['HTTP_HOST'] ?? '';
-        $uri    = $_SERVER['REQUEST_URI'] ?? '';
-        $host   = is_string($host) ? $host : '';
-        $uri    = is_string($uri) ? $uri : '';
-        $url    = $scheme . '://' . $host . $uri;
-        return esc_url_raw($url);
+        $uri = isset($_SERVER['REQUEST_URI'])
+            ? esc_url_raw(wp_unslash($_SERVER['REQUEST_URI']))
+            : '/';
+        return esc_url_raw(home_url(strpos($uri, '/') === 0 ? $uri : '/'));
     }
 
     /**

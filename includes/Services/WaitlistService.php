@@ -197,7 +197,7 @@ class WaitlistService
                 return;
             }
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] WaitlistService::promote_next_for_slot failed slot_id=' . $slot_id . ' err=' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] WaitlistService::promote_next_for_slot failed slot_id=' . $slot_id . ' err=' . $e->getMessage());
         }
     }
 
@@ -242,7 +242,7 @@ class WaitlistService
                 'person_id'      => $person_id,
             ]);
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] Waitlist promotion email exception: ' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Waitlist promotion email exception: ' . $e->getMessage());
         }
     }
 }

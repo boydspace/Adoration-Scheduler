@@ -60,6 +60,7 @@ class SchedulesRepository {
                 $limit
             );
             // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
             return (array) $wpdb->get_results( $sql, ARRAY_A );
         }
 
@@ -70,6 +71,7 @@ class SchedulesRepository {
             $limit
         );
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (array) $wpdb->get_results( $sql, ARRAY_A );
     }
 
@@ -95,6 +97,7 @@ class SchedulesRepository {
         );
 
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (array) $wpdb->get_results( $sql, ARRAY_A );
     }
 
@@ -112,6 +115,7 @@ class SchedulesRepository {
             'active'
         );
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (array) $wpdb->get_results( $sql, ARRAY_A );
     }
 
@@ -129,6 +133,7 @@ class SchedulesRepository {
             'active'
         );
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (array) $wpdb->get_results( $sql, ARRAY_A );
     }
 
@@ -161,6 +166,7 @@ class SchedulesRepository {
         }
 
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $row = $wpdb->get_row( $sql, ARRAY_A );
         return $row ?: null;
     }
@@ -219,6 +225,7 @@ class SchedulesRepository {
         }
 
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $row = $wpdb->get_row( $sql, ARRAY_A );
         return $row ?: null;
     }
@@ -277,6 +284,7 @@ class SchedulesRepository {
             self::STATUS_TRASH
         );
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (int) $wpdb->get_var( $sql ) > 0;
     }
 
@@ -298,6 +306,7 @@ class SchedulesRepository {
         );
 
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (int) $wpdb->get_var( $sql ) > 0;
     }
 
@@ -394,7 +403,7 @@ class SchedulesRepository {
         );
 
         if ($result === false) {
-            error_log('[AdorationScheduler] update_basic_info failed: ' . $wpdb->last_error);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] update_basic_info failed: ' . $wpdb->last_error);
             return false;
         }
 
@@ -412,6 +421,7 @@ class SchedulesRepository {
         );
 
         // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (int)$wpdb->get_var($sql);
     }
 
@@ -502,7 +512,7 @@ class SchedulesRepository {
         // Cascade delete dependents (ignore "0 rows" as OK; only false is failure)
         if (!$this->delete_dependents_for_schedule($id)) {
             // If cascade fails, do NOT delete the schedule row
-            error_log('[AdorationScheduler] delete_permanently blocked: dependent delete failed for schedule ' . (int)$id . ' :: ' . $wpdb->last_error);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] delete_permanently blocked: dependent delete failed for schedule ' . (int)$id . ' :: ' . $wpdb->last_error);
             return false;
         }
 
@@ -630,6 +640,7 @@ class SchedulesRepository {
             $end_from, $end_from,
             $end_to, $end_to
         );
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $total = (int)$wpdb->get_var($count_prepared);
 
         // $orderby is looked up from $allowed_orderby and $order forced to
@@ -654,6 +665,7 @@ class SchedulesRepository {
             $per_page, $offset
         );
 
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $items = (array)$wpdb->get_results($items_prepared, ARRAY_A);
 
         return [

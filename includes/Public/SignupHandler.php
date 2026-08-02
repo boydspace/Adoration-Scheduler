@@ -56,7 +56,7 @@ class SignupHandler {
         foreach ($candidates as $key) {
             if (empty($_SERVER[$key])) continue;
 
-            $raw = (string) $_SERVER[$key];
+            $raw = sanitize_text_field(wp_unslash((string) $_SERVER[$key]));
 
             // X_FORWARDED_FOR may contain: client, proxy1, proxy2...
             if ($key === 'HTTP_X_FORWARDED_FOR') {
@@ -77,13 +77,13 @@ class SignupHandler {
      * Honeypot + timing defense.
      * Must match fields included in ScheduleShortcode.php form.
      */
-    // phpcs:ignore WordPress.Security.NonceVerification.Missing -- this is an additional anti-spam layer (honeypot + timing), not the security gate; it's only ever called from handle_signup() after that method's own nonce check (see 'adoration_public_signup' verification) has already passed.
+    // phpcs:disable WordPress.Security.NonceVerification.Missing -- this is an additional anti-spam layer (honeypot + timing), not the security gate; it's only ever called from handle_signup() after that method's own nonce check (see 'adoration_public_signup' verification) has already passed.
     public static function validate_honeypot(): void {
         $hp_name = 'as_website';
         $ts_name = 'as_form_ts';
 
         // 1) Honeypot must be empty
-        $hp_value = isset($_POST[$hp_name]) ? trim((string) wp_unslash($_POST[$hp_name])) : '';
+        $hp_value = isset($_POST[$hp_name]) ? sanitize_text_field(wp_unslash($_POST[$hp_name])) : '';
         if ($hp_value !== '') {
             self::redirect_back('err', 'Please try again.');
         }
@@ -91,7 +91,7 @@ class SignupHandler {
         // 2) Minimum submit time
         $min_seconds = 3;
 
-        $ts_value = isset($_POST[$ts_name]) ? (int) $_POST[$ts_name] : 0;
+        $ts_value = isset($_POST[$ts_name]) ? absint(wp_unslash($_POST[$ts_name])) : 0;
         if ($ts_value <= 0) {
             self::redirect_back('err', 'Please try again.');
         }
@@ -100,11 +100,12 @@ class SignupHandler {
             self::redirect_back('err', 'Please try again.');
         }
     }
+    // phpcs:enable WordPress.Security.NonceVerification.Missing
 
     /**
      * Turnstile token extraction (future-proof).
      */
-    // phpcs:ignore WordPress.Security.NonceVerification.Missing -- only called from handle_signup() after its own nonce check has already passed; this just extracts a token value, it doesn't gate anything itself.
+    // phpcs:disable WordPress.Security.NonceVerification.Missing -- only called from handle_signup() after its own nonce check has already passed; this just extracts a token value, it doesn't gate anything itself.
     private static function get_turnstile_token(): string {
         $keys = [
             'cf-turnstile-response', // standard
@@ -114,11 +115,12 @@ class SignupHandler {
 
         foreach ($keys as $k) {
             if (!empty($_POST[$k])) {
-                return trim((string) wp_unslash($_POST[$k]));
+                return sanitize_text_field(wp_unslash($_POST[$k]));
             }
         }
         return '';
     }
+    // phpcs:enable WordPress.Security.NonceVerification.Missing
 
     /**
      * Verify Turnstile token server-side (only if enabled).
@@ -159,7 +161,7 @@ class SignupHandler {
         ]);
 
         if (is_wp_error($response)) {
-            error_log('[AdorationScheduler] Turnstile verify request error: ' . $response->get_error_message());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Turnstile verify request error: ' . $response->get_error_message());
             self::redirect_back('err', 'Anti-spam verification failed. Please try again.');
         }
 
@@ -167,7 +169,7 @@ class SignupHandler {
         $raw  = (string) wp_remote_retrieve_body($response);
 
         if ($code < 200 || $code >= 300) {
-            error_log('[AdorationScheduler] Turnstile verify HTTP ' . $code . ' body=' . $raw);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Turnstile verification returned HTTP ' . $code . '.');
             self::redirect_back('err', 'Anti-spam verification failed. Please try again.');
         }
 
@@ -177,7 +179,7 @@ class SignupHandler {
             if (is_array($json) && !empty($json['error-codes']) && is_array($json['error-codes'])) {
                 $errs = implode(',', $json['error-codes']);
             }
-            error_log('[AdorationScheduler] Turnstile verify failed. errors=' . $errs . ' body=' . $raw);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Turnstile verification failed. errors=' . $errs);
             self::redirect_back('err', 'Anti-spam verification failed. Please try again.');
         }
     }
@@ -315,7 +317,7 @@ class SignupHandler {
 
     public static function handle(): void {
         $nonce = isset($_POST['adoration_public_nonce'])
-            ? (string) wp_unslash($_POST['adoration_public_nonce'])
+            ? sanitize_text_field(wp_unslash($_POST['adoration_public_nonce']))
             : '';
 
         if ($nonce === '' || !wp_verify_nonce($nonce, 'adoration_public_signup')) {
@@ -326,8 +328,8 @@ class SignupHandler {
         self::verify_turnstile_or_bail();
         self::rate_limit_by_ip();
 
-        $schedule_id = (int)($_POST['schedule_id'] ?? 0);
-        $slot_id     = (int)($_POST['slot_id'] ?? 0);
+        $schedule_id = isset($_POST['schedule_id']) ? absint(wp_unslash($_POST['schedule_id'])) : 0;
+        $slot_id     = isset($_POST['slot_id']) ? absint(wp_unslash($_POST['slot_id'])) : 0;
 
         if ($schedule_id <= 0 || $slot_id <= 0) {
             self::redirect_back('err', 'Missing schedule or slot.');
@@ -470,7 +472,8 @@ class SignupHandler {
             }
 
             if ($confirmed >= $max) {
-                $join_waitlist = isset($_POST['join_waitlist']) && (string) wp_unslash($_POST['join_waitlist']) === '1';
+                $join_waitlist = isset($_POST['join_waitlist'])
+                    && sanitize_text_field(wp_unslash($_POST['join_waitlist'])) === '1';
 
                 // Nothing was written to the signups table yet in this
                 // transaction, so it's safe to just release the lock and
@@ -507,7 +510,7 @@ class SignupHandler {
                         'send'           => true,
                     ]);
                 } catch (\Throwable $e) {
-                    error_log('[AdorationScheduler] Waitlist joined email exception: ' . $e->getMessage());
+                    \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Waitlist joined email exception: ' . $e->getMessage());
                 }
 
                 self::redirect_back('ok', "You're #{$position} on the waitlist. We'll email you if a spot opens up.");
@@ -521,25 +524,33 @@ class SignupHandler {
          *
          * We check for ANY existing row for this person+slot and lock it.
          */
-        // The "is_active" column fragment is a fixed literal chosen above by
-        // a real schema check, never raw user input.
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-        $existing_sql = "
-            SELECT id, status" . ($has_is_active ? ", is_active" : "") . "
-            FROM %i
-            WHERE person_id = %d
-              AND slot_id = %d
-            ORDER BY id DESC
-            LIMIT 1
-            FOR UPDATE
-        ";
-
-        $existing_row = $wpdb->get_row($wpdb->prepare(
-            $existing_sql,
-            $signups_table,
-            (int)$person_id,
-            (int)$slot_id
-        ), ARRAY_A);
+        if ($has_is_active) {
+            $existing_row = $wpdb->get_row($wpdb->prepare(
+                "SELECT id, status, is_active
+                 FROM %i
+                 WHERE person_id = %d
+                   AND slot_id = %d
+                 ORDER BY id DESC
+                 LIMIT 1
+                 FOR UPDATE",
+                $signups_table,
+                (int)$person_id,
+                (int)$slot_id
+            ), ARRAY_A);
+        } else {
+            $existing_row = $wpdb->get_row($wpdb->prepare(
+                "SELECT id, status
+                 FROM %i
+                 WHERE person_id = %d
+                   AND slot_id = %d
+                 ORDER BY id DESC
+                 LIMIT 1
+                 FOR UPDATE",
+                $signups_table,
+                (int)$person_id,
+                (int)$slot_id
+            ), ARRAY_A);
+        }
 
         if (is_array($existing_row) && !empty($existing_row['id'])) {
             $ex_id     = (int)$existing_row['id'];
@@ -579,7 +590,7 @@ class SignupHandler {
             );
 
             if ($updated === false) {
-                error_log('[AdorationScheduler] Reactivate signup failed signup_id=' . $ex_id . ' err=' . $wpdb->last_error);
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Reactivate signup failed signup_id=' . $ex_id . ' err=' . $wpdb->last_error);
                 $wpdb->query('ROLLBACK');
                 self::redirect_back('err', 'Could not save your signup. Please try again.');
             }
@@ -587,7 +598,7 @@ class SignupHandler {
             $signup_id = $ex_id;
             $wpdb->query('COMMIT');
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('[AdorationScheduler] Public signup reactivated signup_id=' . $signup_id);
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Public signup reactivated signup_id=' . $signup_id);
             }
 
         } else {
@@ -614,7 +625,7 @@ class SignupHandler {
             $insert_ok = $wpdb->insert($signups_table, $insert_data, $insert_fmt);
 
             if ($insert_ok === false) {
-                error_log('[AdorationScheduler] Signup insert failed: ' . (string)$wpdb->last_error);
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Signup insert failed: ' . (string)$wpdb->last_error);
                 $wpdb->query('ROLLBACK');
                 self::redirect_back('err', 'Could not save your signup. Please try again.');
             }
@@ -622,7 +633,7 @@ class SignupHandler {
             $signup_id = (int)$wpdb->insert_id;
             $wpdb->query('COMMIT');
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('[AdorationScheduler] Public signup inserted signup_id=' . $signup_id);
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Public signup inserted signup_id=' . $signup_id);
             }
         }
 
@@ -664,20 +675,20 @@ class SignupHandler {
             ]);
 
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('[AdorationScheduler] Public signup confirmation email signup_id=' . $signup_id . ' sent=' . ($sent ? 'YES' : 'NO'));
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Public signup confirmation email signup_id=' . $signup_id . ' sent=' . ($sent ? 'YES' : 'NO'));
             }
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] Public signup email exception: ' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Public signup email exception: ' . $e->getMessage());
         }
 
         try {
             $rs = new ReminderScheduler();
             $rs->schedule_24h($signup_id);
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('[AdorationScheduler] ReminderScheduler scheduled 24h reminder signup_id=' . $signup_id);
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] ReminderScheduler scheduled 24h reminder signup_id=' . $signup_id);
             }
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] ReminderScheduler exception: ' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] ReminderScheduler exception: ' . $e->getMessage());
         }
 
         self::redirect_back('ok', 'You are signed up. Thank you!');

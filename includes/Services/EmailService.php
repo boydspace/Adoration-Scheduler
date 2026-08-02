@@ -99,7 +99,7 @@ class EmailService
             ARRAY_A
         );
         if (!is_array($signup)) {
-            error_log('[AdorationScheduler] EmailService build_args: missing signup id=' . $signup_id);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] EmailService build_args: missing signup id=' . $signup_id);
             return null;
         }
 
@@ -108,7 +108,7 @@ class EmailService
         $slot_id     = (int)($signup['slot_id'] ?? 0);
 
         if ($person_id <= 0) {
-            error_log('[AdorationScheduler] EmailService build_args: signup missing person_id id=' . $signup_id);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] EmailService build_args: signup missing person_id id=' . $signup_id);
             return null;
         }
 
@@ -118,7 +118,7 @@ class EmailService
             ARRAY_A
         );
         if (!is_array($person)) {
-            error_log('[AdorationScheduler] EmailService build_args: missing person id=' . $person_id);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] EmailService build_args: missing person id=' . $person_id);
             return null;
         }
 
@@ -209,12 +209,11 @@ class EmailService
 
         // Minimal sanity check
         if ($args['to_email'] === '' || !is_email($args['to_email'])) {
-            error_log('[AdorationScheduler] EmailService build_args: invalid to_email for person_id=' . $person_id);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] EmailService build_args: invalid to_email for person_id=' . $person_id);
             return null;
         }
 
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('[AdorationScheduler] EmailService build_args OK signup_id=' . $signup_id . ' to=' . $args['to_email']);
         }
 
         return $args;

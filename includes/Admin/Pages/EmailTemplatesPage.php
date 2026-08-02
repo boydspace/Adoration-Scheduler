@@ -316,11 +316,9 @@ class EmailTemplatesPage {
 
         // Optional debug (safe)
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('[AdorationScheduler] EmailTemplates SAVE tab=' . $tab);
-            error_log('[AdorationScheduler] EmailTemplates POST keys=' . implode(',', array_keys($posted)));
-            error_log('[AdorationScheduler] EmailTemplates SAVED from_name=' . (string)($templates['from_name'] ?? ''));
-            error_log('[AdorationScheduler] EmailTemplates SAVED from_email=' . (string)($templates['from_email'] ?? ''));
-            error_log('[AdorationScheduler] EmailTemplates SAVED reply_to_email=' . (string)($templates['reply_to_email'] ?? ''));
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] EmailTemplates SAVE tab=' . $tab);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] EmailTemplates POST keys=' . implode(',', array_keys($posted)));
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] EmailTemplates SAVED from_name=' . (string)($templates['from_name'] ?? ''));
         }
 
         $url = self::admin_page_url(['updated' => 1, 'tab' => $tab]);
@@ -356,7 +354,7 @@ class EmailTemplatesPage {
         try {
             $ok = ($to !== '' && is_email($to)) ? NotificationService::send_test_template($which, $to) : false;
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] Test email failed: ' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Test email failed: ' . $e->getMessage());
             $ok = false;
         }
 

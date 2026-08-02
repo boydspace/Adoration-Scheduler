@@ -40,7 +40,7 @@ class StandingSignupHandler {
 
     public static function handle(): void {
         $nonce = isset($_POST['adoration_public_nonce_standing'])
-            ? (string) wp_unslash($_POST['adoration_public_nonce_standing'])
+            ? sanitize_text_field(wp_unslash($_POST['adoration_public_nonce_standing']))
             : '';
 
         if ($nonce === '' || !wp_verify_nonce($nonce, 'adoration_public_claim_standing')) {
@@ -51,8 +51,8 @@ class StandingSignupHandler {
         SignupHandler::verify_turnstile_or_bail();
         SignupHandler::rate_limit_by_ip();
 
-        $schedule_id = (int)($_POST['schedule_id'] ?? 0);
-        $day_of_week = isset($_POST['day_of_week']) ? (int) wp_unslash($_POST['day_of_week']) : -1;
+        $schedule_id = isset($_POST['schedule_id']) ? absint(wp_unslash($_POST['schedule_id'])) : 0;
+        $day_of_week = isset($_POST['day_of_week']) ? absint(wp_unslash($_POST['day_of_week'])) : -1;
         $start_time_in = sanitize_text_field(wp_unslash($_POST['start_time'] ?? ''));
 
         if ($schedule_id <= 0 || $day_of_week < 0 || $day_of_week > 6 || $start_time_in === '') {
@@ -182,7 +182,7 @@ class StandingSignupHandler {
             if ($days_ahead <= 0) $days_ahead = 60;
             $perpGenerator->sync_window($schedule, $days_ahead);
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] Standing signup sync_window failed: ' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Standing signup sync_window failed: ' . $e->getMessage());
         }
 
         // Best-effort confirmation email (never blocks the redirect).
@@ -211,7 +211,7 @@ class StandingSignupHandler {
                 'person_id'      => (int)$person_id,
             ]);
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] Standing signup confirmation email failed: ' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Standing signup confirmation email failed: ' . $e->getMessage());
         }
 
         SignupHandler::redirect_back('ok', 'You\'re all set! That hour is now your standing weekly commitment. Thank you!');

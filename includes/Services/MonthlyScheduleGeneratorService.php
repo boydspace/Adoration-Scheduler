@@ -62,7 +62,7 @@ class MonthlyScheduleGeneratorService
 
         if (!self::action_scheduler_ready()) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('[AdorationScheduler] MonthlyScheduleGeneratorService: Action Scheduler not ready on wp_loaded; not scheduling.');
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] MonthlyScheduleGeneratorService: Action Scheduler not ready on wp_loaded; not scheduling.');
             }
             return;
         }
@@ -80,7 +80,7 @@ class MonthlyScheduleGeneratorService
     public static function ensure_recurring(bool $force = false): void {
         if (!self::action_scheduler_ready()) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('[AdorationScheduler] MonthlyScheduleGeneratorService: Action Scheduler not ready; ensure_recurring skipped.');
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] MonthlyScheduleGeneratorService: Action Scheduler not ready; ensure_recurring skipped.');
             }
             return;
         }
@@ -111,7 +111,7 @@ class MonthlyScheduleGeneratorService
         );
 
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log(
+            \AdorationScheduler\Core\Logger::error(
                 '[AdorationScheduler] MonthlyScheduleGeneratorService scheduled: first=' .
                 gmdate('c', $first) .
                 ' interval=' . $interval . 's group=' . self::AS_GROUP
@@ -156,7 +156,7 @@ class MonthlyScheduleGeneratorService
                 $result = $generator->sync_window($schedule, $days_ahead);
 
                 if (defined('WP_DEBUG') && WP_DEBUG) {
-                    error_log(sprintf(
+                    \AdorationScheduler\Core\Logger::error(sprintf(
                         '[AdorationScheduler] Monthly sync schedule_id=%d window_days=%d generated=%d inserted=%d',
                         $schedule_id,
                         $days_ahead,
@@ -165,7 +165,7 @@ class MonthlyScheduleGeneratorService
                     ));
                 }
             } catch (\Throwable $e) {
-                error_log('[AdorationScheduler] Monthly sync failed for schedule_id=' . $schedule_id . ': ' . $e->getMessage());
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Monthly sync failed for schedule_id=' . $schedule_id . ': ' . $e->getMessage());
             }
         }
     }

@@ -40,7 +40,7 @@ class AdminSignupActionsService
     {
         self::require_admin_cap(self::CAP_MANAGE_SIGNUPS);
 
-        $signup_id = isset($_POST['signup_id']) ? (int) wp_unslash($_POST['signup_id']) : 0;
+        $signup_id = isset($_POST['signup_id']) ? absint(wp_unslash($_POST['signup_id'])) : 0;
         $return    = self::get_return_url();
 
         $fail = self::add_toast($return, 'error', 'Could not cancel that signup.');
@@ -55,7 +55,7 @@ class AdminSignupActionsService
             exit;
         }
 
-        $nonce = isset($_POST['_wpnonce']) ? (string) wp_unslash($_POST['_wpnonce']) : '';
+        $nonce = isset($_POST['_wpnonce']) ? sanitize_text_field(wp_unslash($_POST['_wpnonce'])) : '';
         if (!$nonce || !wp_verify_nonce($nonce, 'adoration_admin_cancel_signup_' . $signup_id)) {
             wp_safe_redirect($fail);
             exit;
@@ -76,7 +76,7 @@ class AdminSignupActionsService
     {
         self::require_admin_cap(self::CAP_MANAGE_SIGNUPS);
 
-        $signup_id = isset($_POST['signup_id']) ? (int) wp_unslash($_POST['signup_id']) : 0;
+        $signup_id = isset($_POST['signup_id']) ? absint(wp_unslash($_POST['signup_id'])) : 0;
         $return    = self::get_return_url();
 
         $fail = self::add_toast($return, 'error', 'Could not delete that signup.');
@@ -91,7 +91,7 @@ class AdminSignupActionsService
             exit;
         }
 
-        $nonce = isset($_POST['_wpnonce']) ? (string) wp_unslash($_POST['_wpnonce']) : '';
+        $nonce = isset($_POST['_wpnonce']) ? sanitize_text_field(wp_unslash($_POST['_wpnonce'])) : '';
         if (!$nonce || !wp_verify_nonce($nonce, 'adoration_admin_delete_signup_' . $signup_id)) {
             wp_safe_redirect($fail);
             exit;
@@ -112,7 +112,7 @@ class AdminSignupActionsService
     {
         self::require_admin_cap(self::CAP_MANAGE_SIGNUPS);
 
-        $signup_id = isset($_POST['signup_id']) ? (int) wp_unslash($_POST['signup_id']) : 0;
+        $signup_id = isset($_POST['signup_id']) ? absint(wp_unslash($_POST['signup_id'])) : 0;
         $return    = self::get_return_url();
 
         $fail = self::add_toast($return, 'error', 'Could not resend confirmation.');
@@ -127,7 +127,7 @@ class AdminSignupActionsService
             exit;
         }
 
-        $nonce = isset($_POST['_wpnonce']) ? (string) wp_unslash($_POST['_wpnonce']) : '';
+        $nonce = isset($_POST['_wpnonce']) ? sanitize_text_field(wp_unslash($_POST['_wpnonce'])) : '';
         if (!$nonce || !wp_verify_nonce($nonce, 'adoration_admin_resend_confirm_' . $signup_id)) {
             wp_safe_redirect($fail);
             exit;
@@ -148,7 +148,7 @@ class AdminSignupActionsService
                 exit;
             }
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] Admin resend confirm failed signup_id=' . $signup_id . ' err=' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Admin resend confirm failed signup_id=' . $signup_id . ' err=' . $e->getMessage());
             wp_safe_redirect($fail);
             exit;
         }
@@ -161,7 +161,7 @@ class AdminSignupActionsService
     {
         self::require_admin_cap(self::CAP_MANAGE_SIGNUPS);
 
-        $signup_id = isset($_POST['signup_id']) ? (int) wp_unslash($_POST['signup_id']) : 0;
+        $signup_id = isset($_POST['signup_id']) ? absint(wp_unslash($_POST['signup_id'])) : 0;
         $return    = self::get_return_url();
 
         $fail = self::add_toast($return, 'error', 'Could not send reminder.');
@@ -176,7 +176,7 @@ class AdminSignupActionsService
             exit;
         }
 
-        $nonce = isset($_POST['_wpnonce']) ? (string) wp_unslash($_POST['_wpnonce']) : '';
+        $nonce = isset($_POST['_wpnonce']) ? sanitize_text_field(wp_unslash($_POST['_wpnonce'])) : '';
         if (!$nonce || !wp_verify_nonce($nonce, 'adoration_admin_send_reminder_' . $signup_id)) {
             wp_safe_redirect($fail);
             exit;
@@ -193,7 +193,7 @@ class AdminSignupActionsService
             // return a status, so we just trust it (it logs its own failures).
             \AdorationScheduler\Services\ReminderScheduler::send_reminder($signup_id);
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] Admin send reminder failed signup_id=' . $signup_id . ' err=' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Admin send reminder failed signup_id=' . $signup_id . ' err=' . $e->getMessage());
             wp_safe_redirect($fail);
             exit;
         }
@@ -243,6 +243,7 @@ class AdminSignupActionsService
             $t_signups, $t_persons, $t_schedules, $t_slots, $signup_id
         );
 
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- $prepared is produced by $wpdb->prepare() immediately above, including identifier placeholders.
         $row = $wpdb->get_row($prepared, ARRAY_A);
         if (!$row) return null;
 
@@ -305,22 +306,32 @@ class AdminSignupActionsService
 
         $has_is_active  = self::table_has_column($table, 'is_active');
         $has_updated_at = self::table_has_column($table, 'updated_at');
-
         // Load row (need person_id + slot_id for the unique-index cleanup)
-        // The "is_active" column fragment is a fixed literal chosen above by
-        // a real schema check, never raw user input.
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-        $row = $wpdb->get_row(
-            $wpdb->prepare(
-                "SELECT id, person_id, slot_id, status" . ($has_is_active ? ", is_active" : "") . "
-                 FROM %i
-                 WHERE id = %d
-                 LIMIT 1",
-                $table,
-                $signup_id
-            ),
-            ARRAY_A
-        );
+        if ($has_is_active) {
+            $row = $wpdb->get_row(
+                $wpdb->prepare(
+                    "SELECT id, person_id, slot_id, status, is_active
+                     FROM %i
+                     WHERE id = %d
+                     LIMIT 1",
+                    $table,
+                    $signup_id
+                ),
+                ARRAY_A
+            );
+        } else {
+            $row = $wpdb->get_row(
+                $wpdb->prepare(
+                    "SELECT id, person_id, slot_id, status
+                     FROM %i
+                     WHERE id = %d
+                     LIMIT 1",
+                    $table,
+                    $signup_id
+                ),
+                ARRAY_A
+            );
+        }
 
         if (!is_array($row) || empty($row['id'])) {
             return false;
@@ -352,7 +363,7 @@ class AdminSignupActionsService
                 ));
             } catch (\Throwable $e) {
                 // best-effort cleanup only
-                error_log('[AdorationScheduler] Admin cancel cleanup failed signup_id=' . $signup_id . ' err=' . $e->getMessage());
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Admin cancel cleanup failed signup_id=' . $signup_id . ' err=' . $e->getMessage());
             }
         }
 
@@ -381,7 +392,7 @@ class AdminSignupActionsService
         );
 
         if ($updated === false) {
-            error_log('[AdorationScheduler] Admin cancel failed signup_id=' . $signup_id . ' err=' . $wpdb->last_error);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Admin cancel failed signup_id=' . $signup_id . ' err=' . $wpdb->last_error);
             return false;
         }
 
@@ -393,7 +404,7 @@ class AdminSignupActionsService
             try {
                 \AdorationScheduler\Services\WaitlistService::promote_next_for_slot($slot_id);
             } catch (\Throwable $e) {
-                error_log('[AdorationScheduler] Admin cancel waitlist promotion failed signup_id=' . $signup_id . ' err=' . $e->getMessage());
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Admin cancel waitlist promotion failed signup_id=' . $signup_id . ' err=' . $e->getMessage());
             }
         }
 
@@ -404,7 +415,7 @@ class AdminSignupActionsService
                 \AdorationScheduler\Services\ReminderScheduler::unschedule_for_signup($signup_id);
             }
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] Admin cancel unschedule failed signup_id=' . $signup_id . ' err=' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Admin cancel unschedule failed signup_id=' . $signup_id . ' err=' . $e->getMessage());
         }
 
         return true;
@@ -427,7 +438,7 @@ class AdminSignupActionsService
                 \AdorationScheduler\Services\ReminderScheduler::unschedule_for_signup($signup_id);
             }
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] Admin delete unschedule failed signup_id=' . $signup_id . ' err=' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Admin delete unschedule failed signup_id=' . $signup_id . ' err=' . $e->getMessage());
         }
 
         global $wpdb;
@@ -447,7 +458,7 @@ class AdminSignupActionsService
         $deleted = $wpdb->delete($table, ['id' => $signup_id], ['%d']);
 
         if ($deleted === false) {
-            error_log('[AdorationScheduler] Admin delete failed signup_id=' . $signup_id . ' err=' . $wpdb->last_error);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Admin delete failed signup_id=' . $signup_id . ' err=' . $wpdb->last_error);
             return false;
         }
 
@@ -457,7 +468,7 @@ class AdminSignupActionsService
             try {
                 \AdorationScheduler\Services\WaitlistService::promote_next_for_slot($slot_id);
             } catch (\Throwable $e) {
-                error_log('[AdorationScheduler] Admin delete waitlist promotion failed signup_id=' . $signup_id . ' err=' . $e->getMessage());
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Admin delete waitlist promotion failed signup_id=' . $signup_id . ' err=' . $e->getMessage());
             }
         }
 
@@ -486,7 +497,9 @@ class AdminSignupActionsService
             wp_die(esc_html__('Sorry, you are not allowed to do that.', 'adoration-scheduler'), 403);
         }
 
-        $method = isset($_SERVER['REQUEST_METHOD']) ? strtoupper((string)$_SERVER['REQUEST_METHOD']) : '';
+        $method = isset($_SERVER['REQUEST_METHOD'])
+            ? strtoupper(sanitize_text_field(wp_unslash($_SERVER['REQUEST_METHOD'])))
+            : '';
         if ($method !== 'POST') {
             wp_safe_redirect(admin_url('admin.php'));
             exit;
@@ -533,10 +546,10 @@ class AdminSignupActionsService
         return ($count <= self::RL_MAX_ATTEMPTS);
     }
 
-    // phpcs:ignore WordPress.Security.NonceVerification.Missing -- only builds an error-redirect target; every caller (handle_cancel/handle_delete/handle_resend_confirm/handle_send_reminder) verifies its own nonce before the actual mutation runs.
+    // phpcs:disable WordPress.Security.NonceVerification.Missing -- only builds an error-redirect target; every caller (handle_cancel/handle_delete/handle_resend_confirm/handle_send_reminder) verifies its own nonce before the actual mutation runs.
     private static function get_return_url(): string
     {
-        $return = isset($_POST['return']) ? (string) wp_unslash($_POST['return']) : '';
+        $return = isset($_POST['return']) ? esc_url_raw(wp_unslash($_POST['return'])) : '';
         $return = $return ? self::safe_redirect_url($return) : '';
 
         if (!$return) $return = wp_get_referer();
@@ -544,6 +557,7 @@ class AdminSignupActionsService
 
         return $return;
     }
+    // phpcs:enable WordPress.Security.NonceVerification.Missing
 
     private static function add_toast(string $url, string $type, string $text, bool $sticky = false): string
     {
@@ -597,6 +611,7 @@ class AdminSignupActionsService
         try {
             $like = $wpdb->esc_like($column);
             $prepared = $wpdb->prepare("SHOW COLUMNS FROM %i LIKE %s", $table, $like);
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- $prepared is produced by $wpdb->prepare() immediately above.
             $found = $wpdb->get_var($prepared);
             return !empty($found);
         } catch (\Throwable $e) {

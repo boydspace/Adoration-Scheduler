@@ -64,7 +64,7 @@ class ReminderPreferencesHandler
 
     public static function handle(): void
     {
-        $return = isset($_POST['return']) ? esc_url_raw((string) $_POST['return']) : home_url('/');
+        $return = isset($_POST['return']) ? esc_url_raw(wp_unslash($_POST['return'])) : home_url('/');
 
         $person = MagicLinkService::current_person_or_admin_match();
         $person_id = (int)($person['id'] ?? 0);
@@ -73,7 +73,7 @@ class ReminderPreferencesHandler
         }
 
         // phpcs:ignore WordPress.Security.NonceVerification.Missing -- this line reads the token; wp_verify_nonce() on the next line is the actual check, and nothing mutates before it succeeds.
-        $nonce = isset($_POST['_wpnonce']) ? (string) $_POST['_wpnonce'] : '';
+        $nonce = isset($_POST['_wpnonce']) ? sanitize_text_field(wp_unslash($_POST['_wpnonce'])) : '';
         if (!wp_verify_nonce($nonce, 'adoration_update_reminder_prefs_' . $person_id)) {
             self::redirect_with_toast($return, 'Security check failed. Please try again.', 'error');
         }
@@ -82,7 +82,7 @@ class ReminderPreferencesHandler
         $email_opt_in = isset($_POST['email_reminders']);
         $sms_opt_in   = isset($_POST['sms_reminders']);
 
-        $lead_hours = isset($_POST['reminder_lead_hours']) ? (int) $_POST['reminder_lead_hours'] : 24;
+        $lead_hours = isset($_POST['reminder_lead_hours']) ? absint(wp_unslash($_POST['reminder_lead_hours'])) : 24;
 
         $ok = self::save_and_reschedule($person_id, $email_opt_in, $sms_opt_in, $lead_hours);
 
@@ -132,7 +132,7 @@ class ReminderPreferencesHandler
                 }
             }
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] ReminderPreferencesHandler reschedule failed for person_id=' . $person_id . ': ' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] ReminderPreferencesHandler reschedule failed for person_id=' . $person_id . ': ' . $e->getMessage());
         }
 
         return true;

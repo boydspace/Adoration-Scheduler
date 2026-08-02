@@ -39,7 +39,7 @@ class EditSchedulePage {
         ];
     }
 
-    // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only GET display of a toast message the plugin itself generated and put in the URL after a prior nonce-verified action; nothing mutates here.
+    // phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only GET display of a toast message the plugin itself generated and put in the URL after a prior nonce-verified action; nothing mutates here.
     private function toasts_from_query(): void {
         if (!isset($_GET['as_toast'])) return;
 
@@ -52,10 +52,11 @@ class EditSchedulePage {
             ? sanitize_key((string) wp_unslash($_GET['as_toast_type']))
             : 'info';
 
-        $sticky = !empty($_GET['as_toast_sticky']) && (string)$_GET['as_toast_sticky'] === '1';
+        $sticky = !empty($_GET['as_toast_sticky']) && (string)wp_unslash($_GET['as_toast_sticky']) === '1';
 
         $this->add_toast($msg, $type, $sticky);
     }
+    // phpcs:enable WordPress.Security.NonceVerification.Recommended
 
     private function render_toasts(): void {
         if (empty($this->toasts)) return;
@@ -330,6 +331,7 @@ class EditSchedulePage {
         $table = $wpdb->prefix . 'adoration_signups';
 
         $sql = $wpdb->prepare("SELECT COUNT(*) FROM %i WHERE schedule_id = %d", $table, $schedule_id);
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- $sql is produced by $wpdb->prepare() immediately above.
         $n = (int) $wpdb->get_var($sql);
         return max(0, $n);
     }
@@ -763,7 +765,7 @@ class EditSchedulePage {
                             } else {
                                 $this->add_toast('Failed to add signup (duplicate or DB error).', 'error', false);
                                 if (!empty($wpdb->last_error)) {
-                                    error_log('[AdorationScheduler] Admin add signup failed: ' . $wpdb->last_error);
+                                    \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Admin add signup failed: ' . $wpdb->last_error);
                                 }
                             }
 
@@ -1190,7 +1192,7 @@ class EditSchedulePage {
                                     'person_id'      => (int)$person_id,
                                 ]);
                             } catch (\Throwable $e) {
-                                error_log('[AdorationScheduler] Admin add-commitment confirmation email failed: ' . $e->getMessage());
+                                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Admin add-commitment confirmation email failed: ' . $e->getMessage());
                             }
                         }
                     }

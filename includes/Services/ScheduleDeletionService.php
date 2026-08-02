@@ -21,7 +21,7 @@ class ScheduleDeletionService {
             wp_die( esc_html__('Sorry, you are not allowed to do that.', 'adoration-scheduler'), 403 );
         }
 
-        $schedule_id = (int)($_REQUEST['schedule_id'] ?? 0);
+        $schedule_id = isset($_REQUEST['schedule_id']) ? absint(wp_unslash($_REQUEST['schedule_id'])) : 0;
         if ($schedule_id <= 0) {
             self::redirect_list_with_toast('Missing schedule id.', 'error');
         }
@@ -46,7 +46,7 @@ class ScheduleDeletionService {
             wp_die( esc_html__('Sorry, you are not allowed to do that.', 'adoration-scheduler'), 403 );
         }
 
-        $schedule_id = (int)($_REQUEST['schedule_id'] ?? 0);
+        $schedule_id = isset($_REQUEST['schedule_id']) ? absint(wp_unslash($_REQUEST['schedule_id'])) : 0;
         if ($schedule_id <= 0) {
             self::redirect_list_with_toast(
                 'Missing schedule id.',
@@ -87,7 +87,7 @@ class ScheduleDeletionService {
             wp_die( esc_html__('Sorry, you are not allowed to do that.', 'adoration-scheduler'), 403 );
         }
 
-        $schedule_id = (int)($_REQUEST['schedule_id'] ?? 0);
+        $schedule_id = isset($_REQUEST['schedule_id']) ? absint(wp_unslash($_REQUEST['schedule_id'])) : 0;
         if ($schedule_id <= 0) {
             self::redirect_list_with_toast(
                 'Missing schedule id.',
@@ -194,6 +194,7 @@ class ScheduleDeletionService {
         self::redirect_list($args);
     }
 
+    // phpcs:disable WordPress.Security.NonceVerification.Recommended -- this helper only preserves sanitized list-view filters in a redirect; callers perform capability and action-specific nonce checks before mutations.
     private static function redirect_list(array $args = []): void {
         // Preserve list screen state (status/search/sort/paging/date filters)
         $preserve = [
@@ -203,9 +204,10 @@ class ScheduleDeletionService {
 
         $keep = [];
         foreach ($preserve as $k) {
-            if (!isset($_REQUEST[$k]) || $_REQUEST[$k] === '') continue;
+            if (!isset($_REQUEST[$k])) continue;
 
-            $v = wp_unslash($_REQUEST[$k]);
+            $v = sanitize_text_field(wp_unslash($_REQUEST[$k]));
+            if ($v === '') continue;
 
             if (in_array($k, ['status','orderby','order'], true)) {
                 $v = sanitize_key($v);
@@ -226,4 +228,5 @@ class ScheduleDeletionService {
         wp_safe_redirect($url);
         exit;
     }
+    // phpcs:enable WordPress.Security.NonceVerification.Recommended
 }

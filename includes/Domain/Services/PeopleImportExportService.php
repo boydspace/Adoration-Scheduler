@@ -191,7 +191,7 @@ class PeopleImportExportService
 
         // Never leave an uploaded roster file (names/emails/phones) sitting
         // in the public uploads directory longer than it takes to parse it.
-        @unlink($tmp_path);
+        wp_delete_file($tmp_path);
 
         if (empty($sheet_rows)) {
             self::redirect_with_toast('That file appears to be empty.', 'error');

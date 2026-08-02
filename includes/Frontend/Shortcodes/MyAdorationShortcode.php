@@ -80,7 +80,7 @@ class MyAdorationShortcode
                         $viewing_as_admin_match = true;
                     }
                 } catch (\Throwable $e) {
-                    error_log('[AdorationScheduler] Admin->person email match failed: ' . $e->getMessage());
+                    \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Admin->person email match failed: ' . $e->getMessage());
                 }
             }
         }
@@ -1108,7 +1108,7 @@ class MyAdorationShortcode
             $repo = new StandingCommitmentsRepository();
             return $repo->list_for_person($person_id, true);
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] get_person_standing_hours failed: ' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] get_person_standing_hours failed: ' . $e->getMessage());
             return [];
         }
     }
@@ -1163,6 +1163,7 @@ class MyAdorationShortcode
             $signups, $slots, $sched, $chapels, $person_id, $today
         );
 
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- $prepared is produced by $wpdb->prepare() immediately above, including identifier placeholders.
         $rows = $wpdb->get_results($prepared, ARRAY_A);
         return is_array($rows) ? $rows : [];
     }
@@ -1176,7 +1177,7 @@ class MyAdorationShortcode
             $repo = new SignupsRepository();
             return $repo->list_open_replacement_requests($exclude_person_id, 25);
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] get_open_replacement_requests failed: ' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] get_open_replacement_requests failed: ' . $e->getMessage());
             return [];
         }
     }
@@ -1190,7 +1191,7 @@ class MyAdorationShortcode
             $repo = new SignupsRepository();
             return $repo->list_fulfilled_replacement_requests(10);
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] get_fulfilled_replacement_requests failed: ' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] get_fulfilled_replacement_requests failed: ' . $e->getMessage());
             return [];
         }
     }

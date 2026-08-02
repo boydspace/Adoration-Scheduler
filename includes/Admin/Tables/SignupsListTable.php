@@ -276,6 +276,7 @@ class SignupsListTable extends \WP_List_Table {
             $t_signups, $t_persons, $t_schedules,
             $search, $like, $like, $like, $like, $filter_status, $filter_status, $has_schedule_filter, $filter_scheduleId
         );
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $total = (int)$wpdb->get_var($count_prepared);
 
         // Items (slot_sort prefers start_at if exists; falls back to date+time)
@@ -316,6 +317,7 @@ class SignupsListTable extends \WP_List_Table {
             $search, $like, $like, $like, $like, $filter_status, $filter_status, $has_schedule_filter, $filter_scheduleId,
             $per_page, $offset
         );
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $rows = (array)$wpdb->get_results($items_prepared, ARRAY_A);
 
         $this->items = $rows;
@@ -378,7 +380,7 @@ class SignupsListTable extends \WP_List_Table {
                 }
             } catch (\Throwable $e) {
                 $fail_count++;
-                error_log('[AdorationScheduler] Bulk action failed signup_id=' . (int)$sid . ' err=' . $e->getMessage());
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Bulk action failed signup_id=' . (int)$sid . ' err=' . $e->getMessage());
             }
         }
 

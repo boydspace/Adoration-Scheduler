@@ -2,7 +2,7 @@
     "name": "fatherboyd/adoration-scheduler",
     "description": "A scheduling system for Eucharistic Adoration (WordPress plugin).",
     "type": "wordpress-plugin",
-    "license": "proprietary",
+    "license": "GPL-2.0-or-later",
     "require": {
         "php": ">=8.0"
     },

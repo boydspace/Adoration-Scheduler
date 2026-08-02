@@ -53,14 +53,16 @@ class SignupCancellationService
     public static function handle(): void
     {
         // POST-only hard guard
-        $method = isset($_SERVER['REQUEST_METHOD']) ? strtoupper((string)$_SERVER['REQUEST_METHOD']) : '';
+        $method = isset($_SERVER['REQUEST_METHOD'])
+            ? strtoupper(sanitize_text_field(wp_unslash($_SERVER['REQUEST_METHOD'])))
+            : '';
         if ($method !== 'POST') {
             wp_safe_redirect(home_url('/'));
             exit;
         }
 
         // Determine return URL (safe)
-        $return = isset($_POST['return']) ? (string) wp_unslash($_POST['return']) : '';
+        $return = isset($_POST['return']) ? esc_url_raw(wp_unslash($_POST['return'])) : '';
         $return = $return ? self::safe_redirect_url($return) : '';
         if (!$return) $return = wp_get_referer();
         if (!$return) $return = home_url('/my-adoration/');
@@ -80,7 +82,7 @@ class SignupCancellationService
         $person_id = (int) $person['id'];
 
         // Validate input
-        $signup_id = isset($_POST['signup_id']) ? (int) wp_unslash($_POST['signup_id']) : 0;
+        $signup_id = isset($_POST['signup_id']) ? absint(wp_unslash($_POST['signup_id'])) : 0;
         if ($signup_id <= 0) {
             self::finish_redirect($fail);
         }
@@ -92,7 +94,7 @@ class SignupCancellationService
         }
 
         // Nonce check: action is per-signup id
-        $nonce = isset($_POST['_wpnonce']) ? (string) wp_unslash($_POST['_wpnonce']) : '';
+        $nonce = isset($_POST['_wpnonce']) ? sanitize_text_field(wp_unslash($_POST['_wpnonce'])) : '';
         if (!$nonce || !wp_verify_nonce($nonce, 'adoration_cancel_signup_' . $signup_id)) {
             self::finish_redirect($fail);
         }
@@ -111,7 +113,7 @@ class SignupCancellationService
                 \AdorationScheduler\Services\ReminderScheduler::unschedule_for_signup($signup_id);
             }
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] SignupCancellationService unschedule failed signup_id=' . $signup_id . ' err=' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] SignupCancellationService unschedule failed signup_id=' . $signup_id . ' err=' . $e->getMessage());
         }
 
         $success = self::add_toast($return, 'success', 'Signup cancelled.');
@@ -185,10 +187,10 @@ class SignupCancellationService
         // Minimal, safe-ish IP extraction (best-effort). Avoid trusting forwarded headers blindly.
         $ip = '';
         if (!empty($_SERVER['REMOTE_ADDR'])) {
-            $ip = (string)$_SERVER['REMOTE_ADDR'];
+            $ip = sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR']));
         }
         $ip = trim($ip);
-        if ($ip === '') return '0.0.0.0';
+        if ($ip === '' || filter_var($ip, FILTER_VALIDATE_IP) === false) return '0.0.0.0';
 
         // Normalize IPv6/IPv4 strings to a bounded length
         if (strlen($ip) > 64) {
@@ -220,23 +222,34 @@ class SignupCancellationService
 
         $has_updated_at = self::table_has_column($table, 'updated_at');
         $has_is_active  = self::table_has_column($table, 'is_active');
-
         // Pull row (include slot_id so we can prevent uniq collisions when setting is_active=0).
-        // The "is_active" column fragment is a fixed literal chosen above by
-        // a real schema check, never raw user input.
-        // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-        $row = $wpdb->get_row(
-            $wpdb->prepare(
-                "SELECT id, person_id, slot_id, status" . ($has_is_active ? ", is_active" : "") . "
-                 FROM %i
-                 WHERE id = %d AND person_id = %d
-                 LIMIT 1",
-                $table,
-                $signup_id,
-                $person_id
-            ),
-            ARRAY_A
-        );
+        if ($has_is_active) {
+            $row = $wpdb->get_row(
+                $wpdb->prepare(
+                    "SELECT id, person_id, slot_id, status, is_active
+                     FROM %i
+                     WHERE id = %d AND person_id = %d
+                     LIMIT 1",
+                    $table,
+                    $signup_id,
+                    $person_id
+                ),
+                ARRAY_A
+            );
+        } else {
+            $row = $wpdb->get_row(
+                $wpdb->prepare(
+                    "SELECT id, person_id, slot_id, status
+                     FROM %i
+                     WHERE id = %d AND person_id = %d
+                     LIMIT 1",
+                    $table,
+                    $signup_id,
+                    $person_id
+                ),
+                ARRAY_A
+            );
+        }
 
         if (!is_array($row) || empty($row['id'])) {
             return false;
@@ -275,7 +288,7 @@ class SignupCancellationService
                 );
             } catch (\Throwable $e) {
                 // Don't fail cancellation because cleanup failed; we try the update anyway.
-                error_log('[AdorationScheduler] SignupCancellationService cleanup inactive dupes failed signup_id=' . $signup_id . ' err=' . $e->getMessage());
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] SignupCancellationService cleanup inactive dupes failed signup_id=' . $signup_id . ' err=' . $e->getMessage());
             }
         }
 
@@ -303,7 +316,7 @@ class SignupCancellationService
                 );
 
                 if ($updated === false) {
-                    error_log('[AdorationScheduler] SignupCancellationService: already-cancelled but failed to set is_active=0 signup_id=' . $signup_id . ' err=' . $wpdb->last_error);
+                    \AdorationScheduler\Core\Logger::error('[AdorationScheduler] SignupCancellationService: already-cancelled but failed to set is_active=0 signup_id=' . $signup_id . ' err=' . $wpdb->last_error);
                 }
             }
             return true;
@@ -345,7 +358,7 @@ class SignupCancellationService
             try {
                 \AdorationScheduler\Services\WaitlistService::promote_next_for_slot($slot_id);
             } catch (\Throwable $e) {
-                error_log('[AdorationScheduler] SignupCancellationService waitlist promotion failed signup_id=' . $signup_id . ' err=' . $e->getMessage());
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] SignupCancellationService waitlist promotion failed signup_id=' . $signup_id . ' err=' . $e->getMessage());
             }
         }
 
@@ -365,6 +378,7 @@ class SignupCancellationService
         try {
             $like = $wpdb->esc_like($column);
             $prepared = $wpdb->prepare("SHOW COLUMNS FROM %i LIKE %s", $table, $like);
+            // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- $prepared is produced by $wpdb->prepare() immediately above.
             $found = $wpdb->get_var($prepared);
             return !empty($found);
         } catch (\Throwable $e) {

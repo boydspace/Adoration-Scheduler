@@ -36,18 +36,22 @@ class PasswordAuthService
 
     public static function handle_login(): void
     {
-        $action = isset($_REQUEST['action']) ? (string) $_REQUEST['action'] : '';
+        // This value only dispatches the handler; check_admin_referer() below protects authentication processing.
+        // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        $action = isset($_REQUEST['action']) ? sanitize_key(wp_unslash($_REQUEST['action'])) : '';
         if ($action !== self::ACTION) {
             return;
         }
 
-        $method = isset($_SERVER['REQUEST_METHOD']) ? strtoupper((string)$_SERVER['REQUEST_METHOD']) : '';
+        $method = isset($_SERVER['REQUEST_METHOD'])
+            ? strtoupper(sanitize_text_field(wp_unslash($_SERVER['REQUEST_METHOD'])))
+            : '';
         if ($method !== 'POST') {
             wp_safe_redirect(home_url('/'));
             exit;
         }
 
-        $return = isset($_POST['return']) ? (string) wp_unslash($_POST['return']) : '';
+        $return = isset($_POST['return']) ? esc_url_raw(wp_unslash($_POST['return'])) : '';
         $return = $return ? self::safe_url($return) : '';
         if (!$return) $return = wp_get_referer();
         if (!$return) $return = home_url('/');
@@ -59,14 +63,19 @@ class PasswordAuthService
         // MagicLinkService::handle_request().
         $generic_fail = 'Incorrect email or password.';
 
-        $email = isset($_POST['email']) ? strtolower(trim((string) wp_unslash($_POST['email']))) : '';
+        $email = isset($_POST['email']) ? strtolower(sanitize_email(wp_unslash($_POST['email']))) : '';
+        // Passwords must be compared byte-for-byte; sanitizing would silently alter valid credentials.
+        // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
         $password = isset($_POST['password']) ? (string) wp_unslash($_POST['password']) : '';
 
         if ($email === '' || !is_email($email) || $password === '') {
             self::redirect_with_toast($return, $generic_fail, 'error');
         }
 
-        $ip = isset($_SERVER['REMOTE_ADDR']) ? (string)$_SERVER['REMOTE_ADDR'] : '';
+        $ip = isset($_SERVER['REMOTE_ADDR'])
+            ? sanitize_text_field(wp_unslash($_SERVER['REMOTE_ADDR']))
+            : '';
+        if ($ip !== '' && filter_var($ip, FILTER_VALIDATE_IP) === false) $ip = '';
         if ($ip === '') $ip = '0.0.0.0';
 
         if (!MagicLinkService::is_local_or_debug_request($ip)) {
@@ -105,7 +114,7 @@ class PasswordAuthService
             self::redirect_with_toast($return, 'Could not sign you in. Please try again.', 'error');
         }
 
-        $r = isset($_POST['r']) ? (string) wp_unslash($_POST['r']) : '';
+        $r = isset($_POST['r']) ? esc_url_raw(wp_unslash($_POST['r'])) : '';
         $r = $r ? self::safe_url($r) : '';
         if (!$r) $r = home_url('/my-adoration/');
 

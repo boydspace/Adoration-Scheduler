@@ -60,6 +60,7 @@ class EmailLogRepository {
         if ($id <= 0) return null;
 
         $sql = $wpdb->prepare("SELECT * FROM %i WHERE id = %d LIMIT 1", $this->table, $id);
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $row = $wpdb->get_row($sql, ARRAY_A);
 
         return $row ? (array)$row : null;
@@ -105,6 +106,7 @@ class EmailLogRepository {
                AND (%d = 0 OR success = %d)",
             $this->table, $s, $like, $like, $like, $like, $type, $type, $has_success_filter, $success_val
         );
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $total = (int) $wpdb->get_var($count_prepared);
 
         // $orderby is checked against $allowed_orderby above and $order is
@@ -119,6 +121,7 @@ class EmailLogRepository {
             $this->table, $s, $like, $like, $like, $like, $type, $type, $has_success_filter, $success_val, $per_page, $offset
         );
 
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $rows = (array) $wpdb->get_results($rows_prepared, ARRAY_A);
 
         return [
@@ -144,6 +147,7 @@ class EmailLogRepository {
             $days
         );
 
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $res = $wpdb->query($sql);
         return ($res === false) ? 0 : (int)$res;
     }
@@ -167,6 +171,7 @@ class EmailLogRepository {
             ...array_merge([$this->table], $ids)
         );
 
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $res = $wpdb->query($sql);
         return ($res === false) ? 0 : (int)$res;
     }
@@ -216,6 +221,7 @@ class EmailLogRepository {
             $this->table, $s, $like, $like, $like, $like, $type, $type, $has_success_filter, $success_val, $limit
         );
 
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         return (array) $wpdb->get_results($prepared, ARRAY_A);
     }
 }

@@ -62,7 +62,7 @@ class PerpetualScheduleGeneratorService
 
         if (!self::action_scheduler_ready()) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('[AdorationScheduler] PerpetualScheduleGeneratorService: Action Scheduler not ready on wp_loaded; not scheduling.');
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] PerpetualScheduleGeneratorService: Action Scheduler not ready on wp_loaded; not scheduling.');
             }
             return;
         }
@@ -80,7 +80,7 @@ class PerpetualScheduleGeneratorService
     public static function ensure_recurring(bool $force = false): void {
         if (!self::action_scheduler_ready()) {
             if (defined('WP_DEBUG') && WP_DEBUG) {
-                error_log('[AdorationScheduler] PerpetualScheduleGeneratorService: Action Scheduler not ready; ensure_recurring skipped.');
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] PerpetualScheduleGeneratorService: Action Scheduler not ready; ensure_recurring skipped.');
             }
             return;
         }
@@ -111,7 +111,7 @@ class PerpetualScheduleGeneratorService
         );
 
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log(
+            \AdorationScheduler\Core\Logger::error(
                 '[AdorationScheduler] PerpetualScheduleGeneratorService scheduled: first=' .
                 gmdate('c', $first) .
                 ' interval=' . $interval . 's group=' . self::AS_GROUP
@@ -157,7 +157,7 @@ class PerpetualScheduleGeneratorService
                 $result = $generator->sync_window($schedule, $days_ahead);
 
                 if (defined('WP_DEBUG') && WP_DEBUG) {
-                    error_log(sprintf(
+                    \AdorationScheduler\Core\Logger::error(sprintf(
                         '[AdorationScheduler] Perpetual sync schedule_id=%d window_days=%d generated=%d inserted=%d signups_created=%d',
                         $schedule_id,
                         $days_ahead,
@@ -167,7 +167,7 @@ class PerpetualScheduleGeneratorService
                     ));
                 }
             } catch (\Throwable $e) {
-                error_log('[AdorationScheduler] Perpetual sync failed for schedule_id=' . $schedule_id . ': ' . $e->getMessage());
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Perpetual sync failed for schedule_id=' . $schedule_id . ': ' . $e->getMessage());
             }
         }
     }

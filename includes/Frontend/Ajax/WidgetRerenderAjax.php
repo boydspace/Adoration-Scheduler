@@ -70,7 +70,7 @@ class WidgetRerenderAjax
         try {
             $html = $class::render($atts);
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] WidgetRerenderAjax render failed tag=' . $tag . ' err=' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] WidgetRerenderAjax render failed tag=' . $tag . ' err=' . $e->getMessage());
             wp_send_json_error(['message' => 'Could not refresh that section. Please reload the page.'], 500);
         }
 

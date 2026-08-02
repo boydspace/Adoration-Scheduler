@@ -165,7 +165,7 @@ class Plugin {
     public static function init(): void {
 
         if (self::$did_init) {
-            error_log('[AdorationScheduler] Plugin::init called again (ignored)');
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Plugin::init called again (ignored)');
             return;
         }
         self::$did_init = true;
@@ -186,7 +186,7 @@ class Plugin {
             $toastClass::register();
         } else {
             // Don't hard-fail; just log.
-            error_log('[AdorationScheduler] ToastService missing or no register() method: ' . $toastClass);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] ToastService missing or no register() method: ' . $toastClass);
         }
 
         /**
@@ -214,7 +214,7 @@ class Plugin {
         if (class_exists($retClass) && method_exists($retClass, 'register')) {
             $retClass::register();
         } else {
-            error_log('[AdorationScheduler] EmailLogRetentionService missing or no register() method: ' . $retClass);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] EmailLogRetentionService missing or no register() method: ' . $retClass);
         }
 
         /**
@@ -229,7 +229,7 @@ class Plugin {
         if (class_exists($reminderClass) && method_exists($reminderClass, 'register')) {
             $reminderClass::register();
         } else {
-            error_log('[AdorationScheduler] ReminderScheduler missing or no register() method: ' . $reminderClass);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] ReminderScheduler missing or no register() method: ' . $reminderClass);
         }
 
         /**
@@ -244,7 +244,7 @@ class Plugin {
         if (class_exists($cleanupClass) && method_exists($cleanupClass, 'register')) {
             $cleanupClass::register();
         } else {
-            error_log('[AdorationScheduler] AuthCleanupService missing or no register() method: ' . $cleanupClass);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] AuthCleanupService missing or no register() method: ' . $cleanupClass);
         }
 
         /**
@@ -259,7 +259,7 @@ class Plugin {
         if (class_exists($perpClass) && method_exists($perpClass, 'register')) {
             $perpClass::register();
         } else {
-            error_log('[AdorationScheduler] PerpetualScheduleGeneratorService missing or no register() method: ' . $perpClass);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] PerpetualScheduleGeneratorService missing or no register() method: ' . $perpClass);
         }
 
         /**
@@ -274,7 +274,7 @@ class Plugin {
         if (class_exists($coverageAlertClass) && method_exists($coverageAlertClass, 'register')) {
             $coverageAlertClass::register();
         } else {
-            error_log('[AdorationScheduler] CoverageAlertService missing or no register() method: ' . $coverageAlertClass);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] CoverageAlertService missing or no register() method: ' . $coverageAlertClass);
         }
 
         /**
@@ -289,7 +289,7 @@ class Plugin {
         if (class_exists($monthlyClass) && method_exists($monthlyClass, 'register')) {
             $monthlyClass::register();
         } else {
-            error_log('[AdorationScheduler] MonthlyScheduleGeneratorService missing or no register() method: ' . $monthlyClass);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] MonthlyScheduleGeneratorService missing or no register() method: ' . $monthlyClass);
         }
 
         /**
@@ -304,7 +304,7 @@ class Plugin {
         if (class_exists($noShowAlertClass) && method_exists($noShowAlertClass, 'register')) {
             $noShowAlertClass::register();
         } else {
-            error_log('[AdorationScheduler] NoShowAlertService missing or no register() method: ' . $noShowAlertClass);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] NoShowAlertService missing or no register() method: ' . $noShowAlertClass);
         }
 
         /**
@@ -323,7 +323,7 @@ class Plugin {
         if (class_exists($checkInClass) && method_exists($checkInClass, 'register')) {
             $checkInClass::register();
         } else {
-            error_log('[AdorationScheduler] CheckInService missing or no register() method: ' . $checkInClass);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] CheckInService missing or no register() method: ' . $checkInClass);
         }
 
         /**
@@ -382,7 +382,7 @@ class Plugin {
                     if (class_exists($cls) && method_exists($cls, 'handle')) {
                         add_action('admin_post_adoration_merge_people', [ $cls, 'handle' ]);
                         if (defined('WP_DEBUG') && WP_DEBUG) {
-                            error_log('[AdorationScheduler] Fallback merge hook added -> ' . $cls . '::handle');
+                            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Fallback merge hook added -> ' . $cls . '::handle');
                         }
                         break;
                     }
@@ -492,7 +492,7 @@ class Plugin {
             if (class_exists($peopleSearchAjaxClass) && method_exists($peopleSearchAjaxClass, 'register')) {
                 $peopleSearchAjaxClass::register();
             } else {
-                error_log('[AdorationScheduler] PeopleSearchAjax missing or no register() method: ' . $peopleSearchAjaxClass);
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] PeopleSearchAjax missing or no register() method: ' . $peopleSearchAjaxClass);
             }
 
             // ADMIN AJAX: merge preview
@@ -520,14 +520,14 @@ class Plugin {
             if (class_exists($announcementsReorderAjaxClass) && method_exists($announcementsReorderAjaxClass, 'register')) {
                 $announcementsReorderAjaxClass::register();
             } else {
-                error_log('[AdorationScheduler] AnnouncementsReorderAjax missing or no register() method: ' . $announcementsReorderAjaxClass);
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] AnnouncementsReorderAjax missing or no register() method: ' . $announcementsReorderAjaxClass);
             }
 
             /**
              * EARLY BULK ACTIONS HANDLER: SCHEDULES
              * (Uses granular cap + fallback instead of manage_options)
              */
-            // phpcs:ignore WordPress.Security.NonceVerification.Missing -- these reads only decide whether to delegate to SchedulesListTable::process_bulk_action(), which itself calls check_admin_referer() before any mutation.
+            // phpcs:disable WordPress.Security.NonceVerification.Missing -- these reads only decide whether to delegate to SchedulesListTable::process_bulk_action(), which itself calls check_admin_referer() before any mutation.
             add_action('admin_init', function () use ($includes_dir) {
 
                 if ( ! Plugin::current_user_can_with_fallback(Plugin::CAP_MANAGE_SCHEDULES) ) return;
@@ -535,7 +535,7 @@ class Plugin {
                 $page = sanitize_key($_REQUEST['page'] ?? '');
                 if ($page !== 'adoration_scheduler_schedules') return;
 
-                if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') return;
+                if (sanitize_text_field(wp_unslash($_SERVER['REQUEST_METHOD'] ?? '')) !== 'POST') return;
 
                 $action  = sanitize_key($_POST['action'] ?? '');
                 $action2 = sanitize_key($_POST['action2'] ?? '');
@@ -561,13 +561,14 @@ class Plugin {
                 }
 
             }, 0);
+            // phpcs:enable WordPress.Security.NonceVerification.Missing
 
             /**
              * EARLY BULK ACTIONS HANDLER: PEOPLE
              * Note: You don’t yet have a dedicated "manage_people" cap; using manage_signups is a safe operational stand-in.
              * (Still falls back to manage_options.)
              */
-            // phpcs:ignore WordPress.Security.NonceVerification.Missing -- these reads only decide whether to delegate to PersonsListTable::process_bulk_action(), which itself calls check_admin_referer() before any mutation.
+            // phpcs:disable WordPress.Security.NonceVerification.Missing -- these reads only decide whether to delegate to PersonsListTable::process_bulk_action(), which itself calls check_admin_referer() before any mutation.
             add_action('admin_init', function () use ($includes_dir) {
 
                 if ( ! Plugin::current_user_can_with_fallback(Plugin::CAP_MANAGE_SIGNUPS) ) return;
@@ -575,7 +576,7 @@ class Plugin {
                 $page = sanitize_key($_REQUEST['page'] ?? '');
                 if ($page !== 'adoration_scheduler_people') return;
 
-                if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') return;
+                if (sanitize_text_field(wp_unslash($_SERVER['REQUEST_METHOD'] ?? '')) !== 'POST') return;
 
                 if (empty($_POST['person_ids']) || !is_array($_POST['person_ids'])) return;
 
@@ -601,6 +602,7 @@ class Plugin {
                 }
 
             }, 0);
+            // phpcs:enable WordPress.Security.NonceVerification.Missing
 
             /**
              * EARLY BULK ACTIONS HANDLER: SIGNUPS
@@ -617,7 +619,7 @@ class Plugin {
              * SCHEDULES and PEOPLE handlers directly above: process the
              * bulk action here, on admin_init, before any output starts.
              */
-            // phpcs:ignore WordPress.Security.NonceVerification.Missing -- these reads only decide whether to delegate to SignupsListTable::process_bulk_action(), which itself calls check_admin_referer() before any mutation.
+            // phpcs:disable WordPress.Security.NonceVerification.Missing -- these reads only decide whether to delegate to SignupsListTable::process_bulk_action(), which itself calls check_admin_referer() before any mutation.
             add_action('admin_init', function () use ($includes_dir) {
 
                 if ( ! Plugin::current_user_can_with_fallback(Plugin::CAP_MANAGE_SIGNUPS) ) return;
@@ -625,7 +627,7 @@ class Plugin {
                 $page = sanitize_key($_REQUEST['page'] ?? '');
                 if ($page !== 'adoration_scheduler_signups') return;
 
-                if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') return;
+                if (sanitize_text_field(wp_unslash($_SERVER['REQUEST_METHOD'] ?? '')) !== 'POST') return;
 
                 if (empty($_POST['signup_ids']) || !is_array($_POST['signup_ids'])) return;
 
@@ -650,6 +652,7 @@ class Plugin {
                 }
 
             }, 0);
+            // phpcs:enable WordPress.Security.NonceVerification.Missing
 
             // Admin signup row actions (cancel/delete)
             self::require_first_existing($includes_dir, [
@@ -661,7 +664,7 @@ class Plugin {
             if (class_exists($adminSignupActions) && method_exists($adminSignupActions, 'register')) {
                 $adminSignupActions::register();
             } else {
-                error_log('[AdorationScheduler] AdminSignupActionsService missing or no register() method: ' . $adminSignupActions);
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] AdminSignupActionsService missing or no register() method: ' . $adminSignupActions);
             }
 
             // ✅ FIX: Admin AJAX resend emails (Signups modal)
@@ -674,7 +677,7 @@ class Plugin {
             if (class_exists($adminResendAjax) && method_exists($adminResendAjax, 'register')) {
                 $adminResendAjax::register();
             } else {
-                error_log('[AdorationScheduler] AdminResendEmailAjaxService missing or no register() method: ' . $adminResendAjax);
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] AdminResendEmailAjaxService missing or no register() method: ' . $adminResendAjax);
             }
 
             /**
@@ -812,7 +815,7 @@ class Plugin {
             if (class_exists($svcClass) && method_exists($svcClass, 'register')) {
                 $svcClass::register();
             } else {
-                error_log('[AdorationScheduler] ScheduleCreationService missing or no register() method: ' . $svcClass);
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] ScheduleCreationService missing or no register() method: ' . $svcClass);
             }
 
             // Schedule deletion/restore handler
@@ -825,7 +828,7 @@ class Plugin {
             if (class_exists($delClass) && method_exists($delClass, 'register')) {
                 $delClass::register();
             } else {
-                error_log('[AdorationScheduler] ScheduleDeletionService missing or no register() method: ' . $delClass);
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] ScheduleDeletionService missing or no register() method: ' . $delClass);
             }
 
             // ✅ Schedule duplication handler
@@ -838,12 +841,12 @@ class Plugin {
             if (class_exists($dupClass) && method_exists($dupClass, 'register')) {
                 $dupClass::register();
             } else {
-                error_log('[AdorationScheduler] ScheduleDuplicationService missing or no register() method: ' . $dupClass);
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] ScheduleDuplicationService missing or no register() method: ' . $dupClass);
             }
         }
 
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('[AdorationScheduler] Plugin::init complete');
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Plugin::init complete');
         }
     }
 
@@ -985,7 +988,7 @@ class Plugin {
         if (class_exists($updateContactHandler) && method_exists($updateContactHandler, 'register')) {
             $updateContactHandler::register();
         } else {
-            error_log('[AdorationScheduler] UpdateContactInfoHandler missing or no register() method: ' . $updateContactHandler);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] UpdateContactInfoHandler missing or no register() method: ' . $updateContactHandler);
         }
 
         // ✅ Frontend: per-person reminder channel preferences (email/SMS)
@@ -998,7 +1001,7 @@ class Plugin {
         if (class_exists($reminderPreferencesHandler) && method_exists($reminderPreferencesHandler, 'register')) {
             $reminderPreferencesHandler::register();
         } else {
-            error_log('[AdorationScheduler] ReminderPreferencesHandler missing or no register() method: ' . $reminderPreferencesHandler);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] ReminderPreferencesHandler missing or no register() method: ' . $reminderPreferencesHandler);
         }
 
         // Notifications
@@ -1011,7 +1014,7 @@ class Plugin {
         if (class_exists($notifSvc) && method_exists($notifSvc, 'register')) {
             $notifSvc::register();
         } else {
-            error_log('[AdorationScheduler] NotificationService missing or no register() method: ' . $notifSvc);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] NotificationService missing or no register() method: ' . $notifSvc);
         }
 
         self::require_first_existing($includes_dir, [
@@ -1023,7 +1026,7 @@ class Plugin {
         if (class_exists($magicSvc) && method_exists($magicSvc, 'register')) {
             $magicSvc::register();
         } else {
-            error_log('[AdorationScheduler] MagicLinkService missing or no register() method: ' . $magicSvc);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] MagicLinkService missing or no register() method: ' . $magicSvc);
         }
 
         // ✅ Personal + public iCal subscribe feeds (2026-07-17)
@@ -1036,7 +1039,7 @@ class Plugin {
         if (class_exists($calendarFeedSvc) && method_exists($calendarFeedSvc, 'register')) {
             $calendarFeedSvc::register();
         } else {
-            error_log('[AdorationScheduler] CalendarFeedService missing or no register() method: ' . $calendarFeedSvc);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] CalendarFeedService missing or no register() method: ' . $calendarFeedSvc);
         }
 
         // ✅ Hybrid auth (Phase 2): optional "sign in with password"
@@ -1049,7 +1052,7 @@ class Plugin {
         if (class_exists($passwordAuthSvc) && method_exists($passwordAuthSvc, 'register')) {
             $passwordAuthSvc::register();
         } else {
-            error_log('[AdorationScheduler] PasswordAuthService missing or no register() method: ' . $passwordAuthSvc);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] PasswordAuthService missing or no register() method: ' . $passwordAuthSvc);
         }
 
         // ✅ Hybrid auth (Phase 2): set/change/remove password from dashboard
@@ -1062,7 +1065,7 @@ class Plugin {
         if (class_exists($passwordSetHandler) && method_exists($passwordSetHandler, 'register')) {
             $passwordSetHandler::register();
         } else {
-            error_log('[AdorationScheduler] PasswordSetHandler missing or no register() method: ' . $passwordSetHandler);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] PasswordSetHandler missing or no register() method: ' . $passwordSetHandler);
         }
 
         // ✅ Replacement requests (Phase 3): request/claim/cancel handlers + notifications
@@ -1075,7 +1078,7 @@ class Plugin {
         if (class_exists($replacementSvc) && method_exists($replacementSvc, 'register')) {
             $replacementSvc::register();
         } else {
-            error_log('[AdorationScheduler] ReplacementRequestService missing or no register() method: ' . $replacementSvc);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] ReplacementRequestService missing or no register() method: ' . $replacementSvc);
         }
 
         // ✅ Waitlists (2026-07-17): leave-waitlist + admin-remove handlers,
@@ -1089,7 +1092,7 @@ class Plugin {
         if (class_exists($waitlistSvc) && method_exists($waitlistSvc, 'register')) {
             $waitlistSvc::register();
         } else {
-            error_log('[AdorationScheduler] WaitlistService missing or no register() method: ' . $waitlistSvc);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] WaitlistService missing or no register() method: ' . $waitlistSvc);
         }
 
         // ✅ Self-service data export ("Download My Data")
@@ -1102,7 +1105,7 @@ class Plugin {
         if (class_exists($dataExportHandler) && method_exists($dataExportHandler, 'register')) {
             $dataExportHandler::register();
         } else {
-            error_log('[AdorationScheduler] DataExportHandler missing or no register() method: ' . $dataExportHandler);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] DataExportHandler missing or no register() method: ' . $dataExportHandler);
         }
 
         // ✅ Self-service account deletion ("Delete My Account") — anonymizes
@@ -1117,7 +1120,7 @@ class Plugin {
         if (class_exists($accountDeletionSvc) && method_exists($accountDeletionSvc, 'register')) {
             $accountDeletionSvc::register();
         } else {
-            error_log('[AdorationScheduler] AccountDeletionService missing or no register() method: ' . $accountDeletionSvc);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] AccountDeletionService missing or no register() method: ' . $accountDeletionSvc);
         }
 
         // ✅ Direct-to-person swap requests: public, signed-in-only AJAX
@@ -1131,7 +1134,7 @@ class Plugin {
         if (class_exists($personTargetSearchAjax) && method_exists($personTargetSearchAjax, 'register')) {
             $personTargetSearchAjax::register();
         } else {
-            error_log('[AdorationScheduler] PersonTargetSearchAjax missing or no register() method: ' . $personTargetSearchAjax);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] PersonTargetSearchAjax missing or no register() method: ' . $personTargetSearchAjax);
         }
 
         // ✅ No-account adorers (2026-07-21): admin-only "Existing person"
@@ -1145,7 +1148,7 @@ class Plugin {
         if (class_exists($adminPersonSearchAjax) && method_exists($adminPersonSearchAjax, 'register')) {
             $adminPersonSearchAjax::register();
         } else {
-            error_log('[AdorationScheduler] AdminPersonSearchAjax missing or no register() method: ' . $adminPersonSearchAjax);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] AdminPersonSearchAjax missing or no register() method: ' . $adminPersonSearchAjax);
         }
 
         // ✅ AJAX conversion (2026-07-20): re-renders one of the My
@@ -1162,7 +1165,7 @@ class Plugin {
         if (class_exists($widgetRerenderAjax) && method_exists($widgetRerenderAjax, 'register')) {
             $widgetRerenderAjax::register();
         } else {
-            error_log('[AdorationScheduler] WidgetRerenderAjax missing or no register() method: ' . $widgetRerenderAjax);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] WidgetRerenderAjax missing or no register() method: ' . $widgetRerenderAjax);
         }
 
         self::require_first_existing($includes_dir, [
@@ -1174,7 +1177,7 @@ class Plugin {
         if (class_exists($magicShortcode) && method_exists($magicShortcode, 'register')) {
             $magicShortcode::register();
         } else {
-            error_log('[AdorationScheduler] MagicLinkShortcode missing or no register() method: ' . $magicShortcode);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] MagicLinkShortcode missing or no register() method: ' . $magicShortcode);
         }
 
         // ✅ Modular "My Adoration" dashboard shortcodes (2026-07-16). Replaced
@@ -1204,7 +1207,7 @@ class Plugin {
             if (class_exists($fqcn) && method_exists($fqcn, 'register')) {
                 $fqcn::register();
             } else {
-                error_log('[AdorationScheduler] ' . $shortcode_class_name . ' missing or no register() method: ' . $fqcn);
+                \AdorationScheduler\Core\Logger::error('[AdorationScheduler] ' . $shortcode_class_name . ' missing or no register() method: ' . $fqcn);
             }
         }
 
@@ -1249,7 +1252,7 @@ class Plugin {
         if (class_exists($myAdorationPageSvc) && method_exists($myAdorationPageSvc, 'register')) {
             $myAdorationPageSvc::register();
         } else {
-            error_log('[AdorationScheduler] MyAdorationPageService missing or no register() method: ' . $myAdorationPageSvc);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] MyAdorationPageService missing or no register() method: ' . $myAdorationPageSvc);
         }
 
         self::require_first_existing($includes_dir, [
@@ -1261,7 +1264,7 @@ class Plugin {
         if (class_exists($cancelSvc) && method_exists($cancelSvc, 'register')) {
             $cancelSvc::register();
         } else {
-            error_log('[AdorationScheduler] SignupCancellationService missing or no register() method: ' . $cancelSvc);
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] SignupCancellationService missing or no register() method: ' . $cancelSvc);
         }
     }
 
@@ -1288,41 +1291,41 @@ class Plugin {
             foreach ($methodCandidates as $m) {
                 if (method_exists($class, $m)) {
                     if (defined('WP_DEBUG') && WP_DEBUG) {
-                        error_log('[AdorationScheduler] ' . $label . ' using ' . $class . '::' . $m . '()');
+                        \AdorationScheduler\Core\Logger::error('[AdorationScheduler] ' . $label . ' using ' . $class . '::' . $m . '()');
                     }
                     try {
                         $class::$m();
                     } catch (\Throwable $e) {
-                        error_log('[AdorationScheduler] ' . $label . ' threw: ' . $e->getMessage());
+                        \AdorationScheduler\Core\Logger::error('[AdorationScheduler] ' . $label . ' threw: ' . $e->getMessage());
                     }
                     return;
                 }
             }
 
-            error_log('[AdorationScheduler] ' . $label . ' class found but no usable method on ' . $class
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] ' . $label . ' class found but no usable method on ' . $class
                 . ' (tried: ' . implode(',', $methodCandidates) . ')');
             return;
         }
 
-        error_log('[AdorationScheduler] ' . $label . ' missing class. Tried: ' . implode(' | ', $classCandidates));
+        \AdorationScheduler\Core\Logger::error('[AdorationScheduler] ' . $label . ' missing class. Tried: ' . implode(' | ', $classCandidates));
     }
 
     public static function register_admin_menu(): void {
 
         if (self::$did_admin_menu) {
-            error_log('[AdorationScheduler] Plugin::register_admin_menu fired again (ignored)');
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Plugin::register_admin_menu fired again (ignored)');
             return;
         }
         self::$did_admin_menu = true;
 
         if (defined('WP_DEBUG') && WP_DEBUG) {
-            error_log('[AdorationScheduler] Plugin::register_admin_menu fired');
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Plugin::register_admin_menu fired');
         }
 
         $menuClass = \AdorationScheduler\Admin\Menu::class;
 
         if (!class_exists($menuClass)) {
-            error_log('[AdorationScheduler] Menu class missing: AdorationScheduler\\Admin\\Menu');
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Menu class missing: AdorationScheduler\\Admin\\Menu');
             return;
         }
 
@@ -1343,7 +1346,7 @@ class Plugin {
             return;
         }
 
-        error_log('[AdorationScheduler] Menu has no register method (expected register_admin_menu or register).');
+        \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Menu has no register method (expected register_admin_menu or register).');
     }
 
     /**

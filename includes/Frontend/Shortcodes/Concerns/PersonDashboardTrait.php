@@ -179,7 +179,7 @@ trait PersonDashboardTrait
             $repo = new \AdorationScheduler\Domain\Repositories\StandingCommitmentsRepository();
             return (array) $repo->list_for_person($person_id, true);
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] get_person_standing_hours failed: ' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] get_person_standing_hours failed: ' . $e->getMessage());
             return [];
         }
     }
@@ -234,6 +234,7 @@ trait PersonDashboardTrait
             $signups, $slots, $sched, $chapels, $person_id, $today
         );
 
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- $prepared is produced by $wpdb->prepare() immediately above, including identifier placeholders.
         $rows = $wpdb->get_results($prepared, ARRAY_A);
         return is_array($rows) ? $rows : [];
     }
@@ -257,7 +258,7 @@ trait PersonDashboardTrait
             $repo = new SignupsRepository();
             return $repo->list_open_replacement_requests($exclude_person_id, $limit);
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] get_open_replacement_requests failed: ' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] get_open_replacement_requests failed: ' . $e->getMessage());
             return [];
         }
     }
@@ -274,7 +275,7 @@ trait PersonDashboardTrait
             $repo = new SignupsRepository();
             return $repo->list_requests_targeted_at($person_id, $limit);
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] get_my_targeted_replacement_requests failed: ' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] get_my_targeted_replacement_requests failed: ' . $e->getMessage());
             return [];
         }
     }
@@ -288,7 +289,7 @@ trait PersonDashboardTrait
             $repo = new SignupsRepository();
             return $repo->list_fulfilled_replacement_requests($limit);
         } catch (\Throwable $e) {
-            error_log('[AdorationScheduler] get_fulfilled_replacement_requests failed: ' . $e->getMessage());
+            \AdorationScheduler\Core\Logger::error('[AdorationScheduler] get_fulfilled_replacement_requests failed: ' . $e->getMessage());
             return [];
         }
     }
@@ -337,6 +338,7 @@ trait PersonDashboardTrait
             $signups, $slots, $sched, $chapels, $persons, $person_id
         );
 
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery -- $prepared is produced by $wpdb->prepare() immediately above, including identifier placeholders.
         $rows = $wpdb->get_results($prepared, ARRAY_A);
         return is_array($rows) ? $rows : [];
     }
