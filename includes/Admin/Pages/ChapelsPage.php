@@ -211,6 +211,11 @@ class ChapelsPage {
         if ($id <= 0) return;
 
         $kiosk_url = CheckInService::build_kiosk_url($id);
+        $download_name = sanitize_file_name((string)($chapel['slug'] ?? ''));
+        if ($download_name === '') {
+            $download_name = 'chapel';
+        }
+        $download_name .= '-kiosk-qr.svg';
         $regen_url = wp_nonce_url(
             $this->page_url(['action' => 'regenerate_kiosk_token', 'id' => $id]),
             'adoration_regenerate_kiosk_token_' . $id
@@ -230,7 +235,8 @@ class ChapelsPage {
         echo '<p>';
         echo '<a class="button" href="' . esc_url($kiosk_url) . '" target="_blank" rel="noopener">' . esc_html__('Open kiosk page', 'adoration-scheduler') . '</a> ';
         echo '<a class="button" href="' . esc_url($regen_url) . '" onclick="return confirm(' . esc_attr(wp_json_encode(__('Reset this link? Any printed QR code will stop working.', 'adoration-scheduler'))) . ');">' . esc_html__('Reset link', 'adoration-scheduler') . '</a> ';
-        echo '<button type="button" class="button" id="adoration-print-kiosk-qr" disabled>' . esc_html__('Print QR code', 'adoration-scheduler') . '</button>';
+        echo '<button type="button" class="button" id="adoration-print-kiosk-qr" disabled>' . esc_html__('Print QR code', 'adoration-scheduler') . '</button> ';
+        echo '<button type="button" class="button" id="adoration-download-kiosk-qr" data-download-name="' . esc_attr($download_name) . '" disabled>' . esc_html__('Download QR code', 'adoration-scheduler') . '</button>';
         echo '</p>';
 
         echo '<div id="adoration-kiosk-qr" data-kiosk-url="' . esc_attr($kiosk_url) . '" style="margin-top:12px;"><p class="description">' . esc_html__('Generating QR code…', 'adoration-scheduler') . '</p></div>';
@@ -264,6 +270,7 @@ class ChapelsPage {
 (function(){
     var el = document.getElementById('adoration-kiosk-qr');
     var printButton = document.getElementById('adoration-print-kiosk-qr');
+    var downloadButton = document.getElementById('adoration-download-kiosk-qr');
     if (!el || !window.AdorationQR) return;
     var url = el.getAttribute('data-kiosk-url') || '';
     if (!url) return;
@@ -308,6 +315,25 @@ class ChapelsPage {
 
                     printWindow.focus();
                     window.setTimeout(function(){ printWindow.print(); }, 100);
+                });
+            }
+
+            if (downloadButton) {
+                downloadButton.disabled = false;
+                downloadButton.addEventListener('click', function(){
+                    var downloadSvg = svgEl.cloneNode(true);
+                    downloadSvg.removeAttribute('style');
+                    var source = '<?xml version="1.0" encoding="UTF-8"?>\\n' +
+                        new XMLSerializer().serializeToString(downloadSvg);
+                    var blob = new Blob([source], { type: 'image/svg+xml;charset=utf-8' });
+                    var objectUrl = URL.createObjectURL(blob);
+                    var link = document.createElement('a');
+                    link.href = objectUrl;
+                    link.download = downloadButton.getAttribute('data-download-name') || 'chapel-kiosk-qr.svg';
+                    document.body.appendChild(link);
+                    link.click();
+                    link.remove();
+                    window.setTimeout(function(){ URL.revokeObjectURL(objectUrl); }, 1000);
                 });
             }
         }
