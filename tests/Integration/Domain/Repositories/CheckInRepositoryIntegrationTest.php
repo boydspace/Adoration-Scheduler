@@ -7,6 +7,8 @@ use AdorationScheduler\Domain\Repositories\AttendanceRepository;
 use AdorationScheduler\Core\Installer;
 use AdorationScheduler\Services\CheckInService;
 use AdorationScheduler\Domain\Services\LiveCoverageService;
+use AdorationScheduler\Services\NoShowAlertService;
+use AdorationScheduler\Admin\Pages\NoShowAlertsSettingsPage;
 use AdorationScheduler\Tests\Support\AdorationIntegrationTestCase;
 
 /**
@@ -470,8 +472,19 @@ class CheckInRepositoryIntegrationTest extends AdorationIntegrationTestCase
         $inside_grace_id = $this->make_signup('-10 minutes', '+50 minutes');
         $checked_in_id = $this->make_signup('-45 minutes', '+15 minutes');
         $already_alerted_id = $this->make_signup('-45 minutes', '+15 minutes');
+        $guest_covered_id = $this->make_signup('-45 minutes', '+15 minutes');
+        $ended_id = $this->make_signup('-2 hours', '-1 hour');
 
         $this->repo->check_in($checked_in_id, 'self');
+        $guest_signup = $this->repo->find($guest_covered_id);
+        $this->assertGreaterThan(0, (new AttendanceRepository())->record([
+            'slot_id' => (int)$guest_signup['slot_id'],
+            'schedule_id' => $this->schedule_id,
+            'chapel_id' => $this->chapel_id,
+            'attendance_type' => 'guest',
+            'guest_name' => 'Coverage Guest',
+            'check_in_method' => 'kiosk',
+        ]));
         $wpdb->update(
             $wpdb->prefix . 'adoration_signups',
             ['no_show_alert_sent_at' => current_time('mysql')],
@@ -484,6 +497,8 @@ class CheckInRepositoryIntegrationTest extends AdorationIntegrationTestCase
         $this->assertNotContains($inside_grace_id, $ids);
         $this->assertNotContains($checked_in_id, $ids);
         $this->assertNotContains($already_alerted_id, $ids);
+        $this->assertNotContains($guest_covered_id, $ids, 'A present guest satisfies a one-adorer chapel minimum.');
+        $this->assertNotContains($ended_id, $ids, 'No-show alerts are actionable only while the chapel hour is still active.');
     }
 
     public function test_mark_no_show_alert_sent_deduplicates_and_ignores_invalid_ids(): void
@@ -494,6 +509,28 @@ class CheckInRepositoryIntegrationTest extends AdorationIntegrationTestCase
 
         $this->assertNotEmpty($this->repo->find($signup_id)['no_show_alert_sent_at']);
         $this->repo->mark_no_show_alert_sent([]);
+    }
+
+    public function test_no_show_job_stamps_only_after_successful_delivery(): void
+    {
+        $signup_id = $this->make_signup('-45 minutes', '+15 minutes');
+        update_option(NoShowAlertsSettingsPage::OPTION_NAME, [
+            'enabled' => 1,
+            'alert_email' => 'coordinator@example.test',
+            'grace_minutes' => 30,
+        ]);
+
+        $mail_failure = static fn() => false;
+        add_filter('pre_wp_mail', $mail_failure);
+        NoShowAlertService::run_check();
+        remove_filter('pre_wp_mail', $mail_failure);
+        $this->assertEmpty($this->repo->find($signup_id)['no_show_alert_sent_at']);
+
+        $mail_success = static fn() => true;
+        add_filter('pre_wp_mail', $mail_success);
+        NoShowAlertService::run_check();
+        remove_filter('pre_wp_mail', $mail_success);
+        $this->assertNotEmpty($this->repo->find($signup_id)['no_show_alert_sent_at']);
     }
 
     private function make_signup(

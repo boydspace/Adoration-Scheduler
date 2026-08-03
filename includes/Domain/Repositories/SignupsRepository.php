@@ -1709,6 +1709,7 @@ class SignupsRepository {
         $slots   = $wpdb->prefix . 'adoration_slots';
         $sched   = $wpdb->prefix . 'adoration_schedules';
         $chapels = $wpdb->prefix . 'adoration_chapels';
+        $attendance = $wpdb->prefix . 'adoration_attendance';
 
         // Site-local "now minus grace period", compared against the slot's
         // real start_at datetime column (already timezone-normalized —
@@ -1737,13 +1738,24 @@ class SignupsRepository {
               AND s.is_active = 1
               AND s.checked_in_at IS NULL
               AND s.no_show_alert_sent_at IS NULL
+              AND sc.status = 'active'
               AND sl.start_at IS NOT NULL
+              AND sl.end_at IS NOT NULL
               AND sl.start_at <= DATE_SUB(%s, INTERVAL %d MINUTE)
+              AND sl.end_at >= %s
+              AND (
+                  SELECT COUNT(*)
+                    FROM %i a
+                   WHERE a.slot_id = sl.id
+                     AND a.status = 'present'
+                     AND a.checked_in_at IS NOT NULL
+                     AND a.checked_out_at IS NULL
+              ) < GREATEST(COALESCE(sl.min_adorers, 1), 1)
             ORDER BY sl.start_at ASC
             LIMIT %d
         ",
             $this->table, $slots, $sched, $chapels, $this->persons_table,
-            $cutoff, $grace_minutes, $limit
+            $cutoff, $grace_minutes, $cutoff, $attendance, $limit
         );
 
         // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.

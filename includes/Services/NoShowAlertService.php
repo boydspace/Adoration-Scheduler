@@ -157,18 +157,18 @@ class NoShowAlertService
             return;
         }
 
-        self::send_digest($gaps, $grace_minutes);
-
-        $signup_ids = array_map(static fn($g) => (int)($g['id'] ?? 0), $gaps);
-        $signups_repo->mark_no_show_alert_sent($signup_ids);
+        if (self::send_digest($gaps, $grace_minutes)) {
+            $signup_ids = array_map(static fn($g) => (int)($g['id'] ?? 0), $gaps);
+            $signups_repo->mark_no_show_alert_sent($signup_ids);
+        }
     }
 
-    private static function send_digest(array $gaps, int $grace_minutes): void {
+    private static function send_digest(array $gaps, int $grace_minutes): bool {
         $recipient = class_exists(NoShowAlertsSettingsPage::class)
             ? NoShowAlertsSettingsPage::get_recipient_email()
             : (string) get_option('admin_email');
 
-        if (!$recipient || !is_email($recipient)) return;
+        if (!$recipient || !is_email($recipient)) return false;
 
         $count = count($gaps);
 
@@ -201,7 +201,7 @@ class NoShowAlertService
         }
 
         try {
-            \AdorationScheduler\Services\NotificationService::send_no_show_digest([
+            return \AdorationScheduler\Services\NotificationService::send_no_show_digest([
                 'to_email'       => $recipient,
                 'no_show_count'  => $count,
                 'grace_minutes'  => $grace_minutes,
@@ -212,6 +212,7 @@ class NoShowAlertService
             ]);
         } catch (\Throwable $e) {
             \AdorationScheduler\Core\Logger::error('[AdorationScheduler] NoShowAlertService::send_digest failed: ' . $e->getMessage());
+            return false;
         }
     }
 
