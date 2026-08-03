@@ -1540,7 +1540,7 @@ class SignupsRepository {
             ['%d']
         );
 
-        return ($res !== false) ? $token : null;
+        return ($res === 1) ? $token : null;
     }
 
     /**
@@ -1576,10 +1576,12 @@ class SignupsRepository {
 
         $method = in_array($method, ['self', 'kiosk', 'admin'], true) ? $method : 'self';
 
-        $already = $wpdb->get_var(
-            $wpdb->prepare("SELECT checked_in_at FROM %i WHERE id = %d LIMIT 1", $this->table, $signup_id)
+        $row = $wpdb->get_row(
+            $wpdb->prepare("SELECT checked_in_at FROM %i WHERE id = %d LIMIT 1", $this->table, $signup_id),
+            ARRAY_A
         );
-        if (!empty($already)) return true; // already checked in — not an error
+        if (!is_array($row)) return false;
+        if (!empty($row['checked_in_at'])) return true; // already checked in — not an error
 
         $res = $wpdb->update(
             $this->table,
@@ -1642,6 +1644,11 @@ class SignupsRepository {
 
         $signup_id = (int)$signup_id;
         if ($signup_id <= 0) return false;
+
+        $existing_id = (int)$wpdb->get_var(
+            $wpdb->prepare("SELECT id FROM %i WHERE id = %d LIMIT 1", $this->table, $signup_id)
+        );
+        if ($existing_id !== $signup_id) return false;
 
         if ($present) {
             $data   = ['checked_in_at' => current_time('mysql'), 'check_in_method' => 'admin'];
