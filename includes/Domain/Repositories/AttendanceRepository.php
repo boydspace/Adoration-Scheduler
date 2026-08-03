@@ -113,6 +113,7 @@ class AttendanceRepository
         $source = $wpdb->get_row(
             $wpdb->prepare(
                 "SELECT s.id, s.slot_id, s.schedule_id, s.person_id,
+                        s.replacement_requested_by, s.replacement_claimed_by,
                         s.checked_in_at, s.checked_out_at, s.check_in_method,
                         COALESCE(sl.chapel_id, sc.chapel_id) AS chapel_id
                    FROM %i s
@@ -132,9 +133,17 @@ class AttendanceRepository
         if (empty($source['checked_in_at'])) return $this->clear_scheduled_signup($signup_id);
 
         $existing = $this->find_by_signup($signup_id);
-        if ($existing && ($existing['attendance_type'] ?? '') !== 'scheduled') {
+        $claimed_by = (int)($source['replacement_claimed_by'] ?? 0);
+        $requested_by = (int)($source['replacement_requested_by'] ?? 0);
+        if ($existing && ($existing['attendance_type'] ?? '') === 'substitute' && $claimed_by <= 0) {
             return true;
         }
+
+        $is_substitute = $claimed_by > 0;
+        $scheduled_person_id = $is_substitute && $requested_by > 0
+            ? $requested_by
+            : (int)$source['person_id'];
+        $attendee_person_id = $is_substitute ? $claimed_by : (int)$source['person_id'];
 
         $now = current_time('mysql');
         $data = [
@@ -142,10 +151,10 @@ class AttendanceRepository
             'slot_id' => (int)$source['slot_id'],
             'schedule_id' => (int)$source['schedule_id'],
             'chapel_id' => (int)$source['chapel_id'],
-            'scheduled_person_id' => (int)$source['person_id'],
-            'attendee_person_id' => (int)$source['person_id'],
+            'scheduled_person_id' => $scheduled_person_id,
+            'attendee_person_id' => $attendee_person_id,
             'guest_name' => null,
-            'attendance_type' => 'scheduled',
+            'attendance_type' => $is_substitute ? 'substitute' : 'scheduled',
             'status' => empty($source['checked_out_at']) ? 'present' : 'completed',
             'checked_in_at' => $source['checked_in_at'],
             'checked_out_at' => $source['checked_out_at'] ?: null,

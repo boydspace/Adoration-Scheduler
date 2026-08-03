@@ -238,6 +238,7 @@ class CheckInService
                 li.state-out { border-left-color:#dba617; }
                 li.state-done { border-left-color:#00a32a; opacity:.75; }
                 .name { font-size:19px; font-weight:600; }
+                .substitute { display:block; font-size:13px; color:#50575e; font-weight:500; margin-top:3px; }
                 .time { display:block; font-size:14px; color:#646970; font-weight:400; margin-top:2px; }
                 button { font-size:17px; font-weight:600; padding:16px 20px; border-radius:10px; border:1px solid #2271b1; background:#2271b1; color:#fff; cursor:pointer; min-height:52px; min-width:120px; touch-action: manipulation; }
                 button.mode-out { border-color:#dba617; background:#dba617; }
@@ -268,6 +269,15 @@ class CheckInService
                             $last  = trim((string)($row['person_last_name'] ?? ''));
                             $name  = trim($first . ' ' . substr($last, 0, 1)) . (($last !== '') ? '.' : '');
                             if ($name === '') $name = __('(unnamed)', 'adoration-scheduler');
+                            $substitute_for = '';
+                            if (!empty($row['replacement_claimed_by'])) {
+                                $scheduled_first = trim((string)($row['scheduled_first_name'] ?? ''));
+                                $scheduled_last = trim((string)($row['scheduled_last_name'] ?? ''));
+                                $scheduled_name = trim($scheduled_first . ' ' . substr($scheduled_last, 0, 1)) . (($scheduled_last !== '') ? '.' : '');
+                                if ($scheduled_name !== '') {
+                                    $substitute_for = sprintf(__('Substitute for %s', 'adoration-scheduler'), $scheduled_name);
+                                }
+                            }
                             $checked_in  = !empty($row['checked_in_at']);
                             $checked_out = !empty($row['checked_out_at']);
                             $time_lbl = self::format_slot_label($row, $row);
@@ -289,6 +299,7 @@ class CheckInService
                             <li class="<?php echo esc_attr($state_class); ?>">
                                 <span>
                                     <span class="name"><?php echo esc_html($name); ?></span>
+                                    <?php if ($substitute_for !== ''): ?><span class="substitute"><?php echo esc_html($substitute_for); ?></span><?php endif; ?>
                                     <?php if ($time_lbl !== ''): ?><span class="time"><?php echo esc_html($time_lbl); ?></span><?php endif; ?>
                                 </span>
                                 <form method="post" action="<?php echo esc_url($checkin_action_url); ?>">

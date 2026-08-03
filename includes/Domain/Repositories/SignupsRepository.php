@@ -984,7 +984,8 @@ class SignupsRepository {
              SET person_id = %d,
                  needs_replacement = 0,
                  replacement_claimed_by = %d,
-                 replacement_claimed_at = %s
+                 replacement_claimed_at = %s,
+                 checkin_token = NULL
              WHERE id = %d
                AND needs_replacement = 1
                AND replacement_claimed_by IS NULL
@@ -1854,15 +1855,20 @@ class SignupsRepository {
                 s.id,
                 s.checked_in_at,
                 s.checked_out_at,
+                s.replacement_requested_by,
+                s.replacement_claimed_by,
                 sl.start_time,
                 sl.end_time,
                 sc.name AS schedule_name,
                 p.first_name AS person_first_name,
-                p.last_name  AS person_last_name
+                p.last_name  AS person_last_name,
+                original.first_name AS scheduled_first_name,
+                original.last_name  AS scheduled_last_name
             FROM %i s
             INNER JOIN %i sl ON sl.id = s.slot_id
             INNER JOIN %i sc ON sc.id = s.schedule_id
             LEFT JOIN %i p ON p.id = s.person_id
+            LEFT JOIN %i original ON original.id = s.replacement_requested_by
             WHERE s.status = 'confirmed'
               AND s.is_active = 1
               AND sc.chapel_id = %d
@@ -1872,7 +1878,7 @@ class SignupsRepository {
               AND sl.end_at   >= %s
             ORDER BY sl.start_at ASC
         ",
-            $this->table, $slots, $sched, $this->persons_table,
+            $this->table, $slots, $sched, $this->persons_table, $this->persons_table,
             $chapel_id, $now, $now
         );
 

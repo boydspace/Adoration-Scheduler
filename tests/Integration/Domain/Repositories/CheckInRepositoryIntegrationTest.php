@@ -233,6 +233,49 @@ class CheckInRepositoryIntegrationTest extends AdorationIntegrationTestCase
         $this->assertSame($substitute_id, (int)$after_legacy_tap['attendee_person_id']);
     }
 
+    public function test_claimed_replacement_checks_in_as_substitute_and_rotates_old_link(): void
+    {
+        $signup_id = $this->make_signup('-5 minutes', '+55 minutes');
+        $original = $this->repo->find($signup_id);
+        $original_person_id = (int)$original['person_id'];
+        $old_token = $this->repo->get_or_create_checkin_token($signup_id);
+        $substitute_id = $this->make_person([
+            'first_name' => 'Substitute',
+            'last_name' => 'Adorer',
+            'email' => 'claimed-substitute-' . wp_generate_password(8, false, false) . '@example.test',
+        ]);
+
+        $this->assertTrue($this->repo->mark_needs_replacement($signup_id, $original_person_id, 'Please cover this hour.'));
+        $this->assertSame('ok', $this->repo->claim_replacement($signup_id, $substitute_id));
+
+        $claimed = $this->repo->find($signup_id);
+        $this->assertSame($substitute_id, (int)$claimed['person_id']);
+        $this->assertSame($original_person_id, (int)$claimed['replacement_requested_by']);
+        $this->assertSame($substitute_id, (int)$claimed['replacement_claimed_by']);
+        $this->assertNull($this->repo->find_by_checkin_token($old_token), 'The original adorer\'s emailed link must stop working after reassignment.');
+        $new_token = $this->repo->get_or_create_checkin_token($signup_id);
+        $this->assertNotSame($old_token, $new_token);
+
+        $roster = $this->repo->list_current_for_chapel($this->chapel_id);
+        $this->assertCount(1, $roster);
+        $this->assertSame('Substitute', $roster[0]['person_first_name']);
+        $this->assertSame($original_person_id, (int)$roster[0]['replacement_requested_by']);
+        $this->assertSame($substitute_id, (int)$roster[0]['replacement_claimed_by']);
+
+        $this->assertTrue($this->repo->check_in($signup_id, 'kiosk'));
+        $attendance = (new AttendanceRepository())->find_by_signup($signup_id);
+        $this->assertSame('substitute', $attendance['attendance_type']);
+        $this->assertSame($original_person_id, (int)$attendance['scheduled_person_id']);
+        $this->assertSame($substitute_id, (int)$attendance['attendee_person_id']);
+        $this->assertSame('kiosk', $attendance['check_in_method']);
+
+        $this->assertTrue($this->repo->check_out($signup_id));
+        $completed = (new AttendanceRepository())->find_by_signup($signup_id);
+        $this->assertSame('substitute', $completed['attendance_type']);
+        $this->assertSame('completed', $completed['status']);
+        $this->assertSame($substitute_id, (int)$completed['attendee_person_id']);
+    }
+
     public function test_model_records_multiple_guests_without_signups(): void
     {
         global $wpdb;
