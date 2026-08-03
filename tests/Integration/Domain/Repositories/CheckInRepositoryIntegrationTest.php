@@ -3,6 +3,8 @@ namespace AdorationScheduler\Tests\Integration\Domain\Repositories;
 
 use AdorationScheduler\Domain\Repositories\SignupsRepository;
 use AdorationScheduler\Domain\Repositories\ChapelsRepository;
+use AdorationScheduler\Domain\Repositories\AttendanceRepository;
+use AdorationScheduler\Core\Installer;
 use AdorationScheduler\Services\CheckInService;
 use AdorationScheduler\Tests\Support\AdorationIntegrationTestCase;
 
@@ -21,7 +23,7 @@ class CheckInRepositoryIntegrationTest extends AdorationIntegrationTestCase
     {
         parent::setUp();
         $this->repo = new SignupsRepository();
-        $this->chapel_id = $this->make_chapel('Attendance Test Chapel');
+        $this->chapel_id = $this->make_chapel('Attendance Test Chapel ' . wp_generate_password(8, false, false));
         $this->schedule_id = $this->make_schedule($this->chapel_id);
     }
 
@@ -147,6 +149,120 @@ class CheckInRepositoryIntegrationTest extends AdorationIntegrationTestCase
         $this->assertNull($absent['checked_in_at']);
         $this->assertNull($absent['checked_out_at']);
         $this->assertNull($absent['check_in_method']);
+        $this->assertNull((new AttendanceRepository())->find_by_signup($signup_id));
+    }
+
+    public function test_checkin_and_checkout_are_mirrored_to_2_0_attendance(): void
+    {
+        $signup_id = $this->make_signup('-5 minutes', '+55 minutes');
+        $attendance = new AttendanceRepository();
+
+        $this->assertTrue($this->repo->check_in($signup_id, 'kiosk'));
+        $present = $attendance->find_by_signup($signup_id);
+        $this->assertNotNull($present);
+        $this->assertSame('scheduled', $present['attendance_type']);
+        $this->assertSame('present', $present['status']);
+        $this->assertSame('kiosk', $present['check_in_method']);
+        $this->assertSame((int)$this->repo->find($signup_id)['person_id'], (int)$present['attendee_person_id']);
+
+        $this->assertTrue($this->repo->check_out($signup_id));
+        $completed = $attendance->find_by_signup($signup_id);
+        $this->assertSame('completed', $completed['status']);
+        $this->assertNotEmpty($completed['checked_out_at']);
+        $this->assertSame($present['id'], $completed['id'], 'Checkout must update the existing attendance record.');
+    }
+
+    public function test_legacy_migration_is_idempotent_and_preserves_2_0_edits(): void
+    {
+        global $wpdb;
+
+        $signup_id = $this->make_signup('-45 minutes', '+15 minutes');
+        $legacy_time = '2026-07-18 09:15:00';
+        $wpdb->update(
+            $wpdb->prefix . 'adoration_signups',
+            ['checked_in_at' => $legacy_time, 'check_in_method' => 'admin'],
+            ['id' => $signup_id]
+        );
+
+        Installer::migrate_legacy_attendance();
+        $attendance = new AttendanceRepository();
+        $migrated = $attendance->find_by_signup($signup_id);
+        $this->assertNotNull($migrated);
+        $this->assertSame($legacy_time, $migrated['checked_in_at']);
+        $this->assertSame('1', $migrated['migrated_from_legacy']);
+
+        $wpdb->update(
+            $wpdb->prefix . 'adoration_attendance',
+            ['notes' => 'Coordinator verified this record.'],
+            ['id' => (int)$migrated['id']]
+        );
+        Installer::migrate_legacy_attendance();
+
+        $after_second_install = $attendance->find_by_signup($signup_id);
+        $this->assertSame($migrated['id'], $after_second_install['id']);
+        $this->assertSame('Coordinator verified this record.', $after_second_install['notes']);
+    }
+
+    public function test_model_records_substitute_without_changing_scheduled_person(): void
+    {
+        $signup_id = $this->make_signup('-5 minutes', '+55 minutes');
+        $signup = $this->repo->find($signup_id);
+        $substitute_id = $this->make_person(['email' => 'substitute-' . wp_generate_password(8, false, false) . '@example.test']);
+        $attendance = new AttendanceRepository();
+
+        $attendance_id = $attendance->record([
+            'signup_id' => $signup_id,
+            'slot_id' => (int)$signup['slot_id'],
+            'schedule_id' => (int)$signup['schedule_id'],
+            'chapel_id' => $this->chapel_id,
+            'scheduled_person_id' => (int)$signup['person_id'],
+            'attendee_person_id' => $substitute_id,
+            'attendance_type' => 'substitute',
+            'check_in_method' => 'kiosk',
+        ]);
+
+        $this->assertGreaterThan(0, $attendance_id);
+        $row = $attendance->find_by_signup($signup_id);
+        $this->assertSame('substitute', $row['attendance_type']);
+        $this->assertSame((int)$signup['person_id'], (int)$row['scheduled_person_id']);
+        $this->assertSame($substitute_id, (int)$row['attendee_person_id']);
+
+        $this->repo->check_in($signup_id, 'self');
+        $after_legacy_tap = $attendance->find_by_signup($signup_id);
+        $this->assertSame('substitute', $after_legacy_tap['attendance_type']);
+        $this->assertSame($substitute_id, (int)$after_legacy_tap['attendee_person_id']);
+    }
+
+    public function test_model_records_multiple_guests_without_signups(): void
+    {
+        global $wpdb;
+
+        $signup_id = $this->make_signup('-5 minutes', '+55 minutes');
+        $signup = $this->repo->find($signup_id);
+        $attendance = new AttendanceRepository();
+        $base = [
+            'slot_id' => (int)$signup['slot_id'],
+            'schedule_id' => (int)$signup['schedule_id'],
+            'chapel_id' => $this->chapel_id,
+            'attendance_type' => 'guest',
+            'check_in_method' => 'kiosk',
+        ];
+
+        $first_id = $attendance->record($base + ['guest_name' => 'Guest One']);
+        $second_id = $attendance->record($base + ['guest_name' => 'Guest Two']);
+
+        $this->assertGreaterThan(0, $first_id);
+        $this->assertGreaterThan(0, $second_id);
+        $this->assertNotSame($first_id, $second_id);
+        $count = (int)$wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(*) FROM %i WHERE slot_id = %d AND attendance_type = 'guest'",
+                $wpdb->prefix . 'adoration_attendance',
+                (int)$signup['slot_id']
+            )
+        );
+        $this->assertSame(2, $count);
+        $this->assertSame(0, $attendance->record($base + ['guest_name' => '']));
     }
 
     public function test_current_kiosk_list_is_limited_to_current_chapel_and_time(): void

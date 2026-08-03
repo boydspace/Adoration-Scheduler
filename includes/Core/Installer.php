@@ -14,7 +14,7 @@ class Installer {
      * Bump this whenever you change DB schema.
      * Keep it monotonic.
      */
-    public const DB_VERSION = '2026-07-21-02';
+    public const DB_VERSION = '2026-08-02-01';
 
     /**
      * Plugin capabilities (v1.0 guard rails).
@@ -578,6 +578,14 @@ class Installer {
         }
         if (!self::column_exists($chapels_table, 'kiosk_token')) return false;
 
+        // 2.0 attendance records: actual attendees can differ from the
+        // person originally scheduled and guests need not have a signup.
+        $attendance_table = $prefix . 'attendance';
+        if (!self::table_exists($attendance_table)) return false;
+        foreach (['signup_id', 'slot_id', 'scheduled_person_id', 'attendee_person_id', 'attendance_type', 'status', 'checked_in_at'] as $col) {
+            if (!self::column_exists($attendance_table, $col)) return false;
+        }
+
         return true;
     }
 
@@ -611,6 +619,7 @@ class Installer {
         $slots_table         = $prefix . 'slots';
         $persons_table       = $prefix . 'persons';
         $signups_table       = $prefix . 'signups';
+        $attendance_table    = $prefix . 'attendance';
 
         $magic_links_table   = $prefix . 'magic_links';
         $sessions_table      = $prefix . 'sessions';
@@ -812,6 +821,39 @@ class Installer {
             KEY `idx_replacement_target` (`replacement_target_person_id`)
         ) {$charset_collate};";
 
+        // 2.0 attendance is deliberately separate from signups: a signup is
+        // the scheduled obligation, while this row records who actually
+        // attended. Nullable signup_id supports unscheduled chapel guests.
+        $sql_attendance = "CREATE TABLE {$attendance_table} (
+            id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+            signup_id BIGINT(20) UNSIGNED NULL,
+            slot_id BIGINT(20) UNSIGNED NOT NULL,
+            schedule_id BIGINT(20) UNSIGNED NOT NULL,
+            chapel_id BIGINT(20) UNSIGNED NOT NULL,
+            scheduled_person_id BIGINT(20) UNSIGNED NULL,
+            attendee_person_id BIGINT(20) UNSIGNED NULL,
+            guest_name VARCHAR(191) NULL,
+            attendance_type VARCHAR(20) NOT NULL DEFAULT 'scheduled',
+            status VARCHAR(20) NOT NULL DEFAULT 'present',
+            checked_in_at DATETIME NULL,
+            checked_out_at DATETIME NULL,
+            check_in_method VARCHAR(30) NULL,
+            check_out_method VARCHAR(30) NULL,
+            recorded_by_user_id BIGINT(20) UNSIGNED NULL,
+            notes TEXT NULL,
+            migrated_from_legacy TINYINT(1) NOT NULL DEFAULT 0,
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            PRIMARY KEY  (id),
+            UNIQUE KEY `signup_id` (`signup_id`),
+            KEY `idx_slot_id` (`slot_id`),
+            KEY `idx_schedule_id` (`schedule_id`),
+            KEY `idx_chapel_id` (`chapel_id`),
+            KEY `idx_attendee_person_id` (`attendee_person_id`),
+            KEY `idx_checked_in_at` (`checked_in_at`),
+            KEY `idx_type_status` (`attendance_type`,`status`)
+        ) {$charset_collate};";
+
         $sql_email_log = "CREATE TABLE {$email_log_table} (
             id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
             created_at DATETIME NOT NULL,
@@ -981,6 +1023,7 @@ class Installer {
         dbDelta($sql_slots);
         dbDelta($sql_persons);
         dbDelta($sql_signups);
+        dbDelta($sql_attendance);
 
         dbDelta($sql_email_log);
 
@@ -1045,6 +1088,7 @@ class Installer {
         self::sync_slots_chapel_id_from_schedule($slots_table, $schedules_table);
 
         self::backfill_session_token_hash($sessions_table);
+        self::migrate_legacy_attendance();
     }
 
     /**
@@ -2062,6 +2106,47 @@ class Installer {
 
         \AdorationScheduler\Core\Logger::error('[AdorationScheduler] Refusing to create an index with an unsupported column count.');
         return false;
+    }
+
+    /**
+     * Copy 1.x attendance into the richer 2.0 model. INSERT IGNORE plus the
+     * unique signup key makes this safe on activation and every upgrade
+     * check, while never overwriting a record later corrected in 2.0.
+     */
+    public static function migrate_legacy_attendance(): void {
+        global $wpdb;
+
+        $prefix = $wpdb->prefix . 'adoration_';
+        $attendance_table = $prefix . 'attendance';
+        $signups_table = $prefix . 'signups';
+        $slots_table = $prefix . 'slots';
+        $schedules_table = $prefix . 'schedules';
+
+        $sql = $wpdb->prepare(
+            "INSERT IGNORE INTO %i
+                (signup_id, slot_id, schedule_id, chapel_id,
+                 scheduled_person_id, attendee_person_id, attendance_type,
+                 status, checked_in_at, checked_out_at, check_in_method,
+                 migrated_from_legacy, created_at, updated_at)
+             SELECT s.id, s.slot_id, s.schedule_id,
+                    COALESCE(sl.chapel_id, sc.chapel_id),
+                    s.person_id, s.person_id, 'scheduled',
+                    CASE WHEN s.checked_out_at IS NULL THEN 'present' ELSE 'completed' END,
+                    s.checked_in_at, s.checked_out_at,
+                    COALESCE(NULLIF(s.check_in_method, ''), 'self'),
+                    1, s.checked_in_at, s.checked_in_at
+               FROM %i s
+               INNER JOIN %i sl ON sl.id = s.slot_id
+               INNER JOIN %i sc ON sc.id = s.schedule_id
+              WHERE s.checked_in_at IS NOT NULL",
+            $attendance_table,
+            $signups_table,
+            $slots_table,
+            $schedules_table
+        );
+
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Identifiers are prepared above; this is an idempotent schema migration.
+        $wpdb->query($sql);
     }
 
     private static function get_db_name(): string {

@@ -81,6 +81,22 @@ class SignupsRepository {
         }
     }
 
+    /** Keep the additive 2.0 attendance table in sync during transition. */
+    private function sync_attendance_record(int $signup_id, bool $present = true): void {
+        if (!class_exists(AttendanceRepository::class)) return;
+
+        try {
+            $attendance = new AttendanceRepository();
+            if ($present) {
+                $attendance->sync_scheduled_signup($signup_id);
+            } else {
+                $attendance->clear_scheduled_signup($signup_id);
+            }
+        } catch (\Throwable $e) {
+            // Compatibility mirror is best-effort; never block check-in.
+        }
+    }
+
     // -------------------------------------------------------------------------
     // Internal helpers (safe table/column detection)
     // -------------------------------------------------------------------------
@@ -1581,7 +1597,10 @@ class SignupsRepository {
             ARRAY_A
         );
         if (!is_array($row)) return false;
-        if (!empty($row['checked_in_at'])) return true; // already checked in — not an error
+        if (!empty($row['checked_in_at'])) {
+            $this->sync_attendance_record($signup_id);
+            return true; // already checked in — not an error
+        }
 
         $res = $wpdb->update(
             $this->table,
@@ -1596,6 +1615,7 @@ class SignupsRepository {
 
         if ($res !== false) {
             $this->audit_log($signup_id, 'checked_in', ['method' => $method]);
+            $this->sync_attendance_record($signup_id);
         }
 
         return $res !== false;
@@ -1616,7 +1636,10 @@ class SignupsRepository {
             ARRAY_A
         );
         if (!is_array($row) || empty($row['checked_in_at'])) return false;
-        if (!empty($row['checked_out_at'])) return true; // already checked out
+        if (!empty($row['checked_out_at'])) {
+            $this->sync_attendance_record($signup_id);
+            return true; // already checked out
+        }
 
         $res = $wpdb->update(
             $this->table,
@@ -1628,6 +1651,7 @@ class SignupsRepository {
 
         if ($res !== false) {
             $this->audit_log($signup_id, 'checked_out', []);
+            $this->sync_attendance_record($signup_id);
         }
 
         return $res !== false;
@@ -1662,6 +1686,7 @@ class SignupsRepository {
 
         if ($res !== false) {
             $this->audit_log($signup_id, $present ? 'checked_in' : 'attendance_cleared', ['method' => 'admin']);
+            $this->sync_attendance_record($signup_id, $present);
         }
 
         return $res !== false;
