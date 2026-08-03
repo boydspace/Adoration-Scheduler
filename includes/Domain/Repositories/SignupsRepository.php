@@ -1853,6 +1853,8 @@ class SignupsRepository {
             "
             SELECT
                 s.id,
+                s.slot_id,
+                s.schedule_id,
                 s.checked_in_at,
                 s.checked_out_at,
                 s.replacement_requested_by,

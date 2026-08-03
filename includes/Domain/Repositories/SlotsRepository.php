@@ -862,6 +862,7 @@ class SlotsRepository {
         $sql = $wpdb->prepare(
             "SELECT sl.id, sl.schedule_id, sl.chapel_id, sl.date,
                     sl.start_time, sl.end_time, sl.start_at, sl.end_at,
+                    sl.min_adorers,
                     sc.name AS schedule_name
                FROM %i sl
                INNER JOIN %i sc ON sc.id = sl.schedule_id
@@ -883,6 +884,43 @@ class SlotsRepository {
         // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is fully prepared above.
         $rows = $wpdb->get_results($sql, ARRAY_A);
         return is_array($rows) ? $rows : [];
+    }
+
+    /** The first active chapel hour beginning within the next few minutes. */
+    public function find_next_for_chapel(int $chapel_id, int $within_minutes = 60): ?array {
+        global $wpdb;
+
+        if ($chapel_id <= 0) return null;
+        $within_minutes = max(1, min(1440, $within_minutes));
+        $now = current_time('mysql');
+        $timezone = function_exists('wp_timezone') ? wp_timezone() : new \DateTimeZone('UTC');
+        $end = (new \DateTimeImmutable($now, $timezone))
+            ->modify('+' . $within_minutes . ' minutes')
+            ->format('Y-m-d H:i:s');
+        $schedules = $wpdb->prefix . 'adoration_schedules';
+        $row = $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT sl.id, sl.schedule_id, sl.chapel_id, sl.start_at, sl.end_at,
+                        sl.start_time, sl.end_time, sl.min_adorers, sc.name AS schedule_name
+                   FROM %i sl
+                   INNER JOIN %i sc ON sc.id = sl.schedule_id
+                  WHERE sl.chapel_id = %d
+                    AND sl.is_active = 1
+                    AND sc.status = 'active'
+                    AND sl.start_at > %s
+                    AND sl.start_at <= %s
+                  ORDER BY sl.start_at ASC
+                  LIMIT 1",
+                $this->table,
+                $schedules,
+                $chapel_id,
+                $now,
+                $end
+            ),
+            ARRAY_A
+        );
+
+        return is_array($row) ? $row : null;
     }
 
     /**

@@ -6,6 +6,7 @@ use AdorationScheduler\Domain\Repositories\SchedulesRepository;
 use AdorationScheduler\Domain\Repositories\SignupsRepository;
 use AdorationScheduler\Domain\Repositories\SlotsRepository;
 use AdorationScheduler\Domain\Services\OnboardingChecklist;
+use AdorationScheduler\Domain\Services\LiveCoverageService;
 use AdorationScheduler\Services\AccessGateService;
 
 if ( ! defined('ABSPATH') ) exit;
@@ -42,6 +43,7 @@ class DashboardPage {
         $schedules_repo = new SchedulesRepository();
         $signups_repo   = new SignupsRepository();
         $slots_repo     = new SlotsRepository();
+        $live_coverage  = (new LiveCoverageService())->snapshot(60);
 
         $pending_count  = (int) $persons_repo->count_by_approval_status(PersonsRepository::STATUS_PENDING);
         $approved_count = (int) $persons_repo->count_by_approval_status(PersonsRepository::STATUS_APPROVED);
@@ -92,6 +94,24 @@ class DashboardPage {
                     ?>
                 </div>
             <?php endif; ?>
+
+            <div style="display:flex; align-items:end; justify-content:space-between; gap:16px; margin-top:24px; max-width:1100px;">
+                <div>
+                    <h2 style="margin:0 0 3px;"><?php esc_html_e('Live Chapel Coverage', 'adoration-scheduler'); ?></h2>
+                    <p class="description" style="margin:0;"><?php esc_html_e('Current attendance and the next chapel hour. Refreshes every 45 seconds.', 'adoration-scheduler'); ?></p>
+                </div>
+                <a class="button" href="<?php echo esc_url(admin_url('admin.php?page=adoration_scheduler_dashboard')); ?>"><?php esc_html_e('Refresh now', 'adoration-scheduler'); ?></a>
+            </div>
+
+            <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; margin-top:12px; max-width:1100px;">
+                <?php if (empty($live_coverage)): ?>
+                    <div class="notice notice-info inline" style="margin:0;"><p><?php esc_html_e('Add an active chapel to begin monitoring live coverage.', 'adoration-scheduler'); ?></p></div>
+                <?php else: ?>
+                    <?php foreach ($live_coverage as $coverage): ?>
+                        <?php $this->render_live_coverage_card($coverage); ?>
+                    <?php endforeach; ?>
+                <?php endif; ?>
+            </div>
 
             <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap:16px; margin-top:16px; max-width:1100px;">
 
@@ -222,7 +242,82 @@ class DashboardPage {
                 <?php endif; ?>
             <?php endif; ?>
         </div>
+        <script>
+            window.setTimeout(function () {
+                if (!document.hidden) window.location.reload();
+            }, 45000);
+        </script>
         <?php
+    }
+
+    private function render_live_coverage_card(array $coverage): void {
+        $states = [
+            'covered' => [__('Covered', 'adoration-scheduler'), '#00a32a', '#edfaef'],
+            'awaiting_checkin' => [__('Awaiting check-in', 'adoration-scheduler'), '#dba617', '#fff8e5'],
+            'needs_attention' => [__('Needs attention', 'adoration-scheduler'), '#d63638', '#fcf0f1'],
+            'between_hours' => [__('Between chapel hours', 'adoration-scheduler'), '#646970', '#f6f7f7'],
+        ];
+        [$state_label, $accent, $background] = $states[$coverage['state']] ?? $states['between_hours'];
+        $slots = (array)($coverage['slots'] ?? []);
+        $current = $slots[0] ?? null;
+        $next = $coverage['next_slot'] ?? null;
+        ?>
+        <section style="border:1px solid #ccd0d4; border-left:5px solid <?php echo esc_attr($accent); ?>; background:#fff; padding:16px;">
+            <div style="display:flex; justify-content:space-between; align-items:start; gap:12px;">
+                <h3 style="font-size:16px; margin:0;"><?php echo esc_html((string)($coverage['chapel']['name'] ?? __('Chapel', 'adoration-scheduler'))); ?></h3>
+                <span style="white-space:nowrap; border-radius:999px; padding:3px 9px; color:<?php echo esc_attr($accent); ?>; background:<?php echo esc_attr($background); ?>; font-weight:600; font-size:12px;"><?php echo esc_html($state_label); ?></span>
+            </div>
+            <?php if ($current): ?>
+                <p style="margin:8px 0 12px;"><strong><?php echo esc_html($this->format_slot_time($current)); ?></strong><br><span class="description"><?php echo esc_html((string)($current['schedule_name'] ?? '')); ?></span></p>
+                <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; text-align:center; margin-bottom:12px;">
+                    <?php $this->coverage_metric((int)$coverage['present'], __('Present', 'adoration-scheduler')); ?>
+                    <?php $this->coverage_metric((int)$coverage['scheduled'], __('Scheduled', 'adoration-scheduler')); ?>
+                    <?php $this->coverage_metric((int)$coverage['guests'], __('Guests', 'adoration-scheduler')); ?>
+                </div>
+                <?php if ((int)$coverage['substitutes'] > 0 || (int)$coverage['missing'] > 0): ?>
+                    <p class="description" style="margin:0 0 10px;">
+                        <?php
+                        printf(
+                            /* translators: 1: substitute count, 2: scheduled people not checked in */
+                            esc_html__('%1$d substitutes · %2$d scheduled not checked in', 'adoration-scheduler'),
+                            (int)$coverage['substitutes'],
+                            (int)$coverage['missing']
+                        );
+                        ?>
+                    </p>
+                <?php endif; ?>
+            <?php else: ?>
+                <p class="description" style="margin:12px 0;"><?php esc_html_e('No chapel hour is active right now.', 'adoration-scheduler'); ?></p>
+            <?php endif; ?>
+            <div style="border-top:1px solid #dcdcde; padding-top:10px;">
+                <?php if ($next): ?>
+                    <span class="description"><?php esc_html_e('Next hour:', 'adoration-scheduler'); ?></span>
+                    <strong><?php echo esc_html($this->format_slot_time($next)); ?></strong>
+                <?php else: ?>
+                    <span class="description"><?php esc_html_e('No new chapel hour begins in the next 60 minutes.', 'adoration-scheduler'); ?></span>
+                <?php endif; ?>
+                <?php if (!empty($coverage['last_activity'])): ?>
+                    <br><span class="description"><?php printf(
+                        /* translators: %s: localized time of latest check-in or check-out */
+                        esc_html__('Last activity: %s', 'adoration-scheduler'),
+                        esc_html(date_i18n(get_option('time_format'), strtotime((string)$coverage['last_activity'])))
+                    ); ?></span>
+                <?php endif; ?>
+            </div>
+        </section>
+        <?php
+    }
+
+    private function coverage_metric(int $number, string $label): void {
+        ?><div style="background:#f6f7f7; padding:8px 4px;"><strong style="display:block; font-size:22px;"><?php echo esc_html((string)$number); ?></strong><span class="description"><?php echo esc_html($label); ?></span></div><?php
+    }
+
+    private function format_slot_time(array $slot): string {
+        $start = !empty($slot['start_at']) ? strtotime((string)$slot['start_at']) : false;
+        $end = !empty($slot['end_at']) ? strtotime((string)$slot['end_at']) : false;
+        if (!$start) return __('Time unavailable', 'adoration-scheduler');
+        $value = date_i18n(get_option('time_format'), $start);
+        return $end ? $value . '–' . date_i18n(get_option('time_format'), $end) : $value;
     }
 
     private function stat_card(string $label, string $number, string $sub, string $url, string $link_label, string $accent): string {

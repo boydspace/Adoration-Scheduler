@@ -39,6 +39,37 @@ class AttendanceRepository
         return is_array($row) ? $row : null;
     }
 
+    /** Attendance activity for chapel hours that are happening now. */
+    public function list_current_for_chapel(int $chapel_id): array
+    {
+        global $wpdb;
+        if ($chapel_id <= 0) return [];
+
+        $now = current_time('mysql');
+        $rows = $wpdb->get_results(
+            $wpdb->prepare(
+                "SELECT a.*
+                   FROM %i a
+                   INNER JOIN %i sl ON sl.id = a.slot_id
+                  WHERE a.chapel_id = %d
+                    AND sl.is_active = 1
+                    AND sl.start_at IS NOT NULL
+                    AND sl.end_at IS NOT NULL
+                    AND sl.start_at <= %s
+                    AND sl.end_at >= %s
+                  ORDER BY a.checked_in_at DESC, a.id DESC",
+                $this->table,
+                $this->slots_table,
+                $chapel_id,
+                $now,
+                $now
+            ),
+            ARRAY_A
+        );
+
+        return is_array($rows) ? $rows : [];
+    }
+
     /**
      * Record an actual attendee. A signup-backed record is updated in place
      * so a coordinator can replace the scheduled person with a substitute;

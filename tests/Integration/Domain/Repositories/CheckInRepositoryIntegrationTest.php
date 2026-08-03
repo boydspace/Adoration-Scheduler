@@ -6,6 +6,7 @@ use AdorationScheduler\Domain\Repositories\ChapelsRepository;
 use AdorationScheduler\Domain\Repositories\AttendanceRepository;
 use AdorationScheduler\Core\Installer;
 use AdorationScheduler\Services\CheckInService;
+use AdorationScheduler\Domain\Services\LiveCoverageService;
 use AdorationScheduler\Tests\Support\AdorationIntegrationTestCase;
 
 /**
@@ -430,6 +431,37 @@ class CheckInRepositoryIntegrationTest extends AdorationIntegrationTestCase
         $this->assertSame([], $this->repo->list_current_for_chapel(0));
     }
 
+    public function test_live_coverage_snapshot_tracks_checkins_and_guests(): void
+    {
+        $signup_id = $this->make_signup('-5 minutes', '+55 minutes');
+        $service = new LiveCoverageService();
+
+        $before = $this->coverage_for_chapel($service->snapshot(), $this->chapel_id);
+        $this->assertSame('awaiting_checkin', $before['state']);
+        $this->assertSame(1, $before['scheduled']);
+        $this->assertSame(0, $before['present']);
+        $this->assertSame(1, $before['missing']);
+
+        $this->assertTrue($this->repo->check_in($signup_id, 'kiosk'));
+        $signup = $this->repo->find($signup_id);
+        $guest_id = (new AttendanceRepository())->record([
+            'slot_id' => (int)$signup['slot_id'],
+            'schedule_id' => $this->schedule_id,
+            'chapel_id' => $this->chapel_id,
+            'attendance_type' => 'guest',
+            'guest_name' => 'Dashboard Guest',
+            'check_in_method' => 'kiosk',
+        ]);
+        $this->assertGreaterThan(0, $guest_id);
+
+        $after = $this->coverage_for_chapel($service->snapshot(), $this->chapel_id);
+        $this->assertSame('covered', $after['state']);
+        $this->assertSame(2, $after['present']);
+        $this->assertSame(1, $after['guests']);
+        $this->assertSame(0, $after['missing'], 'A guest must not hide a scheduled no-show; the signup itself checked in.');
+        $this->assertNotEmpty($after['last_activity']);
+    }
+
     public function test_no_show_query_obeys_grace_and_excludes_resolved_rows(): void
     {
         global $wpdb;
@@ -493,5 +525,13 @@ class CheckInRepositoryIntegrationTest extends AdorationIntegrationTestCase
             'status' => 'confirmed',
             'created_via' => 'admin',
         ]);
+    }
+
+    private function coverage_for_chapel(array $snapshot, int $chapel_id): array
+    {
+        foreach ($snapshot as $coverage) {
+            if ((int)$coverage['chapel']['id'] === $chapel_id) return $coverage;
+        }
+        $this->fail('Expected chapel was absent from the live coverage snapshot.');
     }
 }
