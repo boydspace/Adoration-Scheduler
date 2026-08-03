@@ -9,6 +9,7 @@ use AdorationScheduler\Services\CheckInService;
 use AdorationScheduler\Domain\Services\LiveCoverageService;
 use AdorationScheduler\Services\NoShowAlertService;
 use AdorationScheduler\Admin\Pages\NoShowAlertsSettingsPage;
+use AdorationScheduler\Domain\Repositories\SignupAuditRepository;
 use AdorationScheduler\Tests\Support\AdorationIntegrationTestCase;
 
 /**
@@ -464,6 +465,48 @@ class CheckInRepositoryIntegrationTest extends AdorationIntegrationTestCase
         $this->assertNotEmpty($after['last_activity']);
     }
 
+    public function test_coordinator_outcomes_preserve_notes_and_audit_history(): void
+    {
+        $signup_id = $this->make_signup('-2 hours', '-1 hour');
+        $attendance = new AttendanceRepository();
+
+        $this->assertTrue($attendance->set_signup_outcome($signup_id, 'absent', 'Did not arrive.', 0));
+        $absent = $attendance->find_by_signup($signup_id);
+        $this->assertSame('absent', $absent['status']);
+        $this->assertSame('Did not arrive.', $absent['notes']);
+        $this->assertNull($absent['checked_in_at']);
+        $this->assertEmpty($this->repo->find($signup_id)['checked_in_at']);
+
+        $this->assertTrue($attendance->set_signup_outcome($signup_id, 'present', 'Coordinator confirmed attendance.', 0));
+        $present = $attendance->find_by_signup($signup_id);
+        $this->assertSame('present', $present['status']);
+        $this->assertNotEmpty($present['checked_in_at']);
+        $this->assertSame('admin', $present['check_in_method']);
+        $this->assertSame($present['checked_in_at'], $this->repo->find($signup_id)['checked_in_at']);
+
+        $history = (new SignupAuditRepository())->get_attendance_events_for_signups([$signup_id, $signup_id, 0]);
+        $this->assertCount(2, $history[$signup_id]);
+        $this->assertSame('present', $history[$signup_id][0]['meta']['to_status']);
+        $this->assertSame('absent', $history[$signup_id][0]['meta']['from_status']);
+        $this->assertSame('Coordinator confirmed attendance.', $history[$signup_id][0]['meta']['notes']);
+        $this->assertSame('Did not arrive.', $history[$signup_id][1]['meta']['notes']);
+
+        $date = (string)$this->repo->find($signup_id)['date'];
+        $report_rows = $this->repo->list_for_attendance($date, $date);
+        $report = array_values(array_filter($report_rows, static fn($row) => (int)$row['id'] === $signup_id))[0];
+        $this->assertSame('present', $report['attendance_status']);
+        $this->assertSame('Coordinator confirmed attendance.', $report['attendance_notes']);
+    }
+
+    public function test_coordinator_outcome_rejects_invalid_or_missing_signup(): void
+    {
+        $attendance = new AttendanceRepository();
+        $this->assertFalse($attendance->set_signup_outcome(0, 'present'));
+        $this->assertFalse($attendance->set_signup_outcome(999999999, 'absent'));
+        $signup_id = $this->make_signup('-2 hours', '-1 hour');
+        $this->assertFalse($attendance->set_signup_outcome($signup_id, 'invented-status'));
+    }
+
     public function test_no_show_query_obeys_grace_and_excludes_resolved_rows(): void
     {
         global $wpdb;
@@ -474,6 +517,7 @@ class CheckInRepositoryIntegrationTest extends AdorationIntegrationTestCase
         $already_alerted_id = $this->make_signup('-45 minutes', '+15 minutes');
         $guest_covered_id = $this->make_signup('-45 minutes', '+15 minutes');
         $ended_id = $this->make_signup('-2 hours', '-1 hour');
+        $excused_id = $this->make_signup('-45 minutes', '+15 minutes');
 
         $this->repo->check_in($checked_in_id, 'self');
         $guest_signup = $this->repo->find($guest_covered_id);
@@ -485,6 +529,7 @@ class CheckInRepositoryIntegrationTest extends AdorationIntegrationTestCase
             'guest_name' => 'Coverage Guest',
             'check_in_method' => 'kiosk',
         ]));
+        $this->assertTrue((new AttendanceRepository())->set_signup_outcome($excused_id, 'excused', 'Called coordinator.'));
         $wpdb->update(
             $wpdb->prefix . 'adoration_signups',
             ['no_show_alert_sent_at' => current_time('mysql')],
@@ -499,6 +544,7 @@ class CheckInRepositoryIntegrationTest extends AdorationIntegrationTestCase
         $this->assertNotContains($already_alerted_id, $ids);
         $this->assertNotContains($guest_covered_id, $ids, 'A present guest satisfies a one-adorer chapel minimum.');
         $this->assertNotContains($ended_id, $ids, 'No-show alerts are actionable only while the chapel hour is still active.');
+        $this->assertNotContains($excused_id, $ids, 'A coordinator-resolved absence must not generate a new no-show alert.');
     }
 
     public function test_mark_no_show_alert_sent_deduplicates_and_ignores_invalid_ids(): void

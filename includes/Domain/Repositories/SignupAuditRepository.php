@@ -124,6 +124,33 @@ class SignupAuditRepository
         return $rows;
     }
 
+    /** Attendance-correction history grouped by signup ID for report screens. */
+    public function get_attendance_events_for_signups(array $signup_ids): array {
+        global $wpdb;
+        $ids = array_values(array_unique(array_filter(array_map('intval', $signup_ids), static fn($id) => $id > 0)));
+        if (empty($ids)) return [];
+
+        $placeholders = implode(',', array_fill(0, count($ids), '%d'));
+        $sql = $wpdb->prepare(
+            // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- Interpolated fragment contains placeholders only.
+            "SELECT id, signup_id, event_type, actor_user_id, actor_label, meta, created_at
+               FROM %i
+              WHERE event_type = 'attendance_outcome_changed'
+                AND signup_id IN ({$placeholders})
+              ORDER BY created_at DESC, id DESC",
+            ...array_merge([$this->table_name()], $ids)
+        );
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+        $rows = $wpdb->get_results($sql, ARRAY_A);
+        $grouped = [];
+        foreach ((array)$rows as $row) {
+            $decoded = json_decode((string)($row['meta'] ?? ''), true);
+            $row['meta'] = is_array($decoded) ? $decoded : [];
+            $grouped[(int)$row['signup_id']][] = $row;
+        }
+        return $grouped;
+    }
+
     /**
      * Convenience helper: build a stable, readable actor label.
      * You can call this from handlers before log(), or ignore it entirely.

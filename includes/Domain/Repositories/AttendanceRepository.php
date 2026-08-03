@@ -15,6 +15,7 @@ class AttendanceRepository
     private string $signups_table;
     private string $slots_table;
     private string $schedules_table;
+    private ?SignupAuditRepository $audit_repo;
 
     public function __construct()
     {
@@ -24,6 +25,7 @@ class AttendanceRepository
         $this->signups_table = $prefix . 'signups';
         $this->slots_table = $prefix . 'slots';
         $this->schedules_table = $prefix . 'schedules';
+        $this->audit_repo = class_exists(SignupAuditRepository::class) ? new SignupAuditRepository() : null;
     }
 
     public function find_by_signup(int $signup_id): ?array
@@ -110,9 +112,13 @@ class AttendanceRepository
             'guest_name' => $guest_name !== '' ? $guest_name : null,
             'attendance_type' => $type,
             'status' => $status,
-            'checked_in_at' => (string)($data['checked_in_at'] ?? $now),
+            'checked_in_at' => in_array($status, ['absent', 'excused'], true)
+                ? null
+                : (string)($data['checked_in_at'] ?? $now),
             'checked_out_at' => !empty($data['checked_out_at']) ? (string)$data['checked_out_at'] : null,
-            'check_in_method' => $method !== '' ? $method : 'admin',
+            'check_in_method' => in_array($status, ['absent', 'excused'], true)
+                ? null
+                : ($method !== '' ? $method : 'admin'),
             'check_out_method' => !empty($data['check_out_method']) ? sanitize_key((string)$data['check_out_method']) : null,
             'recorded_by_user_id' => absint($data['recorded_by_user_id'] ?? 0) ?: null,
             'notes' => !empty($data['notes']) ? sanitize_textarea_field((string)$data['notes']) : null,
@@ -129,6 +135,90 @@ class AttendanceRepository
         $row['created_at'] = $now;
         $result = $wpdb->insert($this->table, $row);
         return $result === false ? 0 : (int)$wpdb->insert_id;
+    }
+
+    /**
+     * Record an administrator's final outcome for a scheduled signup while
+     * retaining every previous value in the immutable signup audit trail.
+     */
+    public function set_signup_outcome(int $signup_id, string $status, string $notes = '', int $user_id = 0): bool
+    {
+        global $wpdb;
+        $status = sanitize_key($status);
+        if ($signup_id <= 0 || !in_array($status, ['present', 'absent', 'excused'], true)) return false;
+
+        $source = $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT s.id, s.slot_id, s.schedule_id, s.person_id,
+                        COALESCE(sl.chapel_id, sc.chapel_id) AS chapel_id
+                   FROM %i s
+                   INNER JOIN %i sl ON sl.id = s.slot_id
+                   INNER JOIN %i sc ON sc.id = s.schedule_id
+                  WHERE s.id = %d AND s.status = 'confirmed' AND s.is_active = 1
+                  LIMIT 1",
+                $this->signups_table,
+                $this->slots_table,
+                $this->schedules_table,
+                $signup_id
+            ),
+            ARRAY_A
+        );
+        if (!is_array($source)) return false;
+
+        $existing = $this->find_by_signup($signup_id);
+        $previous = $existing ?: [];
+        $now = current_time('mysql');
+        $notes = sanitize_textarea_field($notes);
+        $checked_in_at = $status === 'present'
+            ? (string)($existing['checked_in_at'] ?? $now)
+            : null;
+        $attendance_type = $existing && in_array($existing['attendance_type'] ?? '', ['scheduled', 'substitute'], true)
+            ? (string)$existing['attendance_type']
+            : 'scheduled';
+        $row = [
+            'signup_id' => $signup_id,
+            'slot_id' => (int)$source['slot_id'],
+            'schedule_id' => (int)$source['schedule_id'],
+            'chapel_id' => (int)$source['chapel_id'],
+            'scheduled_person_id' => (int)($existing['scheduled_person_id'] ?? $source['person_id']),
+            'attendee_person_id' => (int)($existing['attendee_person_id'] ?? $source['person_id']),
+            'guest_name' => null,
+            'attendance_type' => $attendance_type,
+            'status' => $status,
+            'checked_in_at' => $checked_in_at,
+            'checked_out_at' => null,
+            'check_in_method' => $status === 'present' ? 'admin' : null,
+            'check_out_method' => null,
+            'recorded_by_user_id' => $user_id > 0 ? $user_id : null,
+            'notes' => $notes !== '' ? $notes : null,
+            'migrated_from_legacy' => 0,
+            'updated_at' => $now,
+        ];
+
+        if ($existing) {
+            $saved = $wpdb->update($this->table, $row, ['id' => (int)$existing['id']]) !== false;
+        } else {
+            $row['created_at'] = $now;
+            $saved = $wpdb->insert($this->table, $row) !== false;
+        }
+        if (!$saved) return false;
+
+        $legacy = $status === 'present'
+            ? ['checked_in_at' => $checked_in_at, 'checked_out_at' => null, 'check_in_method' => 'admin']
+            : ['checked_in_at' => null, 'checked_out_at' => null, 'check_in_method' => null];
+        if ($wpdb->update($this->signups_table, $legacy, ['id' => $signup_id]) === false) return false;
+
+        if ($this->audit_repo) {
+            $actor = $user_id > 0 ? $this->audit_repo->build_actor_label($user_id) : null;
+            $this->audit_repo->log($signup_id, 'attendance_outcome_changed', [
+                'from_status' => (string)($previous['status'] ?? 'unrecorded'),
+                'to_status' => $status,
+                'previous_checked_in_at' => $previous['checked_in_at'] ?? null,
+                'notes' => $notes,
+            ], $user_id > 0 ? $user_id : null, $actor);
+        }
+
+        return true;
     }
 
     /**

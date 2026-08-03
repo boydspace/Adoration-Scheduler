@@ -1743,6 +1743,11 @@ class SignupsRepository {
               AND sl.end_at IS NOT NULL
               AND sl.start_at <= DATE_SUB(%s, INTERVAL %d MINUTE)
               AND sl.end_at >= %s
+              AND NOT EXISTS (
+                  SELECT 1 FROM %i resolved
+                   WHERE resolved.signup_id = s.id
+                     AND resolved.status IN ('absent', 'excused')
+              )
               AND (
                   SELECT COUNT(*)
                     FROM %i a
@@ -1755,7 +1760,7 @@ class SignupsRepository {
             LIMIT %d
         ",
             $this->table, $slots, $sched, $chapels, $this->persons_table,
-            $cutoff, $grace_minutes, $cutoff, $attendance, $limit
+            $cutoff, $grace_minutes, $cutoff, $attendance, $attendance, $limit
         );
 
         // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
@@ -1799,6 +1804,7 @@ class SignupsRepository {
         $slots   = $wpdb->prefix . 'adoration_slots';
         $sched   = $wpdb->prefix . 'adoration_schedules';
         $chapels = $wpdb->prefix . 'adoration_chapels';
+        $attendance = $wpdb->prefix . 'adoration_attendance';
 
         $limit = max(1, min(2000, (int)$limit));
 
@@ -1812,9 +1818,14 @@ class SignupsRepository {
                 s.date,
                 s.status,
                 s.person_id,
-                s.checked_in_at,
-                s.checked_out_at,
-                s.check_in_method,
+                COALESCE(a.checked_in_at, s.checked_in_at) AS checked_in_at,
+                COALESCE(a.checked_out_at, s.checked_out_at) AS checked_out_at,
+                COALESCE(a.check_in_method, s.check_in_method) AS check_in_method,
+                a.status AS attendance_status,
+                a.attendance_type,
+                a.notes AS attendance_notes,
+                a.recorded_by_user_id,
+                a.updated_at AS attendance_updated_at,
                 sl.start_time,
                 sl.end_time,
                 sc.id   AS schedule_id,
@@ -1828,6 +1839,7 @@ class SignupsRepository {
             INNER JOIN %i sc ON sc.id = s.schedule_id
             INNER JOIN %i ch ON ch.id = sc.chapel_id
             LEFT JOIN %i p ON p.id = s.person_id
+            LEFT JOIN %i a ON a.signup_id = s.id
             WHERE s.status = 'confirmed'
               AND s.is_active = 1
               AND s.date BETWEEN %s AND %s
@@ -1835,7 +1847,7 @@ class SignupsRepository {
             ORDER BY s.date DESC, sl.start_time DESC
             LIMIT %d
         ",
-            $this->table, $slots, $sched, $chapels, $this->persons_table,
+            $this->table, $slots, $sched, $chapels, $this->persons_table, $attendance,
             $date_from, $date_to, $schedule_id, $schedule_id, $limit
         );
 

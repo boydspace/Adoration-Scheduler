@@ -3,6 +3,8 @@ namespace AdorationScheduler\Admin\Pages;
 
 use AdorationScheduler\Domain\Repositories\SchedulesRepository;
 use AdorationScheduler\Domain\Repositories\SignupsRepository;
+use AdorationScheduler\Domain\Repositories\AttendanceRepository;
+use AdorationScheduler\Domain\Repositories\SignupAuditRepository;
 use AdorationScheduler\Utils\ClergyTitles;
 
 if ( ! defined('ABSPATH') ) exit;
@@ -35,12 +37,13 @@ class AttendancePage {
 
         check_admin_referer('adoration_set_attendance');
 
-        $signup_id = isset($_POST['signup_id']) ? (int)$_POST['signup_id'] : 0;
-        $present = isset($_POST['present']) ? sanitize_text_field(wp_unslash($_POST['present'])) : '';
+        $signup_id = isset($_POST['signup_id']) ? absint(wp_unslash($_POST['signup_id'])) : 0;
+        $status = isset($_POST['attendance_status']) ? sanitize_key(wp_unslash($_POST['attendance_status'])) : '';
+        $notes = isset($_POST['attendance_notes']) ? sanitize_textarea_field(wp_unslash($_POST['attendance_notes'])) : '';
+        $saved = false;
 
-        if ($signup_id > 0 && ($present === '1' || $present === '0')) {
-            $repo = new SignupsRepository();
-            $repo->set_attendance_admin($signup_id, $present === '1');
+        if ($signup_id > 0 && in_array($status, ['present', 'absent', 'excused'], true)) {
+            $saved = (new AttendanceRepository())->set_signup_outcome($signup_id, $status, $notes, get_current_user_id());
         }
 
         [$schedule_id, $from, $to] = self::resolve_filters();
@@ -50,7 +53,7 @@ class AttendancePage {
             'schedule_id' => $schedule_id,
             'from'        => $from,
             'to'          => $to,
-            'adoration_notice' => 'attendance_saved',
+            'adoration_notice' => $saved ? 'attendance_saved' : 'attendance_failed',
         ], admin_url('admin.php')));
         exit;
     }
@@ -72,6 +75,7 @@ class AttendancePage {
 
         $signups_repo = new SignupsRepository();
         $rows = $signups_repo->list_for_attendance($from, $to, $schedule_id, 500);
+        $histories = (new SignupAuditRepository())->get_attendance_events_for_signups(array_column($rows, 'id'));
 
         $nonce = wp_create_nonce('adoration_set_attendance');
         $now_ts = strtotime(current_time('mysql'));
@@ -82,11 +86,13 @@ class AttendancePage {
             <hr class="wp-header-end" />
 
             <p class="description">
-                <?php esc_html_e('Who actually checked in for a confirmed slot, and a way to mark present/absent by hand for slots without a self check-in.', 'adoration-scheduler'); ?>
+                <?php esc_html_e('Review check-ins, record present, absent, or excused outcomes, and retain a history of coordinator corrections.', 'adoration-scheduler'); ?>
             </p>
 
             <?php if (!empty($_GET['adoration_notice']) && $_GET['adoration_notice'] === 'attendance_saved'): ?>
                 <div class="notice notice-success is-dismissible"><p><?php esc_html_e('Attendance updated.', 'adoration-scheduler'); ?></p></div>
+            <?php elseif (!empty($_GET['adoration_notice']) && $_GET['adoration_notice'] === 'attendance_failed'): ?>
+                <div class="notice notice-error is-dismissible"><p><?php esc_html_e('Attendance could not be updated. Please try again.', 'adoration-scheduler'); ?></p></div>
             <?php endif; ?>
 
             <form method="get" action="<?php echo esc_url(admin_url('admin.php')); ?>"
@@ -128,10 +134,9 @@ class AttendancePage {
                             <th><?php esc_html_e('Time', 'adoration-scheduler'); ?></th>
                             <th><?php esc_html_e('Schedule / Chapel', 'adoration-scheduler'); ?></th>
                             <th><?php esc_html_e('Person', 'adoration-scheduler'); ?></th>
-                            <th><?php esc_html_e('Checked In', 'adoration-scheduler'); ?></th>
-                            <th><?php esc_html_e('Checked Out', 'adoration-scheduler'); ?></th>
-                            <th><?php esc_html_e('Method', 'adoration-scheduler'); ?></th>
-                            <th><?php esc_html_e('Actions', 'adoration-scheduler'); ?></th>
+                            <th><?php esc_html_e('Attendance', 'adoration-scheduler'); ?></th>
+                            <th><?php esc_html_e('Check-in Details', 'adoration-scheduler'); ?></th>
+                            <th><?php esc_html_e('Coordinator Correction', 'adoration-scheduler'); ?></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -155,7 +160,10 @@ class AttendancePage {
                             $checked_out_at = (string)($r['checked_out_at'] ?? '');
                             $method         = (string)($r['check_in_method'] ?? '');
 
-                            $is_present = $checked_in_at !== '';
+                            $attendance_status = (string)($r['attendance_status'] ?? '');
+                            if ($attendance_status === '') $attendance_status = $checked_in_at !== '' ? 'present' : 'unrecorded';
+                            $attendance_notes = (string)($r['attendance_notes'] ?? '');
+                            $history = (array)($histories[$signup_id] ?? []);
 
                             // Has this slot even started yet? Marking absent
                             // before it starts doesn't make sense.
@@ -169,29 +177,36 @@ class AttendancePage {
                                 <td><?php echo esc_html($time_label); ?></td>
                                 <td><?php echo esc_html($where_label !== '' ? $where_label : '—'); ?></td>
                                 <td><?php echo esc_html($name !== '' ? $name : '—'); ?></td>
-                                <td><?php echo esc_html($checked_in_at !== '' ? $checked_in_at : '—'); ?></td>
-                                <td><?php echo esc_html($checked_out_at !== '' ? $checked_out_at : '—'); ?></td>
-                                <td><?php echo esc_html($method !== '' ? $method : '—'); ?></td>
                                 <td>
-                                    <?php if ($is_present): ?>
-                                        <form method="post" action="<?php echo esc_url(admin_url('admin.php?page=' . self::PAGE_SLUG)); ?>" style="display:inline-block;">
+                                    <?php echo $this->status_badge($attendance_status); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped ?>
+                                    <?php if ($attendance_notes !== ''): ?><p class="description" style="margin:5px 0 0;"><?php echo esc_html($attendance_notes); ?></p><?php endif; ?>
+                                    <?php $this->render_history($history); ?>
+                                </td>
+                                <td>
+                                    <?php if ($checked_in_at !== ''): ?>
+                                        <strong><?php echo esc_html($checked_in_at); ?></strong><br>
+                                        <span class="description"><?php echo esc_html($method !== '' ? $method : __('Unknown method', 'adoration-scheduler')); ?></span>
+                                        <?php if ($checked_out_at !== ''): ?><br><span class="description"><?php printf(esc_html__('Out: %s', 'adoration-scheduler'), esc_html($checked_out_at)); ?></span><?php endif; ?>
+                                    <?php else: ?><span class="description">—</span><?php endif; ?>
+                                </td>
+                                <td>
+                                    <?php if ($slot_started): ?>
+                                        <form method="post" action="<?php echo esc_url(admin_url('admin.php?page=' . self::PAGE_SLUG)); ?>" style="min-width:220px;">
                                             <input type="hidden" name="_wpnonce" value="<?php echo esc_attr($nonce); ?>">
                                             <input type="hidden" name="adoration_set_attendance" value="1">
-                                            <input type="hidden" name="signup_id" value="<?php echo (int) $signup_id; ?>">
-                                            <input type="hidden" name="present" value="0">
-                                            <button type="submit" class="button button-small"><?php esc_html_e('Mark Absent', 'adoration-scheduler'); ?></button>
+                                            <input type="hidden" name="signup_id" value="<?php echo (int)$signup_id; ?>">
+                                            <input type="hidden" name="schedule_id" value="<?php echo (int)$schedule_id; ?>">
+                                            <input type="hidden" name="from" value="<?php echo esc_attr($from); ?>">
+                                            <input type="hidden" name="to" value="<?php echo esc_attr($to); ?>">
+                                            <select name="attendance_status" aria-label="<?php esc_attr_e('Attendance outcome', 'adoration-scheduler'); ?>">
+                                                <option value="present" <?php selected($attendance_status, 'present'); ?>><?php esc_html_e('Present', 'adoration-scheduler'); ?></option>
+                                                <option value="absent" <?php selected($attendance_status, 'absent'); ?>><?php esc_html_e('Absent', 'adoration-scheduler'); ?></option>
+                                                <option value="excused" <?php selected($attendance_status, 'excused'); ?>><?php esc_html_e('Excused', 'adoration-scheduler'); ?></option>
+                                            </select>
+                                            <textarea name="attendance_notes" rows="2" maxlength="1000" placeholder="<?php esc_attr_e('Optional coordinator note', 'adoration-scheduler'); ?>" style="display:block; width:100%; margin:5px 0;"><?php echo esc_textarea($attendance_notes); ?></textarea>
+                                            <button type="submit" class="button button-small"><?php esc_html_e('Save Outcome', 'adoration-scheduler'); ?></button>
                                         </form>
-                                    <?php elseif ($slot_started): ?>
-                                        <form method="post" action="<?php echo esc_url(admin_url('admin.php?page=' . self::PAGE_SLUG)); ?>" style="display:inline-block;">
-                                            <input type="hidden" name="_wpnonce" value="<?php echo esc_attr($nonce); ?>">
-                                            <input type="hidden" name="adoration_set_attendance" value="1">
-                                            <input type="hidden" name="signup_id" value="<?php echo (int) $signup_id; ?>">
-                                            <input type="hidden" name="present" value="1">
-                                            <button type="submit" class="button button-small"><?php esc_html_e('Mark Present', 'adoration-scheduler'); ?></button>
-                                        </form>
-                                    <?php else: ?>
-                                        <span style="color:#646970;"><?php esc_html_e('Not started yet', 'adoration-scheduler'); ?></span>
-                                    <?php endif; ?>
+                                    <?php else: ?><span class="description"><?php esc_html_e('Not started yet', 'adoration-scheduler'); ?></span><?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -201,6 +216,43 @@ class AttendancePage {
         </div>
         <?php
         // phpcs:enable WordPress.Security.NonceVerification.Recommended
+    }
+
+    private function status_badge(string $status): string {
+        $styles = [
+            'present' => [__('Present', 'adoration-scheduler'), '#00a32a', '#edfaef'],
+            'completed' => [__('Completed', 'adoration-scheduler'), '#2271b1', '#eef6fc'],
+            'absent' => [__('Absent', 'adoration-scheduler'), '#d63638', '#fcf0f1'],
+            'excused' => [__('Excused', 'adoration-scheduler'), '#996800', '#fff8e5'],
+            'unrecorded' => [__('Unrecorded', 'adoration-scheduler'), '#646970', '#f0f0f1'],
+        ];
+        [$label, $color, $background] = $styles[$status] ?? $styles['unrecorded'];
+        return '<span style="display:inline-block;border-radius:999px;padding:3px 9px;font-weight:600;color:' . esc_attr($color) . ';background:' . esc_attr($background) . ';">' . esc_html($label) . '</span>';
+    }
+
+    private function render_history(array $history): void {
+        if (empty($history)) return;
+        ?>
+        <details style="margin-top:7px;">
+            <summary class="description" style="cursor:pointer;"><?php
+                printf(
+                    /* translators: %d: number of recorded attendance corrections */
+                    esc_html(_n('%d correction', '%d corrections', count($history), 'adoration-scheduler')),
+                    count($history)
+                );
+            ?></summary>
+            <ol style="margin:6px 0 0 18px; min-width:220px;">
+                <?php foreach (array_slice($history, 0, 10) as $event): ?>
+                    <?php $meta = (array)($event['meta'] ?? []); ?>
+                    <li style="margin-bottom:6px;">
+                        <strong><?php echo esc_html(ucfirst((string)($meta['to_status'] ?? __('Updated', 'adoration-scheduler')))); ?></strong>
+                        <span class="description">— <?php echo esc_html((string)($event['actor_label'] ?? __('System', 'adoration-scheduler'))); ?>, <?php echo esc_html((string)($event['created_at'] ?? '')); ?></span>
+                        <?php if (!empty($meta['notes'])): ?><br><span class="description"><?php echo esc_html((string)$meta['notes']); ?></span><?php endif; ?>
+                    </li>
+                <?php endforeach; ?>
+            </ol>
+        </details>
+        <?php
     }
 
     /**
