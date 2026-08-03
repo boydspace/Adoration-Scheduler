@@ -308,6 +308,80 @@ class CheckInRepositoryIntegrationTest extends AdorationIntegrationTestCase
         $this->assertSame(0, $attendance->record($base + ['guest_name' => '']));
     }
 
+    public function test_kiosk_guest_checkin_requires_current_slot_at_token_chapel(): void
+    {
+        global $wpdb;
+
+        $signup_id = $this->make_signup('-5 minutes', '+55 minutes');
+        $signup = $this->repo->find($signup_id);
+        $token = (new ChapelsRepository())->get_or_create_kiosk_token($this->chapel_id);
+
+        $this->assertSame(
+            'ok',
+            CheckInService::record_kiosk_guest($token, (int)$signup['slot_id'], '  Visiting Adorer  ')
+        );
+
+        $row = $wpdb->get_row(
+            $wpdb->prepare(
+                "SELECT * FROM %i WHERE slot_id = %d AND attendance_type = 'guest' LIMIT 1",
+                $wpdb->prefix . 'adoration_attendance',
+                (int)$signup['slot_id']
+            ),
+            ARRAY_A
+        );
+        $this->assertIsArray($row);
+        $this->assertSame('Visiting Adorer', $row['guest_name']);
+        $this->assertNull($row['signup_id']);
+        $this->assertNull($row['attendee_person_id']);
+        $this->assertSame('kiosk', $row['check_in_method']);
+
+        $this->assertSame('invalid_name', CheckInService::record_kiosk_guest($token, (int)$signup['slot_id'], ''));
+        $this->assertSame('invalid_token', CheckInService::record_kiosk_guest('wrong-token', (int)$signup['slot_id'], 'Guest'));
+
+        $other_chapel = $this->make_chapel('Guest Wrong Chapel ' . wp_generate_password(8, false, false));
+        $other_schedule = $this->make_schedule($other_chapel, ['slug' => 'guest-other-' . wp_generate_password(8, false, false)]);
+        $other_signup_id = $this->make_signup('-5 minutes', '+55 minutes', $other_chapel, $other_schedule);
+        $other_signup = $this->repo->find($other_signup_id);
+        $this->assertSame(
+            'invalid_slot',
+            CheckInService::record_kiosk_guest($token, (int)$other_signup['slot_id'], 'Wrong Chapel Guest')
+        );
+
+        $future_signup_id = $this->make_signup('+2 hours', '+3 hours');
+        $future_signup = $this->repo->find($future_signup_id);
+        $this->assertSame(
+            'invalid_slot',
+            CheckInService::record_kiosk_guest($token, (int)$future_signup['slot_id'], 'Future Guest')
+        );
+    }
+
+    public function test_guest_can_check_into_completely_uncovered_current_hour(): void
+    {
+        global $wpdb;
+
+        $start = new \DateTimeImmutable('-5 minutes', wp_timezone());
+        $end = new \DateTimeImmutable('+55 minutes', wp_timezone());
+        $slot_id = $this->make_slot($this->schedule_id, $this->chapel_id, [
+            'date' => $start->format('Y-m-d'),
+            'start_time' => $start->format('H:i:s'),
+            'end_time' => $end->format('H:i:s'),
+            'start_at' => $start->format('Y-m-d H:i:s'),
+            'end_at' => $end->format('Y-m-d H:i:s'),
+        ]);
+        $token = (new ChapelsRepository())->get_or_create_kiosk_token($this->chapel_id);
+
+        $this->assertSame([], $this->repo->list_current_for_chapel($this->chapel_id));
+        $this->assertSame('ok', CheckInService::record_kiosk_guest($token, $slot_id, 'Walk-in Guest'));
+        $count = (int)$wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(*) FROM %i WHERE slot_id = %d AND attendance_type = 'guest'",
+                $wpdb->prefix . 'adoration_attendance',
+                $slot_id
+            )
+        );
+        $this->assertSame(1, $count);
+    }
+
     public function test_current_kiosk_list_is_limited_to_current_chapel_and_time(): void
     {
         $current_id = $this->make_signup('-5 minutes', '+55 minutes');

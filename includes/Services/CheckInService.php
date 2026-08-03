@@ -8,9 +8,10 @@ use AdorationScheduler\Domain\Repositories\SlotsRepository;
 use AdorationScheduler\Domain\Repositories\SchedulesRepository;
 use AdorationScheduler\Domain\Repositories\ChapelsRepository;
 use AdorationScheduler\Domain\Repositories\PersonsRepository;
+use AdorationScheduler\Domain\Repositories\AttendanceRepository;
 
 /**
- * Attendance / check-in — three no-login, token-gated entry points, all
+ * Attendance / check-in — four no-login, token-gated entry points, all
  * following the same "read-only-feeling, unauthenticated-by-design" pattern
  * CalendarFeedService already established for links that have to work from
  * a plain email tap or a printed QR code, where a WordPress session/nonce
@@ -30,12 +31,15 @@ use AdorationScheduler\Domain\Repositories\PersonsRepository;
  *   page's tap buttons; re-validates the tapped signup is still in the
  *   "current" list for that chapel before recording it, so the kiosk can't
  *   be used to check in a signup for a different hour or chapel.
+ * - Guest check-in (ACTION_KIOSK_GUEST): records a name against an active
+ *   current slot without creating a person account or signup.
  */
 class CheckInService
 {
     public const ACTION_CHECKIN       = 'adoration_checkin';
     public const ACTION_KIOSK_PAGE    = 'adoration_kiosk';
     public const ACTION_KIOSK_CHECKIN = 'adoration_kiosk_checkin';
+    public const ACTION_KIOSK_GUEST   = 'adoration_kiosk_guest';
 
     /**
      * How early an adorer can self-report "I'm here" before their hour
@@ -54,6 +58,9 @@ class CheckInService
 
         add_action('admin_post_nopriv_' . self::ACTION_KIOSK_CHECKIN, [__CLASS__, 'handle_kiosk_checkin']);
         add_action('admin_post_' . self::ACTION_KIOSK_CHECKIN,        [__CLASS__, 'handle_kiosk_checkin']);
+
+        add_action('admin_post_nopriv_' . self::ACTION_KIOSK_GUEST, [__CLASS__, 'handle_kiosk_guest']);
+        add_action('admin_post_' . self::ACTION_KIOSK_GUEST,        [__CLASS__, 'handle_kiosk_guest']);
     }
 
     // -------------------------------------------------------------------------
@@ -200,6 +207,8 @@ class CheckInService
 
         $signups_repo = new SignupsRepository();
         $rows = $signups_repo->list_current_for_chapel($chapel_id);
+        $slots_repo = new SlotsRepository();
+        $current_slots = $slots_repo->list_current_for_chapel($chapel_id);
 
         $checkin_action_url = admin_url('admin-post.php');
         $notice = isset($_GET['done']) ? sanitize_key((string) wp_unslash($_GET['done'])) : '';
@@ -244,6 +253,11 @@ class CheckInService
                 button.mode-out { border-color:#dba617; background:#dba617; }
                 button[disabled] { opacity:.6; cursor:default; border-color:#00a32a; background:#00a32a; }
                 .empty { background:#fff; border:1px solid #dcdcde; border-radius:10px; padding:28px 18px; text-align:center; color:#646970; font-size:17px; }
+                .guest { background:#fff; border:1px solid #dcdcde; border-radius:10px; margin-top:22px; padding:18px; }
+                .guest h2 { font-size:19px; margin:0 0 6px; }
+                .guest p { color:#646970; font-size:14px; margin:0 0 12px; }
+                .guest input, .guest select { display:block; width:100%; min-height:48px; margin:0 0 12px; padding:8px 10px; font-size:17px; border:1px solid #8c8f94; border-radius:7px; background:#fff; }
+                .guest button { width:100%; }
                 .footnote { text-align:center; color:#8c8f94; font-size:12px; margin-top:24px; }
             </style>
         </head>
@@ -256,6 +270,8 @@ class CheckInService
                     <div class="notice"><?php esc_html_e("You're checked in. Thank you for your time in prayer.", 'adoration-scheduler'); ?></div>
                 <?php elseif ($notice === '2'): ?>
                     <div class="notice"><?php esc_html_e("You're checked out. Thank you for your time in prayer.", 'adoration-scheduler'); ?></div>
+                <?php elseif ($notice === '3'): ?>
+                    <div class="notice"><?php esc_html_e("You're checked in as a guest. Thank you for your time in prayer.", 'adoration-scheduler'); ?></div>
                 <?php endif; ?>
 
                 <?php if (empty($rows)): ?>
@@ -314,6 +330,30 @@ class CheckInService
                             </li>
                         <?php endforeach; ?>
                     </ul>
+                <?php endif; ?>
+
+                <?php if (!empty($current_slots)): ?>
+                    <section class="guest">
+                        <h2><?php esc_html_e("I'm not listed", 'adoration-scheduler'); ?></h2>
+                        <p><?php esc_html_e('Visiting or praying during an uncovered hour? Enter your name to check in without creating an account.', 'adoration-scheduler'); ?></p>
+                        <form method="post" action="<?php echo esc_url($checkin_action_url); ?>">
+                            <input type="hidden" name="action" value="<?php echo esc_attr(self::ACTION_KIOSK_GUEST); ?>">
+                            <input type="hidden" name="token" value="<?php echo esc_attr($token); ?>">
+                            <label for="adoration-guest-name"><?php esc_html_e('Your name', 'adoration-scheduler'); ?></label>
+                            <input id="adoration-guest-name" type="text" name="guest_name" maxlength="191" autocomplete="name" required>
+                            <?php if (count($current_slots) === 1): ?>
+                                <input type="hidden" name="slot_id" value="<?php echo (int)$current_slots[0]['id']; ?>">
+                            <?php else: ?>
+                                <label for="adoration-guest-slot"><?php esc_html_e('Current hour', 'adoration-scheduler'); ?></label>
+                                <select id="adoration-guest-slot" name="slot_id" required>
+                                    <?php foreach ($current_slots as $current_slot): ?>
+                                        <option value="<?php echo (int)$current_slot['id']; ?>"><?php echo esc_html(self::format_slot_label($current_slot, $current_slot) . ' — ' . (string)$current_slot['schedule_name']); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            <?php endif; ?>
+                            <button type="submit"><?php esc_html_e('Check in as guest', 'adoration-scheduler'); ?></button>
+                        </form>
+                    </section>
                 <?php endif; ?>
 
                 <p class="footnote"><?php esc_html_e('This page refreshes automatically.', 'adoration-scheduler'); ?></p>
@@ -389,6 +429,38 @@ class CheckInService
     }
     // phpcs:enable WordPress.Security.NonceVerification.Missing,WordPress.Security.NonceVerification.Recommended
 
+    // phpcs:disable WordPress.Security.NonceVerification.Missing,WordPress.Security.NonceVerification.Recommended -- Public chapel kiosk endpoint authorized by the random chapel bearer token; guests have no WordPress session for a conventional nonce.
+    public static function handle_kiosk_guest(): void
+    {
+        $action = isset($_REQUEST['action']) ? sanitize_key(wp_unslash($_REQUEST['action'])) : '';
+        if ($action !== self::ACTION_KIOSK_GUEST) return;
+
+        $token = isset($_POST['token']) ? sanitize_text_field(wp_unslash($_POST['token'])) : '';
+        $slot_id = isset($_POST['slot_id']) ? absint(wp_unslash($_POST['slot_id'])) : 0;
+        $guest_name = isset($_POST['guest_name']) ? sanitize_text_field(wp_unslash($_POST['guest_name'])) : '';
+        $result = self::record_kiosk_guest($token, $slot_id, $guest_name);
+
+        if ($result === 'invalid_token') {
+            wp_die(esc_html__('This check-in page is no longer valid.', 'adoration-scheduler'), 404);
+        }
+        if ($result === 'invalid_name') {
+            wp_die(esc_html__('Please enter your name.', 'adoration-scheduler'), 400);
+        }
+        if ($result === 'invalid_slot') {
+            wp_die(esc_html__('That chapel hour is no longer current. Return to the kiosk and try again.', 'adoration-scheduler'), 400);
+        }
+        if ($result !== 'ok') {
+            wp_die(esc_html__('Your guest check-in could not be saved. Please try again.', 'adoration-scheduler'), 500);
+        }
+
+        $chapel = (new ChapelsRepository())->find_by_kiosk_token($token);
+        $chapel_id = (int)($chapel['id'] ?? 0);
+        $kiosk_url = self::build_kiosk_url($chapel_id) ?? admin_url('admin-post.php?action=' . self::ACTION_KIOSK_PAGE);
+        wp_safe_redirect(add_query_arg('done', '3', $kiosk_url));
+        exit;
+    }
+    // phpcs:enable WordPress.Security.NonceVerification.Missing,WordPress.Security.NonceVerification.Recommended
+
     // -------------------------------------------------------------------------
     // Shared helpers
     // -------------------------------------------------------------------------
@@ -434,6 +506,51 @@ class CheckInService
         }
 
         return false;
+    }
+
+    /**
+     * Validate and record an unlisted kiosk visitor without creating a
+     * person or signup. The slot must be active at the token's chapel now.
+     *
+     * @return string ok, invalid_token, invalid_name, invalid_slot, or failed.
+     */
+    public static function record_kiosk_guest(string $token, int $slot_id, string $guest_name): string
+    {
+        $token = trim($token);
+        $guest_name = sanitize_text_field($guest_name);
+        if ($token === '') return 'invalid_token';
+        if ($guest_name === '') return 'invalid_name';
+        if (function_exists('mb_substr')) {
+            $guest_name = mb_substr($guest_name, 0, 191);
+        } else {
+            $guest_name = substr($guest_name, 0, 191);
+        }
+
+        $chapel = (new ChapelsRepository())->find_by_kiosk_token($token);
+        if (!$chapel) return 'invalid_token';
+
+        $chapel_id = (int)($chapel['id'] ?? 0);
+        $current_slots = (new SlotsRepository())->list_current_for_chapel($chapel_id);
+        $slot = null;
+        foreach ($current_slots as $current_slot) {
+            if ((int)($current_slot['id'] ?? 0) === $slot_id) {
+                $slot = $current_slot;
+                break;
+            }
+        }
+        if (!$slot) return 'invalid_slot';
+
+        $attendance_id = (new AttendanceRepository())->record([
+            'slot_id' => $slot_id,
+            'schedule_id' => (int)($slot['schedule_id'] ?? 0),
+            'chapel_id' => $chapel_id,
+            'guest_name' => $guest_name,
+            'attendance_type' => 'guest',
+            'status' => 'present',
+            'check_in_method' => 'kiosk',
+        ]);
+
+        return $attendance_id > 0 ? 'ok' : 'failed';
     }
 
     private static function format_slot_label(array $signup, ?array $slot): string

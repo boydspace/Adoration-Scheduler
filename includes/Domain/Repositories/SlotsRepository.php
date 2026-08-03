@@ -850,6 +850,41 @@ class SlotsRepository {
         return (array) $wpdb->get_results($sql, ARRAY_A);
     }
 
+    /** Active chapel hours containing the current site-local time. */
+    public function list_current_for_chapel(int $chapel_id): array {
+        global $wpdb;
+
+        $chapel_id = (int)$chapel_id;
+        if ($chapel_id <= 0) return [];
+
+        $schedules = $wpdb->prefix . 'adoration_schedules';
+        $now = current_time('mysql');
+        $sql = $wpdb->prepare(
+            "SELECT sl.id, sl.schedule_id, sl.chapel_id, sl.date,
+                    sl.start_time, sl.end_time, sl.start_at, sl.end_at,
+                    sc.name AS schedule_name
+               FROM %i sl
+               INNER JOIN %i sc ON sc.id = sl.schedule_id
+              WHERE sl.chapel_id = %d
+                AND sl.is_active = 1
+                AND sc.status = 'active'
+                AND sl.start_at IS NOT NULL
+                AND sl.end_at IS NOT NULL
+                AND sl.start_at <= %s
+                AND sl.end_at >= %s
+              ORDER BY sl.start_at ASC",
+            $this->table,
+            $schedules,
+            $chapel_id,
+            $now,
+            $now
+        );
+
+        // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is fully prepared above.
+        $rows = $wpdb->get_results($sql, ARRAY_A);
+        return is_array($rows) ? $rows : [];
+    }
+
     /**
      * ✅ Coverage-gap alerting: stamp coverage_alert_sent_at = now for the
      * given slot IDs (called after an alert email is sent, regardless of
