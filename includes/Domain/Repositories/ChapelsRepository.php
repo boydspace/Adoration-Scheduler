@@ -230,7 +230,7 @@ class ChapelsRepository {
             ['%d']
         );
 
-        return ($res !== false) ? $token : null;
+        return ($res === 1) ? $token : null;
     }
 
     /**

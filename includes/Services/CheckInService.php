@@ -110,7 +110,7 @@ class CheckInService
 
         $token = isset($_GET['token']) ? sanitize_text_field(wp_unslash($_GET['token'])) : '';
         $mode  = isset($_GET['mode']) ? sanitize_key(wp_unslash($_GET['mode'])) : 'in';
-        $mode  = ($mode === 'out') ? 'out' : 'in';
+        $mode  = self::normalize_mode($mode);
 
         if ($token === '') {
             self::output_html('Link not found', 'This check-in link is missing information. Please use the link from your confirmation email again.');
@@ -142,28 +142,16 @@ class CheckInService
             // ✅ Too-early guard: a stale link (or a curious early click) more
             // than EARLY_GRACE_MINUTES before the hour starts gets a friendly
             // explanation instead of silently recording an early check-in.
-            $start_at = trim((string)($slot['start_at'] ?? ''));
-            if ($start_at !== '') {
-                try {
-                    $tz = function_exists('wp_timezone') ? wp_timezone() : new \DateTimeZone('UTC');
-                    $start_dt = new \DateTimeImmutable($start_at, $tz);
-                    $now_dt   = new \DateTimeImmutable(current_time('mysql'), $tz);
-                    $earliest = $start_dt->modify('-' . self::EARLY_GRACE_MINUTES . ' minutes');
-
-                    if ($now_dt < $earliest) {
-                        $when_suffix = ($when_label !== '') ? " ({$when_label})" : '';
-                        self::output_html(
-                            'A little early',
-                            sprintf(
-                                'Your Adoration hour%s hasn\'t started yet. This link will work starting %d minutes before your hour begins — come back and tap it once you\'ve arrived.',
-                                $when_suffix,
-                                self::EARLY_GRACE_MINUTES
-                            )
-                        );
-                    }
-                } catch (\Throwable $e) {
-                    // If date parsing fails, don't block the check-in over it.
-                }
+            if (self::is_checkin_too_early($slot)) {
+                $when_suffix = ($when_label !== '') ? " ({$when_label})" : '';
+                self::output_html(
+                    'A little early',
+                    sprintf(
+                        'Your Adoration hour%s hasn\'t started yet. This link will work starting %d minutes before your hour begins — come back and tap it once you\'ve arrived.',
+                        $when_suffix,
+                        self::EARLY_GRACE_MINUTES
+                    )
+                );
             }
 
             $signups_repo->check_in($signup_id, 'self');
@@ -351,7 +339,7 @@ class CheckInService
         $token     = isset($_POST['token']) ? sanitize_text_field(wp_unslash($_POST['token'])) : '';
         $signup_id = isset($_POST['signup_id']) ? absint(wp_unslash($_POST['signup_id'])) : 0;
         $mode      = isset($_POST['mode']) ? sanitize_key(wp_unslash($_POST['mode'])) : 'in';
-        $mode      = ($mode === 'out') ? 'out' : 'in';
+        $mode      = self::normalize_mode($mode);
 
         if ($token === '' || $signup_id <= 0) {
             wp_die(esc_html__('Missing check-in information.', 'adoration-scheduler'), 400);
@@ -371,10 +359,7 @@ class CheckInService
         $signups_repo = new SignupsRepository();
         $current = $signups_repo->list_current_for_chapel($chapel_id);
 
-        $is_current = false;
-        foreach ($current as $row) {
-            if ((int)($row['id'] ?? 0) === $signup_id) { $is_current = true; break; }
-        }
+        $is_current = self::is_current_signup($current, $signup_id);
 
         $kiosk_url = self::build_kiosk_url($chapel_id) ?? admin_url('admin-post.php?action=' . self::ACTION_KIOSK_PAGE);
 
@@ -396,6 +381,49 @@ class CheckInService
     // -------------------------------------------------------------------------
     // Shared helpers
     // -------------------------------------------------------------------------
+
+    /**
+     * Treat every unsupported value as check-in, matching the public links'
+     * long-standing fail-safe behavior.
+     */
+    public static function normalize_mode(string $mode): string
+    {
+        return $mode === 'out' ? 'out' : 'in';
+    }
+
+    /**
+     * Whether a personal check-in tap precedes the allowed early-arrival
+     * window. Invalid or missing dates fail open so a malformed slot cannot
+     * prevent a person who is physically present from checking in.
+     */
+    public static function is_checkin_too_early(?array $slot, ?\DateTimeImmutable $now = null): bool
+    {
+        $start_at = trim((string)($slot['start_at'] ?? ''));
+        if ($start_at === '') return false;
+
+        try {
+            $tz = function_exists('wp_timezone') ? wp_timezone() : new \DateTimeZone('UTC');
+            $start = new \DateTimeImmutable($start_at, $tz);
+            $now = $now ?? new \DateTimeImmutable(current_time('mysql'), $tz);
+            return $now < $start->modify('-' . self::EARLY_GRACE_MINUTES . ' minutes');
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Re-validates a public kiosk POST against the chapel's live roster.
+     */
+    public static function is_current_signup(array $current_signups, int $signup_id): bool
+    {
+        if ($signup_id <= 0) return false;
+
+        foreach ($current_signups as $row) {
+            if ((int)($row['id'] ?? 0) === $signup_id) return true;
+        }
+
+        return false;
+    }
 
     private static function format_slot_label(array $signup, ?array $slot): string
     {

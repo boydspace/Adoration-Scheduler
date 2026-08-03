@@ -2,6 +2,8 @@
 namespace AdorationScheduler\Tests\Integration\Domain\Repositories;
 
 use AdorationScheduler\Domain\Repositories\SignupsRepository;
+use AdorationScheduler\Domain\Repositories\ChapelsRepository;
+use AdorationScheduler\Services\CheckInService;
 use AdorationScheduler\Tests\Support\AdorationIntegrationTestCase;
 
 /**
@@ -36,6 +38,38 @@ class CheckInRepositoryIntegrationTest extends AdorationIntegrationTestCase
         $this->assertSame($signup_id, (int)$this->repo->find_by_checkin_token($first)['id']);
         $this->assertNull($this->repo->find_by_checkin_token(''));
         $this->assertNull($this->repo->find_by_checkin_token(str_repeat('f', 64)));
+    }
+
+    public function test_personal_checkin_urls_contain_signup_token_and_normalized_mode(): void
+    {
+        $signup_id = $this->make_signup('-5 minutes', '+55 minutes');
+        $token = $this->repo->get_or_create_checkin_token($signup_id);
+
+        $checkin_url = CheckInService::build_checkin_url($signup_id, 'unexpected');
+        $checkout_url = CheckInService::build_checkin_url($signup_id, 'out');
+
+        $this->assertStringContainsString('action=adoration_checkin', $checkin_url);
+        $this->assertStringContainsString('token=' . $token, $checkin_url);
+        $this->assertStringContainsString('mode=in', $checkin_url);
+        $this->assertStringContainsString('mode=out', $checkout_url);
+        $this->assertNull(CheckInService::build_checkin_url(999999999));
+    }
+
+    public function test_kiosk_token_regeneration_invalidates_old_link(): void
+    {
+        $chapels = new ChapelsRepository();
+        $first = $chapels->get_or_create_kiosk_token($this->chapel_id);
+        $url = CheckInService::build_kiosk_url($this->chapel_id);
+        $second = $chapels->regenerate_kiosk_token($this->chapel_id);
+
+        $this->assertMatchesRegularExpression('/^[a-f0-9]{64}$/', $first);
+        $this->assertStringContainsString('action=adoration_kiosk', $url);
+        $this->assertStringContainsString('token=' . $first, $url);
+        $this->assertNotSame($first, $second);
+        $this->assertNull($chapels->find_by_kiosk_token($first));
+        $this->assertSame($this->chapel_id, (int)$chapels->find_by_kiosk_token($second)['id']);
+        $this->assertNull($chapels->regenerate_kiosk_token(999999999));
+        $this->assertNull(CheckInService::build_kiosk_url(999999999));
     }
 
     public function test_nonexistent_signup_cannot_receive_token_or_attendance(): void
