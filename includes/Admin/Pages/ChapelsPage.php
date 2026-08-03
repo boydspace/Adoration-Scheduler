@@ -42,6 +42,10 @@ class ChapelsPage {
             $name = isset($_POST['name']) ? sanitize_text_field(wp_unslash($_POST['name'])) : '';
             $slug = isset($_POST['slug']) ? sanitize_title(wp_unslash($_POST['slug'])) : '';
             $is_active = !empty($_POST['is_active']) ? 1 : 0;
+            $checkin_early_minutes = isset($_POST['checkin_early_minutes']) ? absint(wp_unslash($_POST['checkin_early_minutes'])) : 30;
+            $guest_checkin_enabled = !empty($_POST['guest_checkin_enabled']) ? 1 : 0;
+            $checkout_enabled = !empty($_POST['checkout_enabled']) ? 1 : 0;
+            $kiosk_name_display = isset($_POST['kiosk_name_display']) ? sanitize_key(wp_unslash($_POST['kiosk_name_display'])) : 'first_last_initial';
 
             if ($name === '') {
                 $this->redirect_with_notice('error_name_required');
@@ -52,6 +56,10 @@ class ChapelsPage {
                     'name'      => $name,
                     'slug'      => $slug,
                     'is_active' => $is_active,
+                    'checkin_early_minutes' => $checkin_early_minutes,
+                    'guest_checkin_enabled' => $guest_checkin_enabled,
+                    'checkout_enabled' => $checkout_enabled,
+                    'kiosk_name_display' => $kiosk_name_display,
                 ]);
 
                 $this->redirect_with_notice($ok ? 'chapel_updated' : 'chapel_update_failed');
@@ -351,6 +359,10 @@ JS;
         $name      = (string)($chapel['name'] ?? '');
         $slug      = (string)($chapel['slug'] ?? '');
         $is_active = !empty($chapel['is_active']) ? 1 : 0;
+        $checkin_early_minutes = max(0, min(120, (int)($chapel['checkin_early_minutes'] ?? 30)));
+        $guest_checkin_enabled = !array_key_exists('guest_checkin_enabled', $chapel) || !empty($chapel['guest_checkin_enabled']);
+        $checkout_enabled = !array_key_exists('checkout_enabled', $chapel) || !empty($chapel['checkout_enabled']);
+        $kiosk_name_display = (string)($chapel['kiosk_name_display'] ?? 'first_last_initial');
 
         echo '<form method="post" style="max-width: 720px;">';
         wp_nonce_field('adoration_save_chapel');
@@ -375,6 +387,34 @@ JS;
         echo '  <th scope="row">' . esc_html__('Active', 'adoration-scheduler') . '</th>';
         echo '  <td>';
         echo '    <label><input type="checkbox" name="is_active" value="1" ' . checked($is_active, 1, false) . '> ' . esc_html__('Active chapel (visible in dropdowns).', 'adoration-scheduler') . '</label>';
+        echo '  </td>';
+        echo '</tr>';
+
+        echo '<tr>';
+        echo '  <th scope="row"><label for="checkin_early_minutes">' . esc_html__('Early check-in window', 'adoration-scheduler') . '</label></th>';
+        echo '  <td><input name="checkin_early_minutes" id="checkin_early_minutes" type="number" min="0" max="120" value="' . esc_attr((string)$checkin_early_minutes) . '"> ' . esc_html__('minutes before the hour', 'adoration-scheduler') . '</td>';
+        echo '</tr>';
+
+        echo '<tr>';
+        echo '  <th scope="row"><label for="kiosk_name_display">' . esc_html__('Kiosk name privacy', 'adoration-scheduler') . '</label></th>';
+        echo '  <td><select name="kiosk_name_display" id="kiosk_name_display">';
+        $name_modes = [
+            'first_last_initial' => __('First name and last initial', 'adoration-scheduler'),
+            'first_name' => __('First name only', 'adoration-scheduler'),
+            'initials' => __('Initials only', 'adoration-scheduler'),
+            'full_name' => __('Full name', 'adoration-scheduler'),
+        ];
+        foreach ($name_modes as $value => $label) {
+            echo '<option value="' . esc_attr($value) . '" ' . selected($kiosk_name_display, $value, false) . '>' . esc_html($label) . '</option>';
+        }
+        echo '  </select></td>';
+        echo '</tr>';
+
+        echo '<tr>';
+        echo '  <th scope="row">' . esc_html__('Kiosk options', 'adoration-scheduler') . '</th>';
+        echo '  <td>';
+        echo '    <label><input type="checkbox" name="guest_checkin_enabled" value="1" ' . checked($guest_checkin_enabled, true, false) . '> ' . esc_html__('Allow guest and unlisted-person check-in.', 'adoration-scheduler') . '</label><br>';
+        echo '    <label><input type="checkbox" name="checkout_enabled" value="1" ' . checked($checkout_enabled, true, false) . '> ' . esc_html__('Allow attendees to check out.', 'adoration-scheduler') . '</label>';
         echo '  </td>';
         echo '</tr>';
 

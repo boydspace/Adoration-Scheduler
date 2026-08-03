@@ -136,12 +136,18 @@ class CheckInService
         $slot = $slot_id > 0 ? $slots_repo->find($slot_id) : null;
 
         $schedule_name = '';
+        $chapel = [];
         $schedule_id = (int)($signup['schedule_id'] ?? 0);
         if ($schedule_id > 0) {
             $schedules_repo = new SchedulesRepository();
             $schedule = $schedules_repo->find($schedule_id);
             $schedule_name = trim((string)($schedule['name'] ?? ''));
+            $chapel_id = (int)($schedule['chapel_id'] ?? 0);
+            if ($chapel_id > 0) {
+                $chapel = (new ChapelsRepository())->find($chapel_id) ?? [];
+            }
         }
+        $policy = self::policy_from_chapel($chapel);
 
         $when_label = self::format_slot_label($signup, $slot);
 
@@ -149,28 +155,38 @@ class CheckInService
             // ✅ Too-early guard: a stale link (or a curious early click) more
             // than EARLY_GRACE_MINUTES before the hour starts gets a friendly
             // explanation instead of silently recording an early check-in.
-            if (self::is_checkin_too_early($slot)) {
+            if (self::is_checkin_too_early($slot, null, $policy['checkin_early_minutes'])) {
                 $when_suffix = ($when_label !== '') ? " ({$when_label})" : '';
                 self::output_html(
                     'A little early',
                     sprintf(
                         'Your Adoration hour%s hasn\'t started yet. This link will work starting %d minutes before your hour begins — come back and tap it once you\'ve arrived.',
                         $when_suffix,
-                        self::EARLY_GRACE_MINUTES
+                        $policy['checkin_early_minutes']
                     )
                 );
             }
 
             $signups_repo->check_in($signup_id, 'self');
 
+            $checkin_message = $policy['checkout_enabled']
+                ? 'Thank you for your faithful presence in prayer%s. When you leave, you can tap the "I\'m leaving" link in the same email, or just close this page — checking out is optional.'
+                : 'Thank you for your faithful presence in prayer%s. This chapel records arrival only, so no checkout is required.';
+
             self::output_html(
                 'You\'re checked in!',
                 sprintf(
-                    'Thank you for your faithful presence in prayer%s. When you leave, you can tap the "I\'m leaving" link in the same email, or just close this page — checking out is optional.',
+                    $checkin_message,
                     $schedule_name !== '' ? " for {$schedule_name}" : ''
                 )
             );
         } else {
+            if (!$policy['checkout_enabled']) {
+                self::output_html(
+                    'Checkout is not required',
+                    'This chapel records arrival only, so there is nothing else you need to do. God bless.'
+                );
+            }
             $signups_repo->check_out($signup_id);
 
             self::output_html(
@@ -204,6 +220,7 @@ class CheckInService
 
         $chapel_id   = (int)($chapel['id'] ?? 0);
         $chapel_name = trim((string)($chapel['name'] ?? 'Chapel'));
+        $policy = self::policy_from_chapel($chapel);
 
         $signups_repo = new SignupsRepository();
         $rows = $signups_repo->list_current_for_chapel($chapel_id);
@@ -246,6 +263,7 @@ class CheckInService
                 li.state-in { border-left-color:#2271b1; }
                 li.state-out { border-left-color:#dba617; }
                 li.state-done { border-left-color:#00a32a; opacity:.75; }
+                li.state-present { border-left-color:#00a32a; }
                 .name { font-size:19px; font-weight:600; }
                 .substitute { display:block; font-size:13px; color:#50575e; font-weight:500; margin-top:3px; }
                 .time { display:block; font-size:14px; color:#646970; font-weight:400; margin-top:2px; }
@@ -283,13 +301,13 @@ class CheckInService
                             $signup_id = (int)($row['id'] ?? 0);
                             $first = trim((string)($row['person_first_name'] ?? ''));
                             $last  = trim((string)($row['person_last_name'] ?? ''));
-                            $name  = trim($first . ' ' . substr($last, 0, 1)) . (($last !== '') ? '.' : '');
+                            $name = self::format_kiosk_name($first, $last, $policy['kiosk_name_display']);
                             if ($name === '') $name = __('(unnamed)', 'adoration-scheduler');
                             $substitute_for = '';
                             if (!empty($row['replacement_claimed_by'])) {
                                 $scheduled_first = trim((string)($row['scheduled_first_name'] ?? ''));
                                 $scheduled_last = trim((string)($row['scheduled_last_name'] ?? ''));
-                                $scheduled_name = trim($scheduled_first . ' ' . substr($scheduled_last, 0, 1)) . (($scheduled_last !== '') ? '.' : '');
+                                $scheduled_name = self::format_kiosk_name($scheduled_first, $scheduled_last, $policy['kiosk_name_display']);
                                 if ($scheduled_name !== '') {
                                     $substitute_for = sprintf(__('Substitute for %s', 'adoration-scheduler'), $scheduled_name);
                                 }
@@ -302,10 +320,14 @@ class CheckInService
                                 $mode = '';
                                 $label = __("Done ✓", 'adoration-scheduler');
                                 $state_class = 'state-done';
-                            } elseif ($checked_in) {
+                            } elseif ($checked_in && $policy['checkout_enabled']) {
                                 $mode = 'out';
                                 $label = __("I'm leaving", 'adoration-scheduler');
                                 $state_class = 'state-out';
+                            } elseif ($checked_in) {
+                                $mode = '';
+                                $label = __('Checked in ✓', 'adoration-scheduler');
+                                $state_class = 'state-present';
                             } else {
                                 $mode = 'in';
                                 $label = __("I'm here", 'adoration-scheduler');
@@ -323,7 +345,7 @@ class CheckInService
                                     <input type="hidden" name="token" value="<?php echo esc_attr($token); ?>">
                                     <input type="hidden" name="signup_id" value="<?php echo (int)$signup_id; ?>">
                                     <input type="hidden" name="mode" value="<?php echo esc_attr($mode); ?>">
-                                    <button type="submit" class="mode-<?php echo esc_attr($mode !== '' ? $mode : 'in'); ?>" <?php disabled($checked_out); ?>>
+                                    <button type="submit" class="mode-<?php echo esc_attr($mode !== '' ? $mode : 'in'); ?>" <?php disabled($mode === ''); ?>>
                                         <?php echo esc_html($label); ?>
                                     </button>
                                 </form>
@@ -332,7 +354,7 @@ class CheckInService
                     </ul>
                 <?php endif; ?>
 
-                <?php if (!empty($current_slots)): ?>
+                <?php if ($policy['guest_checkin_enabled'] && !empty($current_slots)): ?>
                     <section class="guest">
                         <h2><?php esc_html_e("I'm not listed", 'adoration-scheduler'); ?></h2>
                         <p><?php esc_html_e('Visiting or praying during an uncovered hour? Enter your name to check in without creating an account.', 'adoration-scheduler'); ?></p>
@@ -403,6 +425,7 @@ class CheckInService
         }
 
         $chapel_id = (int)($chapel['id'] ?? 0);
+        $policy = self::policy_from_chapel($chapel);
 
         // ✅ Re-validate the tapped signup is genuinely on the clock at THIS
         // chapel right now — never trust signup_id alone, since it arrives
@@ -415,10 +438,10 @@ class CheckInService
         $kiosk_url = self::build_kiosk_url($chapel_id) ?? admin_url('admin-post.php?action=' . self::ACTION_KIOSK_PAGE);
 
         if ($is_current) {
-            if ($mode === 'out') {
+            if ($mode === 'out' && $policy['checkout_enabled']) {
                 $signups_repo->check_out($signup_id);
                 $kiosk_url = add_query_arg('done', '2', $kiosk_url);
-            } else {
+            } elseif ($mode === 'in') {
                 $signups_repo->check_in($signup_id, 'kiosk');
                 $kiosk_url = add_query_arg('done', '1', $kiosk_url);
             }
@@ -448,6 +471,9 @@ class CheckInService
         }
         if ($result === 'invalid_slot') {
             wp_die(esc_html__('That chapel hour is no longer current. Return to the kiosk and try again.', 'adoration-scheduler'), 400);
+        }
+        if ($result === 'disabled') {
+            wp_die(esc_html__('Guest check-in is not enabled for this chapel.', 'adoration-scheduler'), 403);
         }
         if ($result !== 'ok') {
             wp_die(esc_html__('Your guest check-in could not be saved. Please try again.', 'adoration-scheduler'), 500);
@@ -479,7 +505,7 @@ class CheckInService
      * window. Invalid or missing dates fail open so a malformed slot cannot
      * prevent a person who is physically present from checking in.
      */
-    public static function is_checkin_too_early(?array $slot, ?\DateTimeImmutable $now = null): bool
+    public static function is_checkin_too_early(?array $slot, ?\DateTimeImmutable $now = null, int $early_minutes = self::EARLY_GRACE_MINUTES): bool
     {
         $start_at = trim((string)($slot['start_at'] ?? ''));
         if ($start_at === '') return false;
@@ -488,7 +514,8 @@ class CheckInService
             $tz = function_exists('wp_timezone') ? wp_timezone() : new \DateTimeZone('UTC');
             $start = new \DateTimeImmutable($start_at, $tz);
             $now = $now ?? new \DateTimeImmutable(current_time('mysql'), $tz);
-            return $now < $start->modify('-' . self::EARLY_GRACE_MINUTES . ' minutes');
+            $early_minutes = max(0, min(120, $early_minutes));
+            return $now < $start->modify('-' . $early_minutes . ' minutes');
         } catch (\Throwable $e) {
             return false;
         }
@@ -508,11 +535,42 @@ class CheckInService
         return false;
     }
 
+    /** Normalized chapel policy with backwards-compatible defaults. */
+    public static function policy_from_chapel(array $chapel): array
+    {
+        $name_display = sanitize_key((string)($chapel['kiosk_name_display'] ?? 'first_last_initial'));
+        if (!in_array($name_display, ['first_last_initial', 'first_name', 'initials', 'full_name'], true)) {
+            $name_display = 'first_last_initial';
+        }
+
+        return [
+            'checkin_early_minutes' => max(0, min(120, (int)($chapel['checkin_early_minutes'] ?? self::EARLY_GRACE_MINUTES))),
+            'guest_checkin_enabled' => !array_key_exists('guest_checkin_enabled', $chapel) || !empty($chapel['guest_checkin_enabled']),
+            'checkout_enabled' => !array_key_exists('checkout_enabled', $chapel) || !empty($chapel['checkout_enabled']),
+            'kiosk_name_display' => $name_display,
+        ];
+    }
+
+    /** Format a kiosk name according to the chapel's selected privacy mode. */
+    public static function format_kiosk_name(string $first, string $last, string $mode): string
+    {
+        $first = trim($first);
+        $last = trim($last);
+        $first_initial = $first !== '' ? (function_exists('mb_substr') ? mb_substr($first, 0, 1) : substr($first, 0, 1)) : '';
+        $last_initial = $last !== '' ? (function_exists('mb_substr') ? mb_substr($last, 0, 1) : substr($last, 0, 1)) : '';
+
+        if ($mode === 'full_name') return trim($first . ' ' . $last);
+        if ($mode === 'first_name') return $first;
+        if ($mode === 'initials') return trim($first_initial . ($first_initial !== '' ? '.' : '') . $last_initial . ($last_initial !== '' ? '.' : ''));
+
+        return trim($first . ' ' . $last_initial) . ($last_initial !== '' ? '.' : '');
+    }
+
     /**
      * Validate and record an unlisted kiosk visitor without creating a
      * person or signup. The slot must be active at the token's chapel now.
      *
-     * @return string ok, invalid_token, invalid_name, invalid_slot, or failed.
+     * @return string ok, disabled, invalid_token, invalid_name, invalid_slot, or failed.
      */
     public static function record_kiosk_guest(string $token, int $slot_id, string $guest_name): string
     {
@@ -528,6 +586,7 @@ class CheckInService
 
         $chapel = (new ChapelsRepository())->find_by_kiosk_token($token);
         if (!$chapel) return 'invalid_token';
+        if (!self::policy_from_chapel($chapel)['guest_checkin_enabled']) return 'disabled';
 
         $chapel_id = (int)($chapel['id'] ?? 0);
         $current_slots = (new SlotsRepository())->list_current_for_chapel($chapel_id);

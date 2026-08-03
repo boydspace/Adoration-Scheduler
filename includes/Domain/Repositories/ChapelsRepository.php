@@ -141,6 +141,22 @@ class ChapelsRepository {
         if (array_key_exists('is_active', $data)) {
             $update['is_active'] = !empty($data['is_active']) ? 1 : 0;
         }
+        if (array_key_exists('checkin_early_minutes', $data)) {
+            $update['checkin_early_minutes'] = max(0, min(120, (int)$data['checkin_early_minutes']));
+        }
+        if (array_key_exists('guest_checkin_enabled', $data)) {
+            $update['guest_checkin_enabled'] = !empty($data['guest_checkin_enabled']) ? 1 : 0;
+        }
+        if (array_key_exists('checkout_enabled', $data)) {
+            $update['checkout_enabled'] = !empty($data['checkout_enabled']) ? 1 : 0;
+        }
+        if (array_key_exists('kiosk_name_display', $data)) {
+            $name_display = sanitize_key((string)$data['kiosk_name_display']);
+            $allowed = ['first_last_initial', 'first_name', 'initials', 'full_name'];
+            $update['kiosk_name_display'] = in_array($name_display, $allowed, true)
+                ? $name_display
+                : 'first_last_initial';
+        }
 
         if (empty($update)) return true;
 

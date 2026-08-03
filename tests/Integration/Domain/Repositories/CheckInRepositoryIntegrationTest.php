@@ -382,6 +382,38 @@ class CheckInRepositoryIntegrationTest extends AdorationIntegrationTestCase
         $this->assertSame(1, $count);
     }
 
+    public function test_chapel_checkin_policy_persists_and_disables_guest_endpoint(): void
+    {
+        $chapels = new ChapelsRepository();
+        $this->assertTrue($chapels->update($this->chapel_id, [
+            'checkin_early_minutes' => 45,
+            'guest_checkin_enabled' => 0,
+            'checkout_enabled' => 0,
+            'kiosk_name_display' => 'initials',
+        ]));
+        $saved = $chapels->find($this->chapel_id);
+        $this->assertSame('45', $saved['checkin_early_minutes']);
+        $this->assertSame('0', $saved['guest_checkin_enabled']);
+        $this->assertSame('0', $saved['checkout_enabled']);
+        $this->assertSame('initials', $saved['kiosk_name_display']);
+
+        $signup_id = $this->make_signup('-5 minutes', '+55 minutes');
+        $signup = $this->repo->find($signup_id);
+        $token = $chapels->get_or_create_kiosk_token($this->chapel_id);
+        $this->assertSame(
+            'disabled',
+            CheckInService::record_kiosk_guest($token, (int)$signup['slot_id'], 'Guest')
+        );
+
+        $this->assertTrue($chapels->update($this->chapel_id, [
+            'checkin_early_minutes' => 500,
+            'kiosk_name_display' => 'invalid-mode',
+        ]));
+        $normalized = $chapels->find($this->chapel_id);
+        $this->assertSame('120', $normalized['checkin_early_minutes']);
+        $this->assertSame('first_last_initial', $normalized['kiosk_name_display']);
+    }
+
     public function test_current_kiosk_list_is_limited_to_current_chapel_and_time(): void
     {
         $current_id = $this->make_signup('-5 minutes', '+55 minutes');

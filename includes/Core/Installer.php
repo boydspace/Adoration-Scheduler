@@ -14,7 +14,7 @@ class Installer {
      * Bump this whenever you change DB schema.
      * Keep it monotonic.
      */
-    public const DB_VERSION = '2026-08-02-01';
+    public const DB_VERSION = '2026-08-02-02';
 
     /**
      * Plugin capabilities (v1.0 guard rails).
@@ -577,6 +577,9 @@ class Installer {
             if (!self::column_exists($signups_table, $col)) return false;
         }
         if (!self::column_exists($chapels_table, 'kiosk_token')) return false;
+        foreach (['checkin_early_minutes', 'guest_checkin_enabled', 'checkout_enabled', 'kiosk_name_display'] as $col) {
+            if (!self::column_exists($chapels_table, $col)) return false;
+        }
 
         // 2.0 attendance records: actual attendees can differ from the
         // person originally scheduled and guests need not have a signup.
@@ -663,6 +666,10 @@ class Installer {
             address TEXT NULL,
             notes TEXT NULL,
             is_active TINYINT(1) NOT NULL DEFAULT 1,
+            checkin_early_minutes SMALLINT UNSIGNED NOT NULL DEFAULT 30,
+            guest_checkin_enabled TINYINT(1) NOT NULL DEFAULT 1,
+            checkout_enabled TINYINT(1) NOT NULL DEFAULT 1,
+            kiosk_name_display VARCHAR(30) NOT NULL DEFAULT 'first_last_initial',
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
             PRIMARY KEY  (id),
@@ -1124,6 +1131,10 @@ class Installer {
         // — this one identifies a physical location, not a person or a
         // specific signup.
         if (!isset($have['kiosk_token'])) $alters[] = "ADD COLUMN kiosk_token CHAR(64) NULL";
+        if (!isset($have['checkin_early_minutes'])) $alters[] = "ADD COLUMN checkin_early_minutes SMALLINT UNSIGNED NOT NULL DEFAULT 30";
+        if (!isset($have['guest_checkin_enabled'])) $alters[] = "ADD COLUMN guest_checkin_enabled TINYINT(1) NOT NULL DEFAULT 1";
+        if (!isset($have['checkout_enabled'])) $alters[] = "ADD COLUMN checkout_enabled TINYINT(1) NOT NULL DEFAULT 1";
+        if (!isset($have['kiosk_name_display'])) $alters[] = "ADD COLUMN kiosk_name_display VARCHAR(30) NOT NULL DEFAULT 'first_last_initial'";
 
         if (!empty($alters)) {
             // $alters is built entirely from hardcoded ADD COLUMN fragments

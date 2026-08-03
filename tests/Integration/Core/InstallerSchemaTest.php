@@ -27,7 +27,7 @@ class InstallerSchemaTest extends AdorationIntegrationTestCase
         $prefix = $wpdb->prefix . 'adoration_';
 
         $expected = [
-            $prefix . 'chapels'              => ['id', 'name', 'slug', 'is_active'],
+            $prefix . 'chapels'              => ['id', 'name', 'slug', 'is_active', 'checkin_early_minutes', 'guest_checkin_enabled', 'checkout_enabled', 'kiosk_name_display'],
             $prefix . 'schedules'            => ['id', 'chapel_id', 'name', 'slug', 'type', 'privacy_mode', 'status'],
             $prefix . 'date_patterns'        => ['id', 'schedule_id', 'date', 'day_of_week', 'week_of_month'],
             $prefix . 'segments'             => ['id', 'schedule_id', 'date_pattern_id', 'start_time', 'end_time'],

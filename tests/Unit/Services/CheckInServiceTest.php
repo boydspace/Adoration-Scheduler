@@ -52,6 +52,48 @@ class CheckInServiceTest extends AdorationTestCase
         $this->assertFalse(CheckInService::is_checkin_too_early($slot, $opening));
     }
 
+    public function test_custom_early_window_is_enforced_and_clamped(): void
+    {
+        $slot = ['start_at' => '2026-08-02 10:00:00'];
+        $at_start = new \DateTimeImmutable('2026-08-02 10:00:00', new \DateTimeZone('UTC'));
+        $one_minute_early = new \DateTimeImmutable('2026-08-02 09:59:00', new \DateTimeZone('UTC'));
+        $ninety_minutes_early = new \DateTimeImmutable('2026-08-02 08:30:00', new \DateTimeZone('UTC'));
+
+        $this->assertTrue(CheckInService::is_checkin_too_early($slot, $one_minute_early, 0));
+        $this->assertFalse(CheckInService::is_checkin_too_early($slot, $at_start, 0));
+        $this->assertFalse(CheckInService::is_checkin_too_early($slot, $ninety_minutes_early, 120));
+        $this->assertTrue(CheckInService::is_checkin_too_early($slot, $ninety_minutes_early, 60));
+    }
+
+    public function test_chapel_policy_defaults_and_normalization(): void
+    {
+        $defaults = CheckInService::policy_from_chapel([]);
+        $this->assertSame(30, $defaults['checkin_early_minutes']);
+        $this->assertTrue($defaults['guest_checkin_enabled']);
+        $this->assertTrue($defaults['checkout_enabled']);
+        $this->assertSame('first_last_initial', $defaults['kiosk_name_display']);
+
+        $custom = CheckInService::policy_from_chapel([
+            'checkin_early_minutes' => 999,
+            'guest_checkin_enabled' => 0,
+            'checkout_enabled' => 0,
+            'kiosk_name_display' => 'not-valid',
+        ]);
+        $this->assertSame(120, $custom['checkin_early_minutes']);
+        $this->assertFalse($custom['guest_checkin_enabled']);
+        $this->assertFalse($custom['checkout_enabled']);
+        $this->assertSame('first_last_initial', $custom['kiosk_name_display']);
+    }
+
+    public function test_kiosk_name_privacy_modes(): void
+    {
+        $this->assertSame('Maria T.', CheckInService::format_kiosk_name('Maria', 'Therese', 'first_last_initial'));
+        $this->assertSame('Maria', CheckInService::format_kiosk_name('Maria', 'Therese', 'first_name'));
+        $this->assertSame('M.T.', CheckInService::format_kiosk_name('Maria', 'Therese', 'initials'));
+        $this->assertSame('Maria Therese', CheckInService::format_kiosk_name('Maria', 'Therese', 'full_name'));
+        $this->assertSame('Maria T.', CheckInService::format_kiosk_name(' Maria ', ' Therese ', 'unknown'));
+    }
+
     public function test_kiosk_accepts_only_signup_on_live_roster(): void
     {
         $roster = [
