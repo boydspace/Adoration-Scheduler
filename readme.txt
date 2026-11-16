@@ -4,7 +4,7 @@ Tags: adoration, eucharistic adoration, scheduling, church, parish
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.0.10
+Stable tag: 1.0.11
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -145,6 +145,10 @@ Cloudflare Terms of Service: https://www.cloudflare.com/website-terms/
 Cloudflare Privacy Policy: https://www.cloudflare.com/privacypolicy/
 
 == Changelog ==
+
+= 1.0.11 =
+* Fixed a potential fatal conflict when another plugin also provides Action Scheduler.
+* Removed redundant manual Action Scheduler initialization and rely on its standard version-selection lifecycle.
 
 = 1.0.10 =
 * Completed a comprehensive WordPress Plugin Check hardening pass across administrative pages, shortcodes, request handlers, repositories, services, and view templates.

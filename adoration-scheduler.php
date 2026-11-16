@@ -3,7 +3,7 @@
  * Plugin Name: Adoration Scheduler
  * Plugin URI: https://fatherboyd.com/adoration-scheduler
  * Description: A scheduling system for Eucharistic Adoration.
- * Version: 1.0.10
+ * Version: 1.0.11
  * Author: Fr. Andy Boyd
  * Author URI: https://fatherboyd.com
  * Text Domain: adoration-scheduler
@@ -17,7 +17,7 @@ if ( ! defined('ABSPATH') ) {
 
 // Useful constants
 if ( ! defined('ADORATION_SCHEDULER_VERSION') ) {
-    define('ADORATION_SCHEDULER_VERSION', '1.0.10');
+    define('ADORATION_SCHEDULER_VERSION', '1.0.11');
 }
 if ( ! defined('ADORATION_SCHEDULER_FILE') ) {
     define('ADORATION_SCHEDULER_FILE', __FILE__);
@@ -30,7 +30,8 @@ if ( ! defined('ADORATION_SCHEDULER_URL') ) {
 }
 
 // --- Bundle: Action Scheduler ----------------------------------------------
-// Load bundled Action Scheduler (only if not already provided by another plugin).
+// Action Scheduler registers its available version and initializes the selected
+// version itself. Only load our bundled copy when no provider has registered.
 if ( ! class_exists('ActionScheduler_Versions', false) ) {
 
     $adoration_scheduler_as_dir  = ADORATION_SCHEDULER_DIR . 'libraries/action-scheduler/';
@@ -41,19 +42,10 @@ if ( ! class_exists('ActionScheduler_Versions', false) ) {
         require_once $adoration_scheduler_as_main;
     }
 
-    // IMPORTANT: ensure the public API functions are loaded
+    // Ensure the public API functions are available to plugin services.
     if (file_exists($adoration_scheduler_as_api)) {
         require_once $adoration_scheduler_as_api;
     }
-
-    // IMPORTANT: initialize Action Scheduler once WP is ready
-    add_action('plugins_loaded', function () {
-        if (function_exists('action_scheduler_initialize')) {
-            action_scheduler_initialize();
-        } elseif (class_exists('ActionScheduler', false) && method_exists('ActionScheduler', 'init')) {
-            ActionScheduler::init();
-        }
-    }, 0);
 }
 // --------------------------------------------------------------------------
 
