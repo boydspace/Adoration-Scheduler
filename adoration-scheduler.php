@@ -36,15 +36,9 @@ if ( ! class_exists('ActionScheduler_Versions', false) ) {
 
     $adoration_scheduler_as_dir  = ADORATION_SCHEDULER_DIR . 'libraries/action-scheduler/';
     $adoration_scheduler_as_main = $adoration_scheduler_as_dir . 'action-scheduler.php';
-    $adoration_scheduler_as_api  = $adoration_scheduler_as_dir . 'functions.php';
 
     if (file_exists($adoration_scheduler_as_main)) {
         require_once $adoration_scheduler_as_main;
-    }
-
-    // Ensure the public API functions are available to plugin services.
-    if (file_exists($adoration_scheduler_as_api)) {
-        require_once $adoration_scheduler_as_api;
     }
 }
 // --------------------------------------------------------------------------

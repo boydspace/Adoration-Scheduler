@@ -147,8 +147,8 @@ Cloudflare Privacy Policy: https://www.cloudflare.com/privacypolicy/
 == Changelog ==
 
 = 1.0.11 =
-* Fixed a potential fatal conflict when another plugin also provides Action Scheduler.
-* Removed redundant manual Action Scheduler initialization and rely on its standard version-selection lifecycle.
+* Fixed a fatal function-redeclaration conflict when another plugin also provides Action Scheduler.
+* Removed early API loading and redundant manual initialization so the selected Action Scheduler version controls its complete lifecycle.
 
 = 1.0.10 =
 * Completed a comprehensive WordPress Plugin Check hardening pass across administrative pages, shortcodes, request handlers, repositories, services, and view templates.
