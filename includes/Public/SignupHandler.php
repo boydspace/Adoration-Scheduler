@@ -10,6 +10,7 @@ use AdorationScheduler\Domain\Repositories\SignupsRepository;
 use AdorationScheduler\Domain\Repositories\WaitlistRepository;
 use AdorationScheduler\Services\NotificationService;
 use AdorationScheduler\Services\ReminderScheduler;
+use AdorationScheduler\Services\SmsConsentService;
 use AdorationScheduler\Utils\ClergyTitles;
 
 if (!defined('ABSPATH')) exit;
@@ -409,6 +410,14 @@ class SignupHandler {
 
         if ($person_id <= 0) {
             self::redirect_back('err', 'Could not save your contact info. Please double-check and try again.');
+        }
+
+        if (isset($_POST['sms_consent']) && sanitize_text_field(wp_unslash($_POST['sms_consent'])) === '1') {
+            $personsRepo->record_sms_consent(
+                $person_id,
+                SmsConsentService::DISCLOSURE_VERSION,
+                SmsConsentService::SOURCE_PUBLIC_SIGNUP
+            );
         }
 
         /**

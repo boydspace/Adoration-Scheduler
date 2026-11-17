@@ -9,6 +9,7 @@ use AdorationScheduler\Domain\Repositories\PersonsRepository;
 use AdorationScheduler\Frontend\Handlers\ReminderPreferencesHandler;
 use AdorationScheduler\Admin\Pages\SmsSettingsPage;
 use AdorationScheduler\Utils\PhoneNumberFormatter;
+use AdorationScheduler\Services\SmsConsentService;
 
 if ( ! defined('ABSPATH') ) {
     exit;
@@ -100,12 +101,8 @@ class ReminderPreferencesShortcode
                     </p>
 
                     <?php if ($sms_available): ?>
-                        <p class="uk-margin-small">
-                            <label>
-                                <input type="checkbox" class="uk-checkbox" name="sms_reminders" value="1" <?php checked($sms_opt_in); ?> />
-                                Text message reminder
-                            </label>
-                        </p>
+                        <input type="hidden" name="sms_available" value="1" />
+                        <?php SmsConsentService::render_checkbox($uid . '_sms_consent', $sms_opt_in); ?>
                     <?php elseif ($sms_configured && !$has_valid_phone): ?>
                         <p class="uk-text-meta as-muted uk-margin-small">
                             Add a phone number in your Contact Info to enable text message reminders.

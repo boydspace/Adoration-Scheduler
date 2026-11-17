@@ -97,21 +97,47 @@ class SmsSettingsPage {
             self::PAGE_SLUG,
             'adoration_sms_twilio'
         );
+
+        foreach ([
+            'consent_organization_name' => [__('Organization Name', 'adoration-scheduler'), 'field_consent_organization_name'],
+            'privacy_policy_url'        => [__('Privacy Policy URL', 'adoration-scheduler'), 'field_privacy_policy_url'],
+            'sms_terms_url'             => [__('SMS Terms URL', 'adoration-scheduler'), 'field_sms_terms_url'],
+        ] as $id => $field) {
+            add_settings_field($id, $field[0], [__CLASS__, $field[1]], self::PAGE_SLUG, 'adoration_sms_twilio');
+        }
     }
 
     public static function defaults(): array {
+        $site_name = function_exists('get_bloginfo') ? (string)get_bloginfo('name') : 'Your Parish';
+        $privacy_url = function_exists('get_privacy_policy_url') ? (string)get_privacy_policy_url() : '';
+        $home_url = function_exists('home_url') ? (string)home_url('/') : '';
         return [
             'enabled'            => 0,
             'twilio_account_sid' => '',
             'twilio_auth_token'  => '',
             'twilio_from_number' => '',
-            'reminder_sms_body'  => "Reminder: you're signed up for {schedule_title} tomorrow, {slot_date} {slot_start}. — {title_first_name}",
+            'reminder_sms_body'  => 'Reminder: your {schedule_title} hour is scheduled for {slot_date} at {slot_start}. Reply STOP to unsubscribe.',
+            'consent_organization_name' => $site_name,
+            'privacy_policy_url'        => $privacy_url !== '' ? $privacy_url : rtrim($home_url, '/') . '/privacy-policy/',
+            'sms_terms_url'             => rtrim($home_url, '/') . '/sms-terms/',
         ];
     }
 
     public static function get_options(): array {
         $saved = get_option(self::OPTION_NAME, []);
-        return wp_parse_args(is_array($saved) ? $saved : [], self::defaults());
+        $options = wp_parse_args(is_array($saved) ? $saved : [], self::defaults());
+        $options['reminder_sms_body'] = self::normalize_legacy_reminder_template((string)$options['reminder_sms_body']);
+        return $options;
+    }
+
+    private static function normalize_legacy_reminder_template(string $template): string {
+        $legacy_defaults = [
+            "Reminder: you're signed up for {schedule_title} tomorrow, {slot_date} {slot_start}. — {title_first_name}",
+            "Reminder: you're signed up for {schedule_title} tomorrow, {slot_date} {slot_start}. Reply STOP to unsubscribe.",
+        ];
+        return in_array(trim($template), $legacy_defaults, true)
+            ? (string)self::defaults()['reminder_sms_body']
+            : $template;
     }
 
     /**
@@ -158,7 +184,10 @@ class SmsSettingsPage {
             'twilio_account_sid' => sanitize_text_field((string)($opts['twilio_account_sid'] ?? '')),
             'twilio_auth_token'  => $auth_token,
             'twilio_from_number' => $from_number,
-            'reminder_sms_body'  => sanitize_textarea_field((string)($opts['reminder_sms_body'] ?? $defaults['reminder_sms_body'])),
+            'reminder_sms_body'  => self::normalize_legacy_reminder_template(sanitize_textarea_field((string)($opts['reminder_sms_body'] ?? $defaults['reminder_sms_body']))),
+            'consent_organization_name' => sanitize_text_field((string)($opts['consent_organization_name'] ?? $defaults['consent_organization_name'])),
+            'privacy_policy_url'        => esc_url_raw((string)($opts['privacy_policy_url'] ?? $defaults['privacy_policy_url'])),
+            'sms_terms_url'             => esc_url_raw((string)($opts['sms_terms_url'] ?? $defaults['sms_terms_url'])),
         ];
     }
 
@@ -166,6 +195,11 @@ class SmsSettingsPage {
         echo '<p style="max-width:900px;">' .
             esc_html__('Makes text-message reminders (via Twilio) available at this parish, alongside the existing email reminder. This only turns SMS ON as an option — each person still separately chooses whether they want it on their own "Reminder Preferences" dashboard widget; enabling this does not start texting anyone by itself.', 'adoration-scheduler') .
         '</p>';
+        if (class_exists('AdorationScheduler\\Public\\TwilioSmsWebhookHandler')) {
+            echo '<p><strong>' . esc_html__('Twilio incoming-message webhook:', 'adoration-scheduler') . '</strong> <code>' .
+                esc_html(\AdorationScheduler\Public\TwilioSmsWebhookHandler::webhook_url()) . '</code><br>' .
+                esc_html__('Configure this exact URL for incoming messages on the Twilio phone number. Signed STOP requests immediately withdraw consent.', 'adoration-scheduler') . '</p>';
+        }
     }
 
     public static function field_enabled(): void {
@@ -237,6 +271,23 @@ class SmsSettingsPage {
             ); ?>
         </p>
         <?php
+    }
+
+    public static function field_consent_organization_name(): void {
+        $o = self::get_options();
+        printf('<input type="text" class="regular-text" name="%s[consent_organization_name]" value="%s" required>', esc_attr(self::OPTION_NAME), esc_attr((string)$o['consent_organization_name']));
+        echo '<p class="description">' . esc_html__('Shown verbatim in the volunteer SMS consent disclosure.', 'adoration-scheduler') . '</p>';
+    }
+
+    public static function field_privacy_policy_url(): void {
+        $o = self::get_options();
+        printf('<input type="url" class="regular-text code" name="%s[privacy_policy_url]" value="%s" required>', esc_attr(self::OPTION_NAME), esc_attr((string)$o['privacy_policy_url']));
+    }
+
+    public static function field_sms_terms_url(): void {
+        $o = self::get_options();
+        printf('<input type="url" class="regular-text code" name="%s[sms_terms_url]" value="%s" required>', esc_attr(self::OPTION_NAME), esc_attr((string)$o['sms_terms_url']));
+        echo '<p class="description">' . esc_html__('The public page describing SMS program terms, STOP, HELP, frequency, and possible carrier charges.', 'adoration-scheduler') . '</p>';
     }
 
     /**

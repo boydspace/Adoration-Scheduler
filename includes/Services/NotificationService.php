@@ -536,7 +536,7 @@ class NotificationService
                 $slot_start = trim((string)($args['slot_start'] ?? ''));
                 $when = trim($slot_date . ' ' . $slot_start);
                 return $when !== ''
-                    ? sprintf('Reminder: Adoration Tomorrow (%s)', $when)
+                    ? sprintf('Reminder: Upcoming Adoration (%s)', $when)
                     : sprintf('[%s] Reminder', $schedule_name);
 
             case 'access_request_admin':

@@ -41,7 +41,9 @@ class SmsService
         // actually wants a text is their own choice, set on
         // [adoration_reminder_preferences] and passed through by
         // ReminderScheduler::send_reminder(). Off by default.
-        if (empty($args['sms_reminder_opt_in'])) {
+        if (empty($args['sms_reminder_opt_in'])
+            || trim((string)($args['sms_consent_at'] ?? '')) === ''
+            || trim((string)($args['sms_consent_version'] ?? '')) === '') {
             return true;
         }
 
@@ -52,6 +54,7 @@ class SmsService
 
         $template = (string) SmsSettingsPage::get_options()['reminder_sms_body'];
         $message  = NotificationService::replace_tokens($template, $args);
+        $message  = self::ensure_compliance_text($message);
 
         $result = self::provider()->send($to_e164, $message);
 
@@ -84,5 +87,17 @@ class SmsService
             (string) $o['twilio_auth_token'],
             (string) $o['twilio_from_number']
         );
+    }
+
+    private static function ensure_compliance_text(string $message): string
+    {
+        $organization = trim((string)SmsSettingsPage::get_options()['consent_organization_name']);
+        if ($organization !== '' && stripos($message, $organization) === false) {
+            $message = $organization . ': ' . ltrim($message);
+        }
+        if (stripos($message, 'STOP') === false) {
+            $message = rtrim($message) . ' Reply STOP to unsubscribe.';
+        }
+        return $message;
     }
 }

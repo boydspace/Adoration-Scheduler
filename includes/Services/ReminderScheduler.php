@@ -279,6 +279,8 @@ class ReminderScheduler {
             'context'        => 'system',
             'send'           => $email_opt_in,
             'sms_reminder_opt_in' => $sms_opt_in,
+            'sms_consent_at'      => (string)($person['sms_consent_at'] ?? ''),
+            'sms_consent_version' => (string)($person['sms_consent_version'] ?? ''),
             'signup_id'      => $signup_id, // deterministic dedupe
         ];
 

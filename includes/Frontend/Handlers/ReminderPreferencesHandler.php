@@ -7,6 +7,7 @@ use AdorationScheduler\Services\MagicLinkService;
 use AdorationScheduler\Services\ReminderScheduler;
 use AdorationScheduler\Domain\Repositories\PersonsRepository;
 use AdorationScheduler\Domain\Repositories\SignupsRepository;
+use AdorationScheduler\Services\SmsConsentService;
 
 /**
  * Saves a person's own reminder channel preferences (email/SMS/lead time),
@@ -80,7 +81,10 @@ class ReminderPreferencesHandler
 
         // Checkboxes are only present in POST when checked — absence means "off".
         $email_opt_in = isset($_POST['email_reminders']);
-        $sms_opt_in   = isset($_POST['sms_reminders']);
+        $sms_control_present = isset($_POST['sms_available']);
+        $sms_opt_in = $sms_control_present
+            ? isset($_POST['sms_consent'])
+            : (new PersonsRepository())->is_sms_reminder_opt_in($person);
 
         $lead_hours = isset($_POST['reminder_lead_hours']) ? absint(wp_unslash($_POST['reminder_lead_hours'])) : 24;
 
@@ -108,7 +112,14 @@ class ReminderPreferencesHandler
             $lead_hours = 24;
         }
 
-        $ok = (new PersonsRepository())->set_reminder_preferences($person_id, $email_opt_in, $sms_opt_in, $lead_hours);
+        $ok = (new PersonsRepository())->set_reminder_preferences(
+            $person_id,
+            $email_opt_in,
+            $sms_opt_in,
+            $lead_hours,
+            SmsConsentService::DISCLOSURE_VERSION,
+            SmsConsentService::SOURCE_REMINDER_PREFERENCES
+        );
 
         if (!$ok) {
             return false;

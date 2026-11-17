@@ -29,6 +29,9 @@ final class SmsServiceTest extends AdorationTestCase
             'twilio_auth_token'  => '',
             'twilio_from_number' => '',
             'reminder_sms_body'  => 'Reminder: {schedule_title} at {slot_start}.',
+            'consent_organization_name' => 'Test Parish',
+            'privacy_policy_url' => 'https://example.test/privacy/',
+            'sms_terms_url'      => 'https://example.test/sms-terms/',
         ];
 
         Functions\when('get_option')->alias(function ($name, $default = false) {
@@ -52,6 +55,9 @@ final class SmsServiceTest extends AdorationTestCase
             'twilio_auth_token'  => 'secret',
             'twilio_from_number' => '+15550001111',
             'reminder_sms_body'  => 'Reminder: {schedule_title} at {slot_start}.',
+            'consent_organization_name' => 'Test Parish',
+            'privacy_policy_url' => 'https://example.test/privacy/',
+            'sms_terms_url'      => 'https://example.test/sms-terms/',
         ];
     }
 
@@ -70,10 +76,22 @@ final class SmsServiceTest extends AdorationTestCase
         $ok = SmsService::send_reminder_sms([
             'phone'               => '(555) 123-4567',
             'sms_reminder_opt_in' => true,
+            'sms_consent_at'      => '2026-11-17 12:00:00',
+            'sms_consent_version' => '2026-11-17-v1',
         ]);
 
         $this->assertTrue($ok);
         $this->assertFalse($called, 'Twilio should never be contacted when SMS is not configured');
+    }
+
+    public function test_legacy_stock_tomorrow_template_is_migrated_to_interval_neutral_wording(): void
+    {
+        $this->sms_options['reminder_sms_body'] = "Reminder: you're signed up for {schedule_title} tomorrow, {slot_date} {slot_start}. — {title_first_name}";
+
+        $this->assertSame(
+            'Reminder: your {schedule_title} hour is scheduled for {slot_date} at {slot_start}. Reply STOP to unsubscribe.',
+            SmsSettingsPage::get_options()['reminder_sms_body']
+        );
     }
 
     public function test_send_reminder_sms_noops_when_person_opted_out(): void
@@ -100,10 +118,27 @@ final class SmsServiceTest extends AdorationTestCase
         $ok = SmsService::send_reminder_sms([
             'phone'               => 'not a phone number',
             'sms_reminder_opt_in' => true,
+            'sms_consent_at'      => '2026-11-17 12:00:00',
+            'sms_consent_version' => '2026-11-17-v1',
         ]);
 
         $this->assertTrue($ok);
         $this->assertFalse($called, 'Twilio should never be contacted with no valid phone number');
+    }
+
+    public function test_send_reminder_sms_noops_for_legacy_boolean_without_audit_consent(): void
+    {
+        $this->configure_sms();
+        $called = false;
+        Functions\when('wp_remote_post')->alias(function (...$a) use (&$called) { $called = true; return []; });
+
+        $ok = SmsService::send_reminder_sms([
+            'phone' => '(555) 123-4567',
+            'sms_reminder_opt_in' => true,
+        ]);
+
+        $this->assertTrue($ok);
+        $this->assertFalse($called);
     }
 
     public function test_send_reminder_sms_sends_when_fully_cleared(): void
@@ -122,6 +157,8 @@ final class SmsServiceTest extends AdorationTestCase
         $ok = SmsService::send_reminder_sms([
             'phone'               => '(555) 123-4567',
             'sms_reminder_opt_in' => true,
+            'sms_consent_at'      => '2026-11-17 12:00:00',
+            'sms_consent_version' => '2026-11-17-v1',
             'schedule_title'      => 'Weekly Adoration',
             'slot_start'          => '10:00 AM',
         ]);
@@ -129,7 +166,7 @@ final class SmsServiceTest extends AdorationTestCase
         $this->assertTrue($ok);
         $this->assertNotNull($captured, 'Twilio should be contacted once every gate passes');
         $this->assertSame('+15551234567', $captured['body']['To']);
-        $this->assertSame('Reminder: Weekly Adoration at 10:00 AM.', $captured['body']['Body']);
+        $this->assertSame('Test Parish: Reminder: Weekly Adoration at 10:00 AM. Reply STOP to unsubscribe.', $captured['body']['Body']);
     }
 
     public function test_send_reminder_sms_returns_false_on_provider_failure(): void
@@ -140,6 +177,8 @@ final class SmsServiceTest extends AdorationTestCase
         $ok = SmsService::send_reminder_sms([
             'phone'               => '(555) 123-4567',
             'sms_reminder_opt_in' => true,
+            'sms_consent_at'      => '2026-11-17 12:00:00',
+            'sms_consent_version' => '2026-11-17-v1',
         ]);
 
         $this->assertFalse($ok);

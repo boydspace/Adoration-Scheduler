@@ -964,6 +964,15 @@ class Plugin {
             $standingHandlerClass::register();
         }
 
+        self::require_first_existing($includes_dir, [
+            'Public/TwilioSmsWebhookHandler.php',
+            'public/TwilioSmsWebhookHandler.php',
+        ]);
+        $twilioWebhookClass = 'AdorationScheduler\\Public\\TwilioSmsWebhookHandler';
+        if (class_exists($twilioWebhookClass) && method_exists($twilioWebhookClass, 'register')) {
+            $twilioWebhookClass::register();
+        }
+
         // ✅ Public "Request Access" submissions (privacy/approval gate)
         self::require_first_existing($includes_dir, [
             'Public/AccessRequestHandler.php',

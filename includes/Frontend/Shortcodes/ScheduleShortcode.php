@@ -10,6 +10,7 @@ use AdorationScheduler\Domain\Repositories\StandingCommitmentsRepository;
 use AdorationScheduler\Domain\Services\PerpetualSlotGenerator;
 use AdorationScheduler\Utils\NameFormatter;
 use AdorationScheduler\Utils\ClergyTitles;
+use AdorationScheduler\Services\SmsConsentService;
 use AdorationScheduler\Utils\CapacityBadge;
 use AdorationScheduler\Frontend\UikitLoader;
 use AdorationScheduler\Services\AccessGateService;
@@ -784,6 +785,9 @@ class ScheduleShortcode {
                                         <input class="uk-input" type="text" name="phone" id="<?php echo esc_attr($phone_id); ?>" required placeholder="(555) 123-4567" value="<?php echo $cp_phone; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- already esc_attr()'d at assignment. ?>">
                                     </div>
                                 </div>
+                                <div class="uk-width-1-1">
+                                    <?php SmsConsentService::render_checkbox($uid . '_standing_sms_consent'); ?>
+                                </div>
                             </div>
 
                             <?php if ($turnstile_enabled && $turnstile_site_key !== '') : ?>
@@ -871,6 +875,10 @@ class ScheduleShortcode {
                                 <tr>
                                     <th><label for="<?php echo esc_attr($uid); ?>_fb_phone">Phone</label></th>
                                     <td><input type="text" name="phone" id="<?php echo esc_attr($uid); ?>_fb_phone" class="regular-text" required placeholder="(555) 123-4567" data-as-fb-phone="1" value="<?php echo $cp_phone; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- already esc_attr()'d at assignment. ?>"></td>
+                                </tr>
+                                <tr>
+                                    <th><?php esc_html_e('SMS reminders', 'adoration-scheduler'); ?></th>
+                                    <td><?php SmsConsentService::render_checkbox($uid . '_fb_standing_sms_consent'); ?></td>
                                 </tr>
                             </table>
 
@@ -1329,6 +1337,9 @@ class ScheduleShortcode {
                                         <input class="uk-input" type="text" name="phone" id="<?php echo esc_attr($phone_id); ?>" required placeholder="(555) 123-4567" value="<?php echo $cp_phone; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- already esc_attr()'d at assignment. ?>">
                                     </div>
                                 </div>
+                                <div class="uk-width-1-1">
+                                    <?php SmsConsentService::render_checkbox($uid . '_signup_sms_consent'); ?>
+                                </div>
                             </div>
 
                             <?php if ($turnstile_enabled && $turnstile_site_key !== '') : ?>
@@ -1404,6 +1415,10 @@ class ScheduleShortcode {
                                 <tr>
                                     <th><label for="<?php echo esc_attr($uid); ?>_fb2_phone">Phone</label></th>
                                     <td><input type="text" name="phone" id="<?php echo esc_attr($uid); ?>_fb2_phone" class="regular-text" required placeholder="(555) 123-4567" data-as-fb-phone="1" value="<?php echo $cp_phone; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- already esc_attr()'d at assignment. ?>"></td>
+                                </tr>
+                                <tr>
+                                    <th><?php esc_html_e('SMS reminders', 'adoration-scheduler'); ?></th>
+                                    <td><?php SmsConsentService::render_checkbox($uid . '_fb_signup_sms_consent'); ?></td>
                                 </tr>
                             </table>
 

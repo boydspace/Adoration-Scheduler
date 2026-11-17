@@ -51,7 +51,7 @@ class EmailTemplatesPage {
                 "God bless,\n".
                 "{church_name}\n",
 
-            'reminder_24h_subject' => 'Reminder: Adoration Tomorrow ({slot_date} {slot_start})',
+            'reminder_24h_subject' => 'Reminder: Upcoming Adoration ({slot_date} {slot_start})',
             'reminder_24h_body'    =>
                 "Hello {title_first_name},\n\n".
                 "This is a friendly reminder that you are scheduled for Eucharistic Adoration.\n\n".
@@ -166,7 +166,11 @@ class EmailTemplatesPage {
     public static function get_templates(): array {
         $saved = get_option(self::OPTION_KEY);
         $saved = is_array($saved) ? $saved : [];
-        return array_merge(self::defaults(), $saved);
+        $templates = array_merge(self::defaults(), $saved);
+        if (trim((string)($templates['reminder_24h_subject'] ?? '')) === 'Reminder: Adoration Tomorrow ({slot_date} {slot_start})') {
+            $templates['reminder_24h_subject'] = self::defaults()['reminder_24h_subject'];
+        }
+        return $templates;
     }
 
     /**

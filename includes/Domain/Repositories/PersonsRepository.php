@@ -803,7 +803,63 @@ class PersonsRepository {
     }
 
     public function is_sms_reminder_opt_in(array $person): bool {
-        return !empty($person['sms_reminder_opt_in']);
+        return \AdorationScheduler\Services\SmsConsentService::has_valid_consent($person);
+    }
+
+    public function record_sms_consent(int $person_id, string $version, string $source): bool {
+        global $wpdb;
+        if ($person_id <= 0 || $version === '' || $source === '') return false;
+
+        $res = $wpdb->update(
+            $this->table,
+            [
+                'sms_reminder_opt_in' => 1,
+                'sms_consent_at'      => current_time('mysql', true),
+                'sms_consent_version' => sanitize_key($version),
+                'sms_consent_source'  => sanitize_key($source),
+                'sms_opt_out_at'      => null,
+            ],
+            ['id' => $person_id],
+            ['%d', '%s', '%s', '%s', null],
+            ['%d']
+        );
+        return $res !== false;
+    }
+
+    public function withdraw_sms_consent(int $person_id): bool {
+        global $wpdb;
+        if ($person_id <= 0) return false;
+        return $wpdb->update(
+            $this->table,
+            ['sms_reminder_opt_in' => 0, 'sms_opt_out_at' => current_time('mysql', true)],
+            ['id' => $person_id],
+            ['%d', '%s'],
+            ['%d']
+        ) !== false;
+    }
+
+    public function withdraw_sms_consent_by_phone(string $phone_e164): int {
+        global $wpdb;
+        $digits = preg_replace('/\D+/', '', $phone_e164);
+        if ($digits === null || strlen($digits) !== 11 || $digits[0] !== '1') return 0;
+        $national = substr($digits, 1);
+        $variants = [
+            $phone_e164,
+            $digits,
+            $national,
+            substr($national, 0, 3) . '-' . substr($national, 3, 3) . '-' . substr($national, 6),
+            '(' . substr($national, 0, 3) . ') ' . substr($national, 3, 3) . '-' . substr($national, 6),
+        ];
+        $ids = (array)$wpdb->get_col($wpdb->prepare(
+            'SELECT id FROM %i WHERE phone IN (%s, %s, %s, %s, %s)',
+            $this->table,
+            ...$variants
+        ));
+        $updated = 0;
+        foreach ($ids as $id) {
+            if ($this->withdraw_sms_consent((int)$id)) $updated++;
+        }
+        return $updated;
     }
 
     /**
@@ -821,7 +877,7 @@ class PersonsRepository {
         return $hours;
     }
 
-    public function set_reminder_preferences(int $person_id, bool $email_opt_in, bool $sms_opt_in, int $lead_hours): bool {
+    public function set_reminder_preferences(int $person_id, bool $email_opt_in, bool $sms_opt_in, int $lead_hours, string $consent_version = '', string $consent_source = ''): bool {
         global $wpdb;
 
         if ($person_id <= 0) return false;
@@ -832,15 +888,16 @@ class PersonsRepository {
             $this->table,
             [
                 'email_reminder_opt_in' => $email_opt_in ? 1 : 0,
-                'sms_reminder_opt_in'   => $sms_opt_in ? 1 : 0,
                 'reminder_lead_hours'   => $lead_hours,
             ],
             ['id' => $person_id],
-            ['%d', '%d', '%d'],
+            ['%d', '%d'],
             ['%d']
         );
-
-        return $res !== false;
+        if ($res === false) return false;
+        return $sms_opt_in
+            ? $this->record_sms_consent($person_id, $consent_version, $consent_source)
+            : $this->withdraw_sms_consent($person_id);
     }
 
     /**

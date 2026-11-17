@@ -14,7 +14,7 @@ class Installer {
      * Bump this whenever you change DB schema.
      * Keep it monotonic.
      */
-    public const DB_VERSION = '2026-07-21-02';
+    public const DB_VERSION = '2026-11-17-01';
 
     /**
      * Plugin capabilities (v1.0 guard rails).
@@ -476,6 +476,10 @@ class Installer {
         // ✅ Per-person reminder channel preferences (2026-07-21).
         if (!self::column_exists($persons_table, 'email_reminder_opt_in')) return false;
         if (!self::column_exists($persons_table, 'sms_reminder_opt_in'))   return false;
+        if (!self::column_exists($persons_table, 'sms_consent_at'))       return false;
+        if (!self::column_exists($persons_table, 'sms_consent_version'))  return false;
+        if (!self::column_exists($persons_table, 'sms_consent_source'))   return false;
+        if (!self::column_exists($persons_table, 'sms_opt_out_at'))       return false;
         if (!self::column_exists($persons_table, 'reminder_lead_hours'))   return false;
 
         // ✅ Clergy title + parish profile fields (2026-07-16).
@@ -768,6 +772,10 @@ class Installer {
             substitute_opt_in TINYINT(1) NOT NULL DEFAULT 0,
             email_reminder_opt_in TINYINT(1) NOT NULL DEFAULT 1,
             sms_reminder_opt_in TINYINT(1) NOT NULL DEFAULT 0,
+            sms_consent_at DATETIME NULL,
+            sms_consent_version VARCHAR(50) NULL,
+            sms_consent_source VARCHAR(50) NULL,
+            sms_opt_out_at DATETIME NULL,
             reminder_lead_hours SMALLINT UNSIGNED NOT NULL DEFAULT 24,
             calendar_token CHAR(64) NULL,
             anonymized_at DATETIME NULL,
@@ -1616,6 +1624,10 @@ class Installer {
         if (!isset($have['sms_reminder_opt_in'])) {
             $alters[] = "ADD COLUMN sms_reminder_opt_in TINYINT(1) NOT NULL DEFAULT 0";
         }
+        if (!isset($have['sms_consent_at']))      $alters[] = "ADD COLUMN sms_consent_at DATETIME NULL";
+        if (!isset($have['sms_consent_version'])) $alters[] = "ADD COLUMN sms_consent_version VARCHAR(50) NULL";
+        if (!isset($have['sms_consent_source']))  $alters[] = "ADD COLUMN sms_consent_source VARCHAR(50) NULL";
+        if (!isset($have['sms_opt_out_at']))      $alters[] = "ADD COLUMN sms_opt_out_at DATETIME NULL";
 
         // ✅ Configurable reminder lead time (2026-07-21): replaces a
         // hardcoded "always 24h before" — a fixed offset reproduces the

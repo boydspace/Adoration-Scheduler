@@ -4,7 +4,7 @@ Tags: adoration, eucharistic adoration, scheduling, church, parish
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.0.12
+Stable tag: 1.0.13
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -132,9 +132,9 @@ Visit https://fatherboyd.com/adoration-scheduler for documentation and updates.
 This plugin optionally connects to Twilio's SMS API to deliver text message reminders. This only happens if:
 
 1. A site administrator enables SMS reminders and enters their own Twilio account credentials (Account SID, Auth Token, and phone number) under Adoration Scheduler > SMS Reminders, AND
-2. An individual adorer separately opts in to text reminders on their own "Reminder Preferences" dashboard widget.
+2. An individual adorer affirmatively checks the optional SMS consent disclosure during signup or in their own "Reminder Preferences" dashboard widget.
 
-If both conditions are met, this plugin sends the adorer's phone number and a reminder message (which includes their name and adoration schedule details) to Twilio's API (api.twilio.com) so it can be delivered as a text message. No data is sent to Twilio for any adorer who has not opted in, and no data is sent to Twilio at all unless an administrator has configured it.
+If both conditions are met, this plugin sends the adorer's phone number and a reminder message (which includes their name and adoration schedule details) to Twilio's API (api.twilio.com) so it can be delivered as a text message. No data is sent to Twilio for any adorer who has not opted in, and no data is sent to Twilio at all unless an administrator has configured it. When the administrator configures the supplied incoming-message webhook in Twilio, Twilio sends the originating phone number, message body, and opt-out classification back to the site so STOP requests can immediately disable future plugin messages. Twilio signs these webhook requests, and the plugin rejects invalid signatures.
 
 Twilio Terms of Service: https://www.twilio.com/legal/tos
 Twilio Privacy Policy: https://www.twilio.com/legal/privacy
@@ -145,6 +145,12 @@ Cloudflare Terms of Service: https://www.cloudflare.com/website-terms/
 Cloudflare Privacy Policy: https://www.cloudflare.com/privacypolicy/
 
 == Changelog ==
+
+= 1.0.13 =
+* Added explicit, optional SMS consent disclosures to public Adoration signup and My Adoration reminder preferences.
+* Recorded each SMS consent timestamp, disclosure version, and acquisition source; existing boolean preferences without this audit record no longer authorize messages.
+* Added immediate consent withdrawal and a signed Twilio incoming-message webhook that honors STOP requests.
+* Added configurable organization, privacy-policy, and SMS-terms details, and ensured outgoing reminders identify the organization and include STOP instructions.
 
 = 1.0.12 =
 * Fixed the Schedules administration table returning no rows on MySQL 8.4 when its date filters were blank.
