@@ -608,6 +608,7 @@ class SchedulesRepository {
             'created_at' => 'created_at',
             'name'       => 'name',
             'slug'       => 'slug',
+            'type'       => 'type',
             'status'     => 'status',
             'start_date' => 'start_date',
             'end_date'   => 'end_date',
@@ -615,10 +616,20 @@ class SchedulesRepository {
         $orderby = $allowed_orderby[(string)$a['orderby']] ?? 'created_at';
         $order   = strtoupper((string)$a['order']) === 'ASC' ? 'ASC' : 'DESC';
 
-        $start_from = sanitize_text_field((string)$a['start_from']);
-        $start_to   = sanitize_text_field((string)$a['start_to']);
-        $end_from   = sanitize_text_field((string)$a['end_from']);
-        $end_to     = sanitize_text_field((string)$a['end_to']);
+        $start_from = $this->normalize_admin_date_filter((string)$a['start_from']);
+        $start_to   = $this->normalize_admin_date_filter((string)$a['start_to']);
+        $end_from   = $this->normalize_admin_date_filter((string)$a['end_from']);
+        $end_to     = $this->normalize_admin_date_filter((string)$a['end_to']);
+
+        // MySQL 8.4 validates both sides of an OR expression, so comparing a
+        // DATE column with an empty string fails even when the preceding
+        // "%s = ''" condition makes that filter a logical no-op. Keep the
+        // blank values as enable/disable flags, but always provide valid DATE
+        // values for the comparisons themselves.
+        $start_from_value = $start_from !== '' ? $start_from : '1000-01-01';
+        $start_to_value   = $start_to !== '' ? $start_to : '9999-12-31';
+        $end_from_value   = $end_from !== '' ? $end_from : '1000-01-01';
+        $end_to_value     = $end_to !== '' ? $end_to : '9999-12-31';
         $like = '%' . $wpdb->esc_like($search) . '%';
 
         // Every filter below is expressed as an always-present, parameterized
@@ -638,10 +649,10 @@ class SchedulesRepository {
             $this->table,
             $status, $status, $status, self::STATUS_TRASH,
             $search, $like, $like,
-            $start_from, $start_from,
-            $start_to, $start_to,
-            $end_from, $end_from,
-            $end_to, $end_to
+            $start_from, $start_from_value,
+            $start_to, $start_to_value,
+            $end_from, $end_from_value,
+            $end_to, $end_to_value
         );
         // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- Query is prepared above or assembled only from fixed/schema-validated fragments; dynamic values and identifiers use placeholders.
         $total = (int)$wpdb->get_var($count_prepared);
@@ -662,10 +673,10 @@ class SchedulesRepository {
             $this->table,
             $status, $status, $status, self::STATUS_TRASH,
             $search, $like, $like,
-            $start_from, $start_from,
-            $start_to, $start_to,
-            $end_from, $end_from,
-            $end_to, $end_to,
+            $start_from, $start_from_value,
+            $start_to, $start_to_value,
+            $end_from, $end_from_value,
+            $end_to, $end_to_value,
             $order, $orderby, $order, $orderby,
             $per_page, $offset
         );
@@ -677,6 +688,15 @@ class SchedulesRepository {
             'items' => $items,
             'total' => $total,
         ];
+    }
+
+    private function normalize_admin_date_filter(string $value): string {
+        $value = sanitize_text_field($value);
+        if (!preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $value, $matches)) {
+            return '';
+        }
+
+        return checkdate((int)$matches[2], (int)$matches[3], (int)$matches[1]) ? $value : '';
     }
 
     /**

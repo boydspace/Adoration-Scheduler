@@ -4,7 +4,7 @@ Tags: adoration, eucharistic adoration, scheduling, church, parish
 Requires at least: 6.2
 Tested up to: 7.0
 Requires PHP: 8.0
-Stable tag: 1.0.11
+Stable tag: 1.0.12
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -145,6 +145,10 @@ Cloudflare Terms of Service: https://www.cloudflare.com/website-terms/
 Cloudflare Privacy Policy: https://www.cloudflare.com/privacypolicy/
 
 == Changelog ==
+
+= 1.0.12 =
+* Fixed the Schedules administration table returning no rows on MySQL 8.4 when its date filters were blank.
+* Validated schedule date filters and fixed sorting by schedule type.
 
 = 1.0.11 =
 * Fixed a fatal function-redeclaration conflict when another plugin also provides Action Scheduler.
